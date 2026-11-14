@@ -131,6 +131,34 @@ const RANGE: Record<string, [number, number]> = {
 
 const DEF = new Map(PARAM_DEFS.map((d) => [d.name, d.def]));
 
+/*
+  How ArduCopter 4.6 stores each whole-number setting, as MAV_PARAM_TYPE
+  (2 INT8, 4 INT16, 6 INT32), read from the declarations in its source. Every
+  other parameter here is a float (9). The virtual aircraft reports these
+  types and stores values the way the firmware does, so a page that would
+  send 2.5 to an integer setting finds out here, not on the bench.
+*/
+export const PARAM_TYPES: Record<string, number> = {
+  ANGLE_MAX: 4, RTL_ALT: 6, RTL_SPEED: 4, RTL_LOIT_TIME: 6, RTL_ALT_FINAL: 4, LAND_SPEED: 4, LAND_ALT_LOW: 4,
+  DISARM_DELAY: 2, PILOT_SPEED_UP: 4, BATT_CAPACITY: 6, BATT_LOW_TIMER: 2, BATT_FS_LOW_ACT: 2, BATT_FS_CRT_ACT: 2,
+  FS_THR_ENABLE: 2, FS_GCS_ENABLE: 2, FS_OPTIONS: 6, FS_EKF_ACTION: 2, FS_CRASH_CHECK: 2, FENCE_ENABLE: 2,
+  FENCE_TYPE: 2, FENCE_ACTION: 2, ARMING_CHECK: 6, AUTO_OPTIONS: 6, SYSID_THISMAV: 4,
+};
+const INT_RANGE: Record<number, [number, number]> = { 2: [-128, 127], 4: [-32768, 32767], 6: [-2147483648, 2147483647] };
+
+/**
+ * What the firmware keeps when a ground station writes `value`: whole-number
+ * settings are truncated after a 0.01 nudge (AP_Param::set_float) and held to
+ * what the type can hold; floats are stored as 32-bit floats.
+ */
+export function storedValue(name: string, value: number): number {
+  const t = PARAM_TYPES[name];
+  if (t === undefined) return Math.fround(value);
+  const [lo, hi] = INT_RANGE[t];
+  const n = Math.trunc(value + (value < 0 ? -0.01 : 0.01));
+  return Math.min(hi, Math.max(lo, n));
+}
+
 /** The value the simulator will use for a parameter, held inside its range. */
 export function sanitizeParam(name: string, value: number): number {
   if (!Number.isFinite(value)) return DEF.get(name) ?? 0;

@@ -49,9 +49,10 @@ npm test         # run the protocol and link unit tests (Vitest)
 - Honest states throughout: *waiting for heartbeat*, *no heartbeat* (with a
   baud-rate hint when bytes arrive but don't parse), *stale*, *lost*, *error*,
   each with recovery guidance.
-- **The link is listen-only.** Nothing is ever written to the serial port, so
-  the app cannot arm, change modes, spin motors or write parameters. Commands
-  arrive in Phase 4 with acknowledgement tracking.
+- **Commands only to ArduCopter, always confirmed.** Arming, modes, take-off,
+  missions, calibration and parameter writes go only to an ArduPilot
+  multicopter, wait for its acknowledgement, and are reported in plain words
+  when refused. Anything else is shown and read, never commanded.
 
 ### Telemetry & Diagnostics — real
 - Per-message rates, a CRC-validated raw frame table, link-health counters and
@@ -61,6 +62,29 @@ npm test         # run the protocol and link unit tests (Vitest)
 - Local **vehicle profiles** (frame, board, declared firmware, mass, dimensions,
   notes), persisted in the browser. Profiles describe *your* airframe and never
   override what a connected controller reports; a mismatch is flagged.
+
+### Parameters — real
+- Every setting on the flight controller with **what it is for**: ArduPilot's
+  plain name, description, units, documented range, step, named options and
+  bits, and whether it needs a reboot. The text is generated from the
+  ArduCopter 4.7.2 and 4.6.3 sources with ArduPilot's own `param_parse.py`
+  (`scripts/param-metadata/generate.py`), the same documentation Mission
+  Planner uses. The right version is picked from the names the aircraft uses,
+  and helicopter frames get the helicopter definitions.
+- Search by name or by what a setting does ("waypoint speed", "battery low").
+- Editors that fit the value: a list of options, a switch per bit, or a number
+  with its unit. Values are checked before they are staged: whole-number
+  settings refuse decimals and sizes they cannot hold, read-only settings are
+  locked, and a value outside the documented range needs an explicit "use it
+  anyway".
+- Nothing is written until Upload, which asks first and says which changes
+  need a reboot; a reminder with a Reboot button stays until it is done.
+- **Load a file** (Mission Planner or QGroundControl format) to see every
+  difference from the aircraft and choose what to stage. Calibrations, device
+  IDs and counters start unticked; values that cannot be stored cannot be
+  ticked. **Save** writes a Mission-Planner-compatible `.param` file.
+- On both firmware versions, every setting the real ArduCopter reports has a
+  description (checked by the `sitl/` suite).
 
 ### Overview — real
 - A live 3D hero: a procedural quadcopter flying a **scripted preview path**

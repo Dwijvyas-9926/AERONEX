@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -149,6 +149,12 @@ describe.skipIf(!BIN)("the planner against real ArduCopter (SITL)", () => {
     if (process.env.PARAM_DUMP) writeFileSync(process.env.PARAM_DUMP, Object.keys(raw).sort().join("\n") + "\n");
     expect(absent).toEqual([]);
     expect(arming).toBe(true);
+    // Every setting this firmware reports has a description in the documentation the Parameters page loads.
+    const { metaVersionFor } = await import("../src/mavlink/paramMeta");
+    const docs = JSON.parse(readFileSync(new URL(`../src/mavlink/params/copter-${metaVersionFor(raw)}.json`, import.meta.url), "utf8")) as { params: Record<string, unknown> };
+    const undocumented = Object.keys(raw).filter((n) => !n.startsWith("SIM_") && !docs.params[n]);
+    say(`Parameters with a description: ${Object.keys(raw).length - undocumented.length} of ${Object.keys(raw).length} (simulation-only SIM_ settings aside)`);
+    expect(undocumented).toEqual([]);
     // The values must be in the units the app works in.
     expect(named.RTL_ALT).toBeGreaterThanOrEqual(0);
     expect(named.WPNAV_SPEED).toBeGreaterThan(100);

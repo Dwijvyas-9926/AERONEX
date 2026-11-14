@@ -853,7 +853,7 @@ class CommandLink {
         // by name — and is not a position in the download.
         const index = d.param_index as number;
         if (Number.isInteger(index) && index >= 0 && index < 65535) this.seenIndices.add(index);
-        useParams.getState().onParamValue(id, value, count);
+        useParams.getState().onParamValue(id, value, count, d.param_type as number | undefined);
         const pend = this.pendingParams.get(id);
         // The vehicle echoes a float32; compare against the float32-rounded target
         // with a relative epsilon so large non-integer params still match.

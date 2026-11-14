@@ -21,13 +21,14 @@ export function useParamEdits() {
   const clearEdit = useCallback((name: string) => setEdits((e) => { const n = { ...e }; delete n[name]; return n; }), []);
   const revert = useCallback(() => setEdits({}), []);
 
-  const upload = useCallback(async () => {
+  /** Write every staged edit. Resolves to the names the vehicle confirmed. */
+  const upload = useCallback(async (): Promise<string[]> => {
     const entries = Object.entries(edits);
-    if (!entries.length) return;
+    if (!entries.length) return [];
     const bad = entries.filter(([, v]) => !Number.isFinite(v)).map(([n]) => n);
     if (bad.length) {
       notify("error", "Not uploaded", `${bad.join(", ")} ${bad.length === 1 ? "is" : "are"} not a number. Correct ${bad.length === 1 ? "it" : "them"} and upload again.`);
-      return;
+      return [];
     }
     if (useLink.getState().vehicle?.armed) {
       const ok = await confirmAction({
@@ -36,19 +37,22 @@ export function useParamEdits() {
         confirmLabel: "Upload while armed",
         tone: "danger",
       });
-      if (!ok) return;
+      if (!ok) return [];
     }
     setUploading(true);
     const failed: Record<string, number> = {};
+    const written: string[] = [];
     for (const [name, value] of entries) {
       try {
         await commandLink.setParam(name, value, 4000, true);
+        written.push(name);
       } catch {
         failed[name] = value;
       }
     }
     setEdits(failed);
     setUploading(false);
+    return written;
   }, [edits]);
 
   return { edits, setEdit, clearEdit, revert, upload, uploading, count: Object.keys(edits).length };

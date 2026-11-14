@@ -652,6 +652,17 @@ kbd {
 .virtual-banner strong {
   color: var(--virtual);
 }
+.virtual-banner .vb-short {
+  display: none;
+}
+@media (max-width: 640px) {
+  .virtual-banner .vb-long {
+    display: none;
+  }
+  .virtual-banner .vb-short {
+    display: inline;
+  }
+}
 .virtual-banner .vb-actions {
   display: flex;
   gap: var(--s2);

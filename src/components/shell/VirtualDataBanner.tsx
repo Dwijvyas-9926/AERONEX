@@ -22,7 +22,9 @@ export function VirtualDataBanner() {
     <div className="virtual-banner" role="status">
       <FlaskConical aria-hidden className="vb-icon" />
       <p>
-        <strong>Simulated data.</strong> Everything on this page comes from the built-in virtual aircraft, not a real flight controller. Nothing you do here reaches hardware.
+        <strong>Simulated data.</strong>{" "}
+        <span className="vb-long">Everything on this page comes from the built-in virtual aircraft, not a real flight controller. Nothing you do here reaches hardware.</span>
+        <span className="vb-short">From the virtual aircraft, not real hardware.</span>
       </p>
       <div className="vb-actions">
         <button className="btn btn-sm btn-ghost" onClick={() => nav("/simulator")}>

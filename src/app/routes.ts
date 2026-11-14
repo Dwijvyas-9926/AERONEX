@@ -47,7 +47,7 @@ export const ROUTES: RouteDef[] = [
   { path: "/connection", label: "Connection", icon: Cable, group: "Set up", status: { kind: "partial", note: "USB / radio link" }, blurb: "Link a Pixhawk over a USB cable or a telemetry radio.", find: "connect usb serial radio baud port link pixhawk" },
   { path: "/calibration", label: "Calibration", icon: Crosshair, group: "Set up", status: { kind: "partial", note: "Live on hardware" }, blurb: "Teach the sensors which way is level and north, and test the motors.", find: "accelerometer compass radio esc motor test level gyro modes" },
   { path: "/pid", label: "PID Tuning", icon: SlidersVertical, group: "Set up", status: { kind: "partial", note: "Live gains" }, blurb: "Stop wobble and sluggishness, with an advisor that says what to change.", find: "gains wobble oscillation rate tune" },
-  { path: "/params", label: "Parameters", icon: ListTree, group: "Set up", status: { kind: "partial", note: "Read / write" }, blurb: "Every setting on the flight controller, searchable and editable.", find: "settings config param file advanced" },
+  { path: "/params", label: "Parameters", icon: ListTree, group: "Set up", status: { kind: "ready" }, blurb: "Every setting on the flight controller, with what it does and its safe range, checked before it is written.", find: "settings config param file advanced description range bitmask load compare restore" },
 
   // Fly — check, rehearse and fly.
   { path: "/preflight", label: "Preflight Check", icon: ShieldCheck, group: "Fly", status: { kind: "partial", note: "Live health" }, blurb: "One go or no-go verdict before you arm.", find: "safety arm checklist gps battery ekf ready" },

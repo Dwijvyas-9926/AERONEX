@@ -23,24 +23,27 @@ export interface PendingWrite {
 
 interface ParamStoreState {
   values: Record<string, number>;
+  /** MAV_PARAM_TYPE as the vehicle reports it: how each value is stored. */
+  types: Record<string, number>;
   pending: Record<string, PendingWrite>;
   count: number | null; // param_count the vehicle reports
   received: number; // distinct params seen (download progress)
   lastUpdateAt: number | null;
   reset: () => void;
-  onParamValue: (id: string, value: number, count: number) => void;
+  onParamValue: (id: string, value: number, count: number, type?: number) => void;
   markPending: (id: string, target: number) => void;
   markFailed: (id: string) => void;
 }
 
 export const useParams = create<ParamStoreState>((set, get) => ({
   values: {},
+  types: {},
   pending: {},
   count: null,
   received: 0,
   lastUpdateAt: null,
-  reset: () => set({ values: {}, pending: {}, count: null, received: 0, lastUpdateAt: null }),
-  onParamValue: (id, value, count) => {
+  reset: () => set({ values: {}, types: {}, pending: {}, count: null, received: 0, lastUpdateAt: null }),
+  onParamValue: (id, value, count, type) => {
     const s = get();
     const wasKnown = id in s.values;
     const pending = { ...s.pending };
@@ -52,6 +55,7 @@ export const useParams = create<ParamStoreState>((set, get) => ({
     if (pending[id] && sameParam(pending[id].target, value)) delete pending[id];
     set({
       values: { ...s.values, [id]: value },
+      types: type !== undefined && s.types[id] !== type ? { ...s.types, [id]: type } : s.types,
       pending,
       count: count || s.count,
       received: wasKnown ? s.received : s.received + 1,

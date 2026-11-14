@@ -2,7 +2,7 @@ import { encode, type FieldValue } from "../mavlink/encode";
 import { decode, MavlinkParser, type Decoded } from "../mavlink/parser";
 import type { Airframe } from "./airframe";
 import { Autopilot, MODE, type Home, type Inputs, type MissionItem, type SimEvent } from "./autopilot";
-import { defaultParams, PARAM_DEFS, sanitizeParam, sanitizeParams, type Params } from "./params";
+import { defaultParams, PARAM_DEFS, PARAM_TYPES, sanitizeParam, sanitizeParams, storedValue, type Params } from "./params";
 import { euler, Physics } from "./physics";
 import type { Terrain } from "./terrain";
 
@@ -332,7 +332,7 @@ export class VirtualVehicle {
   private sendParam(index: number, listed = true) {
     const name = this.paramNames[index];
     if (!name) return;
-    this.send("PARAM_VALUE", { param_id: name, param_value: this.ap.params[name], param_type: 9, param_count: this.paramNames.length, param_index: listed ? index : 65535 });
+    this.send("PARAM_VALUE", { param_id: name, param_value: this.ap.params[name], param_type: PARAM_TYPES[name] ?? 9, param_count: this.paramNames.length, param_index: listed ? index : 65535 });
   }
 
   private ack(command: number, result: number) {
@@ -375,8 +375,9 @@ export class VirtualVehicle {
         if (i < 0) break;
         const v = num("param_value");
         if (Number.isFinite(v)) {
-          ap.params[id] = sanitizeParam(id, Math.fround(v));
-          if (ap.params[id] !== Math.fround(v)) ap.log("warn", `${id} is outside its range: using ${ap.params[id]}`);
+          const stored = storedValue(id, v);
+          ap.params[id] = sanitizeParam(id, stored);
+          if (ap.params[id] !== stored) ap.log("warn", `${id} is outside its range: using ${ap.params[id]}`);
         }
         this.sendParam(i, false);
         break;
