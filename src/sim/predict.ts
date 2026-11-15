@@ -1,3 +1,4 @@
+import { type FenceWire } from "../geo/fence";
 import { derive, type Airframe } from "./airframe";
 import { CMD, MODE, MODE_NAME, type Home, type MissionItem, type SimEvent } from "./autopilot";
 import type { Params } from "./params";
@@ -34,6 +35,8 @@ export interface Scenario extends Environment {
   /** Battery state of charge at arming, 0–1. */
   soc: number;
   faults: FaultPlan[];
+  /** Fence zones the aircraft holds, as sent to it. */
+  fence?: FenceWire[];
 }
 
 export interface TrackPoint {
@@ -91,6 +94,7 @@ export function predict(airframe: Airframe, params: Params, home: Home, mission:
   v.setScriptedGcs(true);
   v.phys.env = { windSpeed: sc.windSpeed, windFromDeg: sc.windFromDeg, gust: sc.gust };
   v.ap.mission = mission.map((m) => ({ ...m }));
+  if (sc.fence?.length) v.ap.setFence(sc.fence);
   const reached: number[] = [];
   const pendingFaults = sc.faults.map((f) => ({ ...f, done: false }));
   const apply = (f: FaultPlan) => {
@@ -317,7 +321,10 @@ function findings(v: VirtualVehicle, af: Airframe, verdict: Verdict, st: Predict
   } else if (st.minClearanceM !== null && st.minClearanceM < 8 && verdict !== "crashed") {
     out.push({ sev: st.minClearanceM < 4 ? "bad" : "warn", text: `It passed within ${Math.max(0, st.minClearanceM).toFixed(0)} m of the ground on the way. Trees are not simulated: leave at least 15 m.` });
   }
-  if (fired("fs-fence")) out.push({ sev: "warn", text: `The geofence was breached${p.FENCE_ACTION === 0 ? " and only reported it, because FENCE_ACTION is 0" : p.FENCE_ACTION === 2 ? " and landed the aircraft where it was" : " and turned the aircraft back"}. Part of the route lies outside FENCE_RADIUS (${p.FENCE_RADIUS} m) or above FENCE_ALT_MAX (${p.FENCE_ALT_MAX} m).` });
+  if (fired("fs-fence")) {
+    const what = v.events.find((e) => e.kind === "fs-fence")?.text ?? "Fence breached";
+    out.push({ sev: p.FENCE_ACTION === 0 ? "bad" : "warn", text: `${what.replace(/^(.)/, (c) => c.toUpperCase())}. ${p.FENCE_ACTION === 0 ? "FENCE_ACTION is 0, so it only reported it and flew on through the fence." : p.FENCE_ACTION === 2 ? "It landed where it was." : p.FENCE_ACTION === 4 ? "It braked and held there." : "It turned back for home."} The Fence tab shows which part of the route crosses the fence.` });
+  }
   if (fired("fs-gcs")) out.push({ sev: "warn", text: "The ground-station failsafe fired when the link went quiet." });
   if (fired("fs-radio")) out.push({ sev: "warn", text: "The radio failsafe fired when the transmitter was lost." });
   if (fired("fs-ekf")) out.push({ sev: "bad", text: p.FS_EKF_ACTION === 2 ? "Position was lost and it switched to AltHold (FS_EKF_ACTION is 2): it holds its height but drifts with the wind until a pilot takes over." : "Position was lost. It landed without holding position, so the wind decided where it came down." });

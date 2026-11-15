@@ -141,6 +141,9 @@ export interface MissionWire {
   z: number;
 }
 
+/** MAV_MISSION_TYPE: the three lists a vehicle keeps. */
+export const MISSION_TYPE = { MISSION: 0, FENCE: 1, RALLY: 2 } as const;
+
 // MAV_CMD ids used here.
 export const CMD = {
   PREFLIGHT_CALIBRATION: 241,
@@ -249,6 +252,8 @@ class CommandLink {
     }
     this.pendingCmds.clear();
     this.pendingParams.clear();
+    for (const u of [...this.ups.values()]) u.reject(new Error("Link closed"));
+    for (const d of [...this.downs.values()]) d.reject(new Error("Link closed"));
   }
 
   get canSend() {
@@ -718,50 +723,81 @@ class CommandLink {
     // and neither is one that is armed.
     const block = vehicleBlock() ?? missionBlock() ?? armedBlock();
     if (block) return Promise.reject(blocked(block));
+    return this.uploadList(items, MISSION_TYPE.MISSION, "mission");
+  }
+
+  /**
+   * Send the fence zones (MISSION_TYPE_FENCE). Not to an armed real aircraft:
+   * a fence changed in flight acts at once, and a mistake in it turns the
+   * aircraft round or lands it wherever it is.
+   */
+  uploadFence(items: MissionWire[]): Promise<void> {
+    const l = useLink.getState();
+    const block = vehicleBlock() ?? (l.status === "connected" && !l.virtual && l.vehicle?.armed ? { title: "Disarm before changing the fence", body: "The aircraft is armed. A fence changed now acts at once, in flight. Land, disarm, and send it again." } : null);
+    if (block) return Promise.reject(blocked(block));
+    return this.uploadList(items, MISSION_TYPE.FENCE, "fence");
+  }
+
+  /** Read the mission the vehicle holds. */
+  downloadMission(): Promise<MissionWire[]> {
+    return this.downloadList(MISSION_TYPE.MISSION, "mission");
+  }
+
+  /** Read the fence zones the vehicle holds. */
+  downloadFence(): Promise<MissionWire[]> {
+    return this.downloadList(MISSION_TYPE.FENCE, "fence");
+  }
+
+  private uploadList(items: MissionWire[], type: number, what: string): Promise<void> {
     const t = this.target();
-    this.missionUp?.reject(new Error("Superseded by a newer upload"));
+    this.ups.get(type)?.reject(new Error("Superseded by a newer upload"));
     return new Promise<void>((resolve, reject) => {
       let tries = 0;
       const announce = () => {
-        void this.write("MISSION_COUNT", { target_system: t.sysid, target_component: t.compid, count: items.length, mission_type: 0 }).catch(reject);
+        void this.write("MISSION_COUNT", { target_system: t.sysid, target_component: t.compid, count: items.length, mission_type: type }).catch(reject);
       };
       const arm = () =>
         setTimeout(() => {
-          if (!this.missionUp) return;
+          const u = this.ups.get(type);
+          if (!u) return;
           if (++tries > 4) {
-            this.missionUp = null;
-            reject(new Error("The aircraft stopped answering during the mission upload."));
+            this.ups.delete(type);
+            reject(new Error(`The aircraft stopped answering during the ${what} upload.`));
             return;
           }
-          if (this.missionUp.sent === 0) announce();
-          this.missionUp.timer = arm();
+          if (u.sent === 0) announce();
+          u.timer = arm();
         }, 1500);
-      this.missionUp = {
+      const done = () => {
+        const u = this.ups.get(type);
+        if (u) clearTimeout(u.timer);
+        this.ups.delete(type);
+      };
+      this.ups.set(type, {
         items,
         sent: 0,
+        said: [],
+        what,
         timer: arm(),
         resolve: () => {
-          clearTimeout(this.missionUp?.timer);
-          this.missionUp = null;
+          done();
           resolve();
         },
         reject: (e) => {
-          clearTimeout(this.missionUp?.timer);
-          this.missionUp = null;
+          done();
           reject(e);
         },
         touch: () => {
           tries = 0;
         },
-      };
+      });
       announce();
     });
   }
 
-  /** Read the mission the vehicle holds. */
-  downloadMission(): Promise<MissionWire[]> {
+  private downloadList(type: number, what: string): Promise<MissionWire[]> {
     const t = this.target();
-    this.missionDown?.reject(new Error("Superseded by a newer download"));
+    this.downs.get(type)?.reject(new Error("Superseded by a newer download"));
     return new Promise<MissionWire[]>((resolve, reject) => {
       /*
         Over a telemetry radio a message is lost now and then. Each request is
@@ -770,44 +806,49 @@ class CommandLink {
       */
       let tries = 0;
       const ask = () => {
-        const m = this.missionDown;
+        const m = this.downs.get(type);
         if (!m) return;
-        if (m.count < 0) void this.write("MISSION_REQUEST_LIST", { target_system: t.sysid, target_component: t.compid, mission_type: 0 }).catch(() => {});
-        else void this.write("MISSION_REQUEST_INT", { target_system: t.sysid, target_component: t.compid, seq: m.items.length, mission_type: 0 }).catch(() => {});
+        if (m.count < 0) void this.write("MISSION_REQUEST_LIST", { target_system: t.sysid, target_component: t.compid, mission_type: type }).catch(() => {});
+        else void this.write("MISSION_REQUEST_INT", { target_system: t.sysid, target_component: t.compid, seq: m.items.length, mission_type: type }).catch(() => {});
       };
       const arm = (): ReturnType<typeof setTimeout> =>
         setTimeout(() => {
-          const m = this.missionDown;
+          const m = this.downs.get(type);
           if (!m) return;
           if (++tries > 5) {
-            m.reject(new Error(m.count < 0 ? "The aircraft did not answer the request for its mission." : `The aircraft stopped answering at item ${m.items.length} of ${m.count}. Check the link and read again.`));
+            m.reject(new Error(m.count < 0 ? `The aircraft did not answer the request for its ${what}.` : `The aircraft stopped answering at item ${m.items.length} of ${m.count} of its ${what}. Check the link and read again.`));
             return;
           }
           ask();
           m.timer = arm();
         }, 1200);
-      this.missionDown = {
+      const done = () => {
+        const m = this.downs.get(type);
+        if (m) clearTimeout(m.timer);
+        this.downs.delete(type);
+      };
+      this.downs.set(type, {
         count: -1,
         items: [],
+        what,
         timer: arm(),
         touch: () => {
           tries = 0;
-          if (this.missionDown) {
-            clearTimeout(this.missionDown.timer);
-            this.missionDown.timer = arm();
+          const m = this.downs.get(type);
+          if (m) {
+            clearTimeout(m.timer);
+            m.timer = arm();
           }
         },
         resolve: (m) => {
-          clearTimeout(this.missionDown?.timer);
-          this.missionDown = null;
+          done();
           resolve(m);
         },
         reject: (e) => {
-          clearTimeout(this.missionDown?.timer);
-          this.missionDown = null;
+          done();
           reject(e);
         },
-      };
+      });
       ask();
     });
   }
@@ -819,8 +860,8 @@ class CommandLink {
     return this.sendCommand(CMD.MISSION_START, {});
   }
 
-  private missionUp: { items: MissionWire[]; sent: number; timer: ReturnType<typeof setTimeout>; resolve: () => void; reject: (e: Error) => void; touch: () => void } | null = null;
-  private missionDown: { count: number; items: MissionWire[]; timer: ReturnType<typeof setTimeout>; touch: () => void; resolve: (m: MissionWire[]) => void; reject: (e: Error) => void } | null = null;
+  private ups = new Map<number, { items: MissionWire[]; sent: number; said: string[]; what: string; timer: ReturnType<typeof setTimeout>; resolve: () => void; reject: (e: Error) => void; touch: () => void }>();
+  private downs = new Map<number, { count: number; items: MissionWire[]; what: string; timer: ReturnType<typeof setTimeout>; touch: () => void; resolve: (m: MissionWire[]) => void; reject: (e: Error) => void }>();
 
   /**
    * Reads the mission back and compares it with what was sent. Null when they
@@ -834,40 +875,56 @@ class CommandLink {
 
   private onMission(name: string, d: Decoded) {
     const t = this.target();
-    if ((name === "MISSION_REQUEST_INT" || name === "MISSION_REQUEST") && this.missionUp) {
-      const it = this.missionUp.items[d.seq as number];
+    // MAVLink 1 has no mission_type: then it is the mission.
+    const type = (d.mission_type as number | undefined) ?? 0;
+    const up = this.ups.get(type);
+    const down = this.downs.get(type);
+    if ((name === "MISSION_REQUEST_INT" || name === "MISSION_REQUEST") && up) {
+      const it = up.items[d.seq as number];
       if (!it) return;
-      this.missionUp.sent = Math.max(this.missionUp.sent, (d.seq as number) + 1);
-      this.missionUp.touch();
+      up.sent = Math.max(up.sent, (d.seq as number) + 1);
+      up.touch();
       void this.write("MISSION_ITEM_INT", {
         target_system: t.sysid, target_component: t.compid, seq: it.seq, frame: it.frame, command: it.command, current: 0, autocontinue: 1,
-        param1: it.p1, param2: it.p2, param3: it.p3, param4: it.p4, x: it.x, y: it.y, z: it.z, mission_type: 0,
+        param1: it.p1, param2: it.p2, param3: it.p3, param4: it.p4, x: it.x, y: it.y, z: it.z, mission_type: type,
       }).catch(() => {});
-    } else if (name === "MISSION_ACK" && this.missionUp) {
-      const type = d.type as number;
-      if (type === 0) this.missionUp.resolve();
-      else this.missionUp.reject(new Error(`The aircraft rejected the mission: ${MISSION_RESULT[type] ?? `result ${type}`}.`));
-    } else if (name === "MISSION_COUNT" && this.missionDown) {
-      // An answer about the fence or rally points is not the mission.
-      if (((d.mission_type as number | undefined) ?? 0) !== 0) return;
+    } else if (name === "MISSION_ACK" && up) {
+      const result = d.type as number;
+      if (result === 0) up.resolve();
+      else {
+        /*
+          The firmware says why in a status text, which it queues and sends
+          after the refusal itself. Wait a moment for it, so the reason given
+          is the aircraft's own ("Fence exceeds storage size") and not only a
+          number.
+        */
+        clearTimeout(up.timer);
+        up.timer = setTimeout(() => {
+          // Its pre-arm complaints repeat all the while and are not about this list.
+          const said = up.said.map((t) => t.replace(/^(Warning|Notice|Error|Critical|Emergency|Alert):\s*/i, "")).filter((t) => !/^(Debug|Info):|^(PreArm|Arm):/i.test(t));
+          const why = said.length ? ` It said: "${said[said.length - 1]}".` : "";
+          up.reject(new Error(`The aircraft rejected the ${up.what}: ${MISSION_RESULT[result] ?? `result ${result}`}.${why}`));
+        }, 700);
+      }
+    } else if (name === "MISSION_COUNT" && down) {
       const count = d.count as number;
       // A repeated answer to a repeated question must not start the read again.
-      if (this.missionDown.count >= 0) return;
-      this.missionDown.count = count;
-      this.missionDown.touch();
-      if (count === 0) this.missionDown.resolve([]);
-      else void this.write("MISSION_REQUEST_INT", { target_system: t.sysid, target_component: t.compid, seq: 0, mission_type: 0 }).catch(() => {});
-    } else if (name === "MISSION_ACK" && this.missionDown && (d.type as number) !== 0) {
-      this.missionDown.reject(new Error(`The aircraft refused to send its mission (MAV_MISSION result ${d.type as number}).`));
-    } else if (name === "MISSION_ITEM_INT" && this.missionDown) {
-      const m = this.missionDown;
+      if (down.count >= 0) return;
+      down.count = count;
+      down.touch();
+      if (count === 0) down.resolve([]);
+      else void this.write("MISSION_REQUEST_INT", { target_system: t.sysid, target_component: t.compid, seq: 0, mission_type: type }).catch(() => {});
+    } else if (name === "MISSION_ACK" && down && (d.type as number) !== 0) {
+      down.reject(new Error(`The aircraft refused to send its ${down.what} (MAV_MISSION result ${d.type as number}).`));
+    } else if (name === "MISSION_ITEM_INT" && down) {
+      const m = down;
       if (m.count < 0 || (d.seq as number) !== m.items.length) return;
       m.touch();
       m.items.push({ seq: d.seq as number, frame: d.frame as number, command: d.command as number, p1: d.param1 as number, p2: d.param2 as number, p3: d.param3 as number, p4: d.param4 as number, x: d.x as number, y: d.y as number, z: d.z as number });
       if (m.items.length >= m.count) {
-        void this.write("MISSION_ACK", { target_system: t.sysid, target_component: t.compid, type: 0, mission_type: 0 }).catch(() => {});
+        void this.write("MISSION_ACK", { target_system: t.sysid, target_component: t.compid, type: 0, mission_type: type }).catch(() => {});
         m.resolve(m.items);
-      } else void this.write("MISSION_REQUEST_INT", { target_system: t.sysid, target_component: t.compid, seq: m.items.length, mission_type: 0 }).catch(() => {});
+      } else void this.write("MISSION_REQUEST_INT", { target_system: t.sysid, target_component: t.compid, seq: m.items.length, mission_type: type }).catch(() => {});
     }
   }
 
@@ -919,7 +976,10 @@ class CommandLink {
         break;
       }
       case "STATUSTEXT": {
-        this.onStatusText(String(d.text ?? ""));
+        const text = String(d.text ?? "");
+        // Kept while a list is going up, for the reason if it is refused.
+        for (const u of this.ups.values()) u.said = [...u.said, text].slice(-3);
+        this.onStatusText(text);
         break;
       }
       case "MAG_CAL_PROGRESS": {

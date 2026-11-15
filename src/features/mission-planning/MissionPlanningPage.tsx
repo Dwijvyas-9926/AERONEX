@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, CirclePause, Home as HomeIcon, PlaneLanding, PlaneTakeoff, CircleCheck, CircleX, Download, FlaskConical, FolderOpen, SatelliteDish, Globe, Info, LandPlot, ListChecks, Play, Redo2, Save, Trash2, TriangleAlert, Undo2, Upload, X } from "lucide-react";
+import { ArrowDown, ArrowUp, CirclePause, Shield, Home as HomeIcon, PlaneLanding, PlaneTakeoff, CircleCheck, CircleX, Download, FlaskConical, FolderOpen, SatelliteDish, Globe, Info, LandPlot, ListChecks, Play, Redo2, Save, Trash2, TriangleAlert, Undo2, Upload, X } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { MODE_NAME } from "../../sim/autopilot";
@@ -22,6 +22,13 @@ import { fromWaypointFile, saveText, toWaypointFile } from "../../geo/planFile";
 import { routeProfile } from "../../geo/profile";
 import { demReach, ensureDem, useDem } from "../../state/mapStore";
 import { CLEAR_WARN, HeightProfile } from "./HeightProfile";
+import { FencePanel } from "./FencePanel";
+import type { DragPhase, FenceDrawing, FenceLayer } from "./fenceLayer";
+import { aroundRoute, FENCE_TYPE, isFlag, snap, zoneId, zonesToWire } from "../../geo/fence";
+import { checkFence, marginXY } from "../../geo/fenceCheck";
+import { distanceM } from "../../geo/geo";
+import { fenceSync, useFence } from "../../state/fenceStore";
+import { readFence, sendFence } from "../../services/link/fenceLink";
 
 // The map library is large and only this page needs it.
 const RealMap = lazy(() => import("./RealMap"));
@@ -153,12 +160,183 @@ export function MissionPlanningPage() {
   );
   const windShown = useMemo(() => ({ speed: wind.speed, fromDeg: wind.from }), [wind.speed, wind.from]);
 
-  const checks = useMemo(
-    () => checkPlan({ points: sim.points, takeoffAlt: sim.takeoffAlt, ending: sim.ending, params, airframe: sim.airframe, profile, groundKnown, real, groundReach: beyond ? (terrain.reach ?? null) : null }),
-    [sim.points, sim.takeoffAlt, sim.ending, params, sim.airframe, profile, groundKnown, real, beyond, terrain],
+  /* ------------------------------------------------------------ the fence */
+  const fence = useFence();
+  const liveValues = useParams((s) => s.values);
+  const fenceOther = useMemo(() => {
+    const src: Record<string, number | undefined> = linked ? { ...params, ...liveValues } : { ...params };
+    // Speeds in the planner's own units (centimetres), whatever this firmware calls them.
+    return { WPNAV_SPEED: params.WPNAV_SPEED, WPNAV_ACCEL: params.WPNAV_ACCEL, RTL_ALT: params.RTL_ALT, OA_TYPE: src.OA_TYPE, FENCE_MARGIN_XY: src.FENCE_MARGIN_XY, FENCE_AUTOENABLE: src.FENCE_AUTOENABLE, FENCE_ALT_MAX_TP: src.FENCE_ALT_MAX_TP, FENCE_ALT_MIN_TP: src.FENCE_ALT_MIN_TP, BRD_SD_FENCE: src.BRD_SD_FENCE };
+  }, [linked, params, liveValues]);
+  const fenceFindings = useMemo(
+    () => checkFence({ zones: fence.zones, limits: fence.limits, home: sim.home, other: fenceOther, plan: { points: sim.points, takeoffAlt: sim.takeoffAlt, ending: sim.ending } }),
+    [fence.zones, fence.limits, sim.home, fenceOther, sim.points, sim.takeoffAlt, sim.ending],
   );
+  const sync = fenceSync(fence);
+
+  const checks = useMemo(() => {
+    const own = checkPlan({ points: sim.points, takeoffAlt: sim.takeoffAlt, ending: sim.ending, params, airframe: sim.airframe, profile, groundKnown, real, groundReach: beyond ? (terrain.reach ?? null) : null });
+    // The route against the fence, from the fence's own check, with the fence as drawn here.
+    const route = fenceFindings.filter((x) => x.scope === "route").map((x) => ({ sev: x.sev, text: x.text }));
+    const notSent = linked && sync.known && !sync.same ? [{ sev: "warn" as const, text: "The fence on the Fence tab is not the one on the aircraft. These checks use the one here; send it, or the aircraft flies with its own." }] : [];
+    const order = { bad: 0, warn: 1, note: 2 };
+    return [...own, ...route, ...notSent].sort((a, b) => order[a.sev] - order[b.sev]);
+  }, [sim.points, sim.takeoffAlt, sim.ending, params, sim.airframe, profile, groundKnown, real, beyond, terrain, fenceFindings, linked, sync.known, sync.same]);
   const [allAlt, setAllAlt] = useState(30);
-  const [tab, setTab] = useState<"plan" | "predict">("plan");
+  const [tab, setTab] = useState<"plan" | "fence" | "predict">("plan");
+  const [drawing, setDrawing] = useState<FenceDrawing | null>(null);
+  const drawingRef = useRef(drawing);
+  drawingRef.current = drawing;
+  const [fenceReading, setFenceReading] = useState(false);
+  const [fenceSending, setFenceSending] = useState<string | null>(null);
+  useEffect(() => {
+    if (tab !== "fence") setDrawing(null);
+  }, [tab]);
+
+  const finishDrawing = () => {
+    const d = drawingRef.current;
+    if (!d || d.shape !== "polygon" || d.points.length < 3) return;
+    fence.addZone({ id: zoneId(), shape: "polygon", role: d.role, points: d.points });
+    setDrawing(null);
+  };
+
+  /** A click on the map while a zone is being drawn. */
+  const placeCorner = (n: number, e: number) => {
+    const d = drawingRef.current;
+    if (!d) return;
+    const at = snap(toGlobal(sim.home, n, e));
+    if (d.shape === "circle") {
+      if (!d.points.length) setDrawing({ ...d, points: [at] });
+      else {
+        const r = Math.max(1, Math.round(distanceM(d.points[0], at)));
+        fence.addZone({ id: zoneId(), shape: "circle", role: d.role, centre: d.points[0], radiusM: r });
+        setDrawing(null);
+      }
+      return;
+    }
+    setDrawing({ ...d, points: [...d.points, at] });
+  };
+
+  const fenceLayer = useMemo<FenceLayer>(() => {
+    const drag = (phase: DragPhase, apply: (record: boolean) => void) => {
+      if (phase === "start") fence.begin();
+      else apply(false);
+    };
+    return {
+      zones: fence.zones,
+      selected: fence.selected,
+      // A zone is drawn dashed for its own faults, not for a route that crosses it.
+      bad: fenceFindings.filter((x) => x.sev === "bad" && x.zone && x.scope === "fence").map((x) => x.zone!),
+      drawing,
+      editing: tab === "fence",
+      onSelect: (id) => fence.select(id),
+      onVertex: (id, i, to, phase) => drag(phase, (record) => fence.moveVertex(id, i, to, record)),
+      onInsert: (id, i, at) => fence.insertVertex(id, i, at),
+      onRemoveVertex: (id, i) => fence.removeVertex(id, i),
+      onCentre: (id, to, phase) => drag(phase, (record) => fence.updateZone(id, { centre: snap(to) }, record)),
+      onRadius: (id, r, phase) => drag(phase, (record) => fence.updateZone(id, { radiusM: r }, record)),
+      onClose: finishDrawing,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fence.zones, fence.selected, fenceFindings, drawing, tab]);
+
+  // The circle round home is drawn while it is in use, or while the fence is being edited.
+  const showCircle = isFlag(fence.limits.FENCE_TYPE, FENCE_TYPE.CIRCLE) && (fence.limits.FENCE_ENABLE >= 1 || tab === "fence");
+  const circleRadius = showCircle ? fence.limits.FENCE_RADIUS : null;
+
+  // Read the aircraft's fence once per link, when its settings are in.
+  const fenceAsked = useRef(false);
+  useEffect(() => {
+    if (!linked) {
+      fenceAsked.current = false;
+      useFence.getState().forgetAircraft();
+      return;
+    }
+    if (unread || fenceAsked.current) return;
+    fenceAsked.current = true;
+    setFenceReading(true);
+    readFence()
+      .then((got) => {
+        const st = useFence.getState();
+        if (st.edited) {
+          st.adopt(got, false);
+          return;
+        }
+        const changes = !fenceSync({ zones: st.zones, limits: st.limits, aircraft: got }).same;
+        st.adopt(got, true);
+        if (changes) notify("info", "Fence read from the aircraft", `${got.zones.length ? `${got.zones.length} ${got.zones.length === 1 ? "zone" : "zones"}` : "No zones"}, and its fence is ${got.limits.FENCE_ENABLE >= 1 ? "on" : "off"}. The Fence tab shows it.`);
+      })
+      .catch((e: Error) => {
+        fenceAsked.current = false;
+        notify("warn", "The aircraft's fence could not be read", e.message);
+      })
+      .finally(() => setFenceReading(false));
+  }, [linked, unread]);
+
+  const fenceBlock = (() => {
+    if (!linked) return "Link an aircraft first";
+    if (unread) return "Reading the aircraft's settings first";
+    const l = useLink.getState();
+    if (!l.virtual && l.vehicle?.armed) return "Disarm before changing the fence";
+    return vehicleBlock()?.title ?? null;
+  })();
+
+  const sendTheFence = async () => {
+    const draft = { zones: fence.zones, limits: fence.limits };
+    const bad = fenceFindings.filter((x) => x.sev === "bad");
+    if (!virtual) {
+      const L = draft.limits;
+      const parts = [
+        L.FENCE_ENABLE >= 1 ? "The fence will be ON" : "The fence will be OFF",
+        isFlag(L.FENCE_TYPE, FENCE_TYPE.ALT_MAX) ? `ceiling ${L.FENCE_ALT_MAX} m` : "",
+        isFlag(L.FENCE_TYPE, FENCE_TYPE.ALT_MIN) ? `floor ${L.FENCE_ALT_MIN} m` : "",
+        isFlag(L.FENCE_TYPE, FENCE_TYPE.CIRCLE) ? `${L.FENCE_RADIUS} m from home` : "",
+        isFlag(L.FENCE_TYPE, FENCE_TYPE.POLYGON) ? `${draft.zones.length} ${draft.zones.length === 1 ? "zone" : "zones"}` : "",
+      ].filter(Boolean);
+      const ok = await confirmAction({
+        title: "Send this fence to your aircraft?",
+        body: `${parts.join(", ")}, margin ${L.FENCE_MARGIN} m. It replaces the aircraft's fence: its zones and its FENCE_ settings. The zones are read back and checked before the fence is turned on.${bad.length ? ` The fence check found ${bad.length} ${bad.length === 1 ? "problem" : "problems"}: ${bad[0].text}` : ""}`,
+        confirmLabel: "Send the fence",
+        tone: bad.length ? "danger" : "default",
+      });
+      if (!ok) return;
+    }
+    setFenceSending("Sending…");
+    try {
+      const got = await sendFence(draft, (step) => setFenceSending(`${step}…`));
+      fence.synced(got);
+      notify("success", "Fence sent and checked", `The ${virtual ? "virtual " : ""}aircraft holds ${got.zones.length ? `${got.zones.length} ${got.zones.length === 1 ? "zone" : "zones"}` : "no zones"} and the settings sent, read back the same. The fence is ${got.limits.FENCE_ENABLE >= 1 ? "on" : "off"}.`);
+    } catch (e) {
+      notify("error", "The fence was not sent", `${(e as Error).message} What the aircraft holds now is shown once it is read again.`);
+      // What it holds now is not known: read it again rather than guess.
+      useFence.getState().forgetAircraft();
+      fenceAsked.current = false;
+      readFence()
+        .then((got) => useFence.getState().adopt(got, false))
+        .catch(() => undefined);
+    } finally {
+      setFenceSending(null);
+    }
+  };
+
+  const readTheFence = async () => {
+    setFenceReading(true);
+    try {
+      const got = await readFence();
+      fence.adopt(got, true);
+      notify("success", "Fence read from the aircraft", `${got.zones.length ? `${got.zones.length} ${got.zones.length === 1 ? "zone" : "zones"}` : "No zones"}; the fence is ${got.limits.FENCE_ENABLE >= 1 ? "on" : "off"}. Undo brings back the one that was here.`);
+    } catch (e) {
+      notify("error", "The fence could not be read", (e as Error).message);
+    } finally {
+      setFenceReading(false);
+    }
+  };
+
+  const wrapRoute = () => {
+    const pad = Math.max(20, marginXY(fence.limits, fenceOther) * 3 + 10);
+    fence.addZone({ id: zoneId(), shape: "polygon", role: "in", points: aroundRoute(sim.home, sim.points, pad) });
+    notify("success", "Keep-in area drawn round the route", `${Math.round(pad)} m clear of home and every waypoint. Drag its corners to fit the field.`);
+  };
   const fileBox = useRef<HTMLInputElement>(null);
 
   const moveHome = (to: LatLon) => {
@@ -166,15 +344,31 @@ export function MissionPlanningPage() {
     setResult(null);
   };
 
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+  const finishRef = useRef(finishDrawing);
+  finishRef.current = finishDrawing;
   // Ctrl or ⌘ Z, and Shift with it or Ctrl Y to go forward again. Not while typing: a box has its own undo.
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
-      if (!(e.ctrlKey || e.metaKey) || e.altKey || (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT"))) return;
+      const typing = !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT");
+      // Drawing a zone: Enter closes it, Backspace takes back a corner, Escape gives up.
+      const d = drawingRef.current;
+      if (d && !typing && !e.ctrlKey && !e.metaKey) {
+        if (e.key === "Escape") setDrawing(null);
+        else if (e.key === "Enter") finishRef.current();
+        else if (e.key === "Backspace") setDrawing({ ...d, points: d.points.slice(0, -1) });
+        else return;
+        e.preventDefault();
+        return;
+      }
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || typing) return;
       const k = e.key.toLowerCase();
       if (k !== "z" && k !== "y") return;
       e.preventDefault();
-      const s = useSim.getState();
+      // Undo follows the tab: the fence's own history on the Fence tab.
+      const s = tabRef.current === "fence" ? useFence.getState() : useSim.getState();
       if (k === "y" || e.shiftKey) s.redo();
       else s.undo();
       setResult(null);
@@ -229,7 +423,7 @@ export function MissionPlanningPage() {
       const bad = checks.filter((c) => c.sev === "bad");
       const ok = await confirmAction({
         title: `Send this mission to your aircraft?`,
-        body: `${sim.points.length} ${sim.points.length === 1 ? "waypoint" : "waypoints"}, ${far(farthest)} from home at the farthest, up to ${Math.round(highest)} m above home, ending with ${sim.ending === "rtl" ? "a return home" : sim.ending === "land" ? "a landing at the last waypoint" : "a hover at the last waypoint"}. It replaces the mission the aircraft holds now.${bad.length ? ` The plan check found ${bad.length} ${bad.length === 1 ? "problem" : "problems"}: ${bad[0].text}` : ""}${homeSource === "aircraft" ? "" : " The aircraft has no GPS position yet, so home here is where you placed it, not where the aircraft is. Heights are counted from where it takes off."}`,
+        body: `${sim.points.length} ${sim.points.length === 1 ? "waypoint" : "waypoints"}, ${far(farthest)} from home at the farthest, up to ${Math.round(highest)} m above home, ending with ${sim.ending === "rtl" ? "a return home" : sim.ending === "land" ? "a landing at the last waypoint" : "a hover at the last waypoint"}. It replaces the mission the aircraft holds now.${bad.length ? ` The plan check found ${bad.length} ${bad.length === 1 ? "problem" : "problems"}: ${bad[0].text}` : ""}${homeSource === "aircraft" ? "" : " The aircraft has no GPS position yet, so home here is where you placed it, not where the aircraft is. Heights are counted from where it takes off."}${sync.known && !sync.same ? " The fence on the Fence tab differs from the aircraft's and is not sent with the mission." : ""}`,
         confirmLabel: "Send the mission",
         tone: bad.length || farthest > 2000 || homeSource !== "aircraft" ? "danger" : "default",
       });
@@ -283,7 +477,8 @@ export function MissionPlanningPage() {
           fault === "none"
             ? []
             : [{ kind: fault, motor: motor.n, level: motor.level / 100, at: faultAt.by === "time" ? { time: faultAt.value } : { waypoint: faultAt.value + 1 } }];
-        setResult(predict(sim.airframe, params, sim.home, mission, { windSpeed: wind.speed, windFromDeg: wind.from, gust: wind.gust / 100, soc: charge / 100, faults }, 7, terrain));
+        // Flown with the fence as drawn here: what the aircraft will hold once it is sent.
+        setResult(predict(sim.airframe, { ...params, ...fence.limits }, sim.home, mission, { windSpeed: wind.speed, windFromDeg: wind.from, gust: wind.gust / 100, soc: charge / 100, faults, fence: zonesToWire(fence.zones) }, 7, terrain));
       } catch (e) {
         notify("error", "The prediction failed", (e as Error).message);
       } finally {
@@ -378,12 +573,14 @@ export function MissionPlanningPage() {
                 route={route}
                 closeRoute={sim.ending === "rtl"}
                 ghost={result?.track}
-                fenceRadius={params.FENCE_ENABLE ? params.FENCE_RADIUS : null}
+                fenceRadius={circleRadius}
+                fenceLayer={fenceLayer}
                 wind={windShown}
                 mark={mark}
                 low={low}
                 homeLocked={!!simWorld || homeSource === "aircraft"}
                 onPick={(n, e) => {
+                  if (tab === "fence") return placeCorner(n, e);
                   sim.addPoint(n, e);
                   setResult(null);
                 }}
@@ -399,11 +596,14 @@ export function MissionPlanningPage() {
               route={route}
               closeRoute={sim.ending === "rtl"}
               ghost={result?.track}
-              fenceRadius={params.FENCE_ENABLE ? params.FENCE_RADIUS : null}
+              fenceRadius={circleRadius}
+              origin={sim.home}
+              fenceLayer={fenceLayer}
               wind={windShown}
               mark={mark}
               terrain={terrain}
               onPick={(n, e) => {
+                if (tab === "fence") return placeCorner(n, e);
                 sim.addPoint(n, e);
                 setResult(null);
               }}
@@ -426,10 +626,14 @@ export function MissionPlanningPage() {
 
         <div className="stack">
           {/* One thing at a time beside the map: the plan, or the prediction of it. */}
-          <div className="mp-tabs" role="tablist" aria-label="Plan or prediction">
+          <div className="mp-tabs" role="tablist" aria-label="Plan, fence or prediction">
             <button role="tab" id="mp-tab-plan" aria-selected={tab === "plan"} aria-controls="mp-plan" onClick={() => setTab("plan")}>
               <ListChecks /> Plan
               {checks.some((c) => c.sev === "bad") ? <i className="mp-dot bad" title="The plan check found a problem" /> : checks.some((c) => c.sev === "warn") ? <i className="mp-dot warn" title="The plan check has warnings" /> : null}
+            </button>
+            <button role="tab" id="mp-tab-fence" aria-selected={tab === "fence"} aria-controls="mp-fence" onClick={() => setTab("fence")}>
+              <Shield /> Fence
+              {fenceFindings.some((c) => c.sev === "bad") ? <i className="mp-dot bad" title="The fence check found a problem" /> : linked && sync.known && !sync.same ? <i className="mp-dot warn" title="Not sent to the aircraft" /> : fenceFindings.some((c) => c.sev === "warn") ? <i className="mp-dot warn" title="The fence check has warnings" /> : null}
             </button>
             <button role="tab" id="mp-tab-predict" aria-selected={tab === "predict"} aria-controls="mp-predict" onClick={() => setTab("predict")}>
               <FlaskConical /> Predict
@@ -628,6 +832,28 @@ export function MissionPlanningPage() {
                 </div>
               )}
             </div>
+          </section>
+
+          <section className="panel" id="mp-fence" role="tabpanel" aria-labelledby="mp-tab-fence" hidden={tab !== "fence"}>
+            <div className="panel-head">
+              <h3>Geofence</h3>
+            </div>
+            <FencePanel
+              home={sim.home}
+              findings={fenceFindings}
+              drawing={drawing}
+              onDraw={setDrawing}
+              onFinish={finishDrawing}
+              canWrapRoute={sim.points.length > 0}
+              onWrapRoute={wrapRoute}
+              linked={linked}
+              virtual={virtual}
+              sendBlock={fenceBlock}
+              reading={fenceReading}
+              sending={fenceSending}
+              onSend={() => void sendTheFence()}
+              onRead={() => void readTheFence()}
+            />
           </section>
 
           <section className="panel" id="mp-predict" role="tabpanel" aria-labelledby="mp-tab-predict" hidden={tab !== "predict"}>

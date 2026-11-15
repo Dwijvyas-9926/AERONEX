@@ -6,13 +6,15 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { useEffect, useRef, useState } from "react";
 import { covers, sampleDem } from "../../geo/elevation";
-import { parseLatLon, tilesIn, tileUrl, toGlobal, toLocal, type LatLon } from "../../geo/geo";
+import { circleRing } from "../../geo/fence";
+import { distanceM, parseLatLon, tilesIn, tileUrl, toGlobal, toLocal, type LatLon } from "../../geo/geo";
 import { ELEVATION, IMAGERY, imageryById, imageryUrl, KEPT } from "../../geo/sources";
 import { clearKept, keptCount, keptFetch, saveTiles } from "../../geo/tileCache";
 import { useHomeSource } from "../../services/link/homeFollow";
 import { useLink } from "../../state/linkStore";
 import { useDem, useMapPrefs } from "../../state/mapStore";
 import { notify } from "../../state/notifyStore";
+import { ZONE_COLOR, type FenceLayer } from "./fenceLayer";
 
 /*
   The route on a real map: a satellite picture over measured ground.
@@ -41,6 +43,8 @@ export interface RealMapProps {
   onPick?: (n: number, e: number) => void;
   onMovePoint?: (id: string, n: number, e: number) => void;
   onMoveHome?: (to: LatLon) => void;
+  /** The fence zones, and their editing when the Fence tab is open. */
+  fenceLayer?: FenceLayer;
 }
 
 const kept = (url: string) => url.replace("https://", KEPT);
@@ -71,6 +75,8 @@ function baseStyle(): StyleSpecification {
       dem,
       shade: dem,
       fence: { type: "geojson", data: EMPTY },
+      zones: { type: "geojson", data: EMPTY },
+      zonedraft: { type: "geojson", data: EMPTY },
       route: { type: "geojson", data: EMPTY },
       ghost: { type: "geojson", data: EMPTY },
       track: { type: "geojson", data: EMPTY },
@@ -79,6 +85,12 @@ function baseStyle(): StyleSpecification {
       { id: "bg", type: "background", paint: { "background-color": "#e9e5da" } },
       { id: "shade", type: "hillshade", source: "shade", paint: { "hillshade-exaggeration": 0.4, "hillshade-shadow-color": "#3b4763", "hillshade-highlight-color": "#ffffff", "hillshade-accent-color": "#5d677d" } },
       { id: "fence", type: "line", source: "fence", paint: { "line-color": "#ff6b57", "line-width": 2, "line-dasharray": [3, 2] } },
+      // Keep-out zones are shaded; keep-in zones are only edged, so the ground inside stays readable.
+      { id: "zones-fill", type: "fill", source: "zones", paint: { "fill-color": ["match", ["get", "role"], "out", ZONE_COLOR.out, ZONE_COLOR.in], "fill-opacity": ["match", ["get", "role"], "out", ["case", ["get", "sel"], 0.3, 0.2], ["case", ["get", "sel"], 0.1, 0.03]] } },
+      { id: "zones-halo", type: "line", source: "zones", layout: { "line-join": "round" }, paint: { "line-color": "#fdfcf8", "line-width": ["case", ["get", "sel"], 6, 4.5], "line-opacity": 0.85 } },
+      { id: "zones-line", type: "line", source: "zones", filter: ["!", ["get", "bad"]], layout: { "line-join": "round" }, paint: { "line-color": ["match", ["get", "role"], "out", ZONE_COLOR.out, ZONE_COLOR.in], "line-width": ["case", ["get", "sel"], 3.5, 2.5] } },
+      { id: "zones-bad", type: "line", source: "zones", filter: ["get", "bad"], paint: { "line-color": ["match", ["get", "role"], "out", ZONE_COLOR.out, ZONE_COLOR.in], "line-width": ["case", ["get", "sel"], 3.5, 2.5], "line-dasharray": [2, 1.5] } },
+      { id: "zonedraft", type: "line", source: "zonedraft", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": ["match", ["get", "role"], "out", ZONE_COLOR.out, ZONE_COLOR.in], "line-width": 2.5, "line-dasharray": [1.5, 1.2] } },
       { id: "route-edge", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#0d1629", "line-width": 6, "line-opacity": 0.7 } },
       { id: "route", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#f28c38", "line-width": 3 } },
       { id: "ghost", type: "line", source: "ghost", paint: { "line-color": "#9a7fe0", "line-width": 2.5, "line-dasharray": [2, 1.5] } },
@@ -113,6 +125,10 @@ export default function RealMap(props: RealMapProps) {
   const homeMark = useRef<Marker | null>(null);
   const extra = useRef<{ mark: Marker | null; low: Marker | null; ac: Marker | null }>({ mark: null, low: null, ac: null });
   const trail = useRef<LatLon[]>([]);
+  const handles = useRef(new Map<string, Marker>());
+  const handleSig = useRef("");
+  // A handle is being dragged: leave the markers where the pointer has them.
+  const dragging = useRef(false);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const [panel, setPanel] = useState(false);
@@ -193,6 +209,13 @@ export default function RealMap(props: RealMapProps) {
         p.onMoveHome?.({ lat: ev.lngLat.lat, lon: ev.lngLat.lng });
         return;
       }
+      // With the Fence tab open a click picks a zone, or places a corner of the one being drawn; it never adds a waypoint.
+      const f = p.fenceLayer;
+      if (f?.editing && !f.drawing) {
+        const hit = map.queryRenderedFeatures(ev.point, { layers: ["zones-fill", "zones-line", "zones-bad"] })[0];
+        f.onSelect?.(hit ? String(hit.properties?.id) : null);
+        return;
+      }
       if (!p.onPick) return;
       const l = toLocal(p.home, ev.lngLat.lat, ev.lngLat.lng);
       p.onPick(l.n, l.e);
@@ -216,6 +239,7 @@ export default function RealMap(props: RealMapProps) {
     void keptCount().then(setSaved);
     const held = marks.current;
     const others = extra.current;
+    const grips = handles.current;
     return () => {
       window.removeEventListener("keydown", esc);
       window.removeEventListener("online", on);
@@ -223,6 +247,7 @@ export default function RealMap(props: RealMapProps) {
       sized.disconnect();
       stopSave.current?.abort();
       held.clear();
+      grips.clear();
       homeMark.current = null;
       others.mark = others.low = others.ac = null;
       mapRef.current = null;
@@ -328,6 +353,138 @@ export default function RealMap(props: RealMapProps) {
     place("low", "rmap-low", low ? (low.clear < 0 ? `${Math.round(-low.clear)} m into the ground` : `${Math.round(low.clear)} m clear`) : null, low);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, home, route, closeRoute, ghost, fenceRadius, mark, low, homeLocked, homeFrom, !!props.onMoveHome, !!props.onMovePoint]);
+
+  /* ----------------------------------------------------------- the fence */
+  const fl = props.fenceLayer;
+  // The pointer matters to the fence only while a zone is being drawn.
+  const drawPointer = fl?.drawing ? pointer : null;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    const set = (id: string, data: unknown) => (map.getSource(id) as GeoJSONSource | undefined)?.setData(data as Shape);
+    const ring = (pts: LatLon[]) => [...pts, pts[0]].map((p) => [p.lon, p.lat]);
+    const zones = fl?.zones ?? [];
+    set("zones", {
+      type: "FeatureCollection",
+      features: zones
+        .filter((z) => (z.shape === "polygon" ? z.points.length >= 3 : z.radiusM > 0))
+        .map((z) => ({
+          type: "Feature",
+          properties: { id: z.id, role: z.role, sel: fl?.editing && fl.selected === z.id, bad: fl?.bad.includes(z.id) ?? false },
+          geometry: { type: "Polygon", coordinates: [z.shape === "polygon" ? ring(z.points) : circleRing(z.centre, z.radiusM).map((p) => [p.lon, p.lat])] },
+        })),
+    });
+    // The shape being drawn, with a line on to the pointer.
+    const d = fl?.drawing;
+    if (d && d.points.length) {
+      const pts = d.shape === "circle" ? [d.points[0], ...(drawPointer ? [drawPointer] : [])] : [...d.points, ...(drawPointer ? [drawPointer] : [])];
+      const feats: unknown[] = [{ type: "Feature", properties: { role: d.role }, geometry: { type: "LineString", coordinates: pts.map((p) => [p.lon, p.lat]) } }];
+      if (d.shape === "circle" && drawPointer) {
+        feats.push({ type: "Feature", properties: { role: d.role }, geometry: { type: "LineString", coordinates: circleRing(d.points[0], distanceM(d.points[0], drawPointer)).map((p) => [p.lon, p.lat]) } });
+      }
+      set("zonedraft", { type: "FeatureCollection", features: feats });
+    } else set("zonedraft", EMPTY);
+
+    /*
+      Handles: the corners of the selected zone (drag to move, right-click to
+      remove), a + on each edge to add a corner, a circle's centre and its
+      edge. They are rebuilt only when what they are for changes, so a drag
+      in progress is not cut short by the store updating under it.
+    */
+    const sel = fl?.editing && !d ? zones.find((z) => z.id === fl.selected) : undefined;
+    const sig = d ? `draw:${d.shape}:${d.points.length}` : sel ? `${sel.id}:${sel.shape}:${sel.shape === "polygon" ? sel.points.length : 1}` : "";
+    const grip = (key: string, cls: string, at: LatLon, title: string, draggable: boolean) => {
+      let m = handles.current.get(key);
+      if (!m) {
+        const el = document.createElement("div");
+        el.className = `rmap-grip ${cls}`;
+        el.title = title;
+        el.addEventListener("click", (e) => e.stopPropagation());
+        m = new maplibregl.Marker({ element: el, draggable }).setLngLat([at.lon, at.lat]).addTo(map);
+        handles.current.set(key, m);
+      } else if (!dragging.current) m.setLngLat([at.lon, at.lat]);
+      return m;
+    };
+    if (sig !== handleSig.current) {
+      for (const m of handles.current.values()) m.remove();
+      handles.current.clear();
+      handleSig.current = sig;
+      const call = () => latest.current.fenceLayer;
+      const ll = (m: Marker): LatLon => ({ lat: m.getLngLat().lat, lon: m.getLngLat().lng });
+      if (d) {
+        d.points.forEach((p, i) => {
+          const closes = i === 0 && d.shape === "polygon" && d.points.length >= 3;
+          const m = grip(`d${i}`, `draw${closes ? " closes" : ""}`, p, closes ? "Click to close the shape" : `Corner ${i + 1}`, false);
+          if (closes) m.getElement().addEventListener("click", () => call()?.onClose?.());
+        });
+      } else if (sel?.shape === "polygon") {
+        sel.points.forEach((p, i) => {
+          const m = grip(`v${i}`, "vertex", p, `Corner ${i + 1}: drag to move. Right-click to remove.`, true);
+          m.on("dragstart", () => {
+            dragging.current = true;
+            call()?.onVertex?.(sel.id, i, ll(m), "start");
+          });
+          m.on("drag", () => call()?.onVertex?.(sel.id, i, ll(m), "move"));
+          m.on("dragend", () => {
+            dragging.current = false;
+            call()?.onVertex?.(sel.id, i, ll(m), "end");
+          });
+          m.getElement().addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+            call()?.onRemoveVertex?.(sel.id, i);
+          });
+          const next = sel.points[(i + 1) % sel.points.length];
+          const mid = { lat: (p.lat + next.lat) / 2, lon: (p.lon + next.lon) / 2 };
+          const plus = grip(`m${i}`, "mid", mid, "Add a corner here", false);
+          plus.getElement().addEventListener("click", () => {
+            const z = call()?.zones.find((x) => x.id === sel.id);
+            if (z?.shape !== "polygon") return;
+            const a = z.points[i];
+            const b = z.points[(i + 1) % z.points.length];
+            call()?.onInsert?.(sel.id, i + 1, { lat: (a.lat + b.lat) / 2, lon: (a.lon + b.lon) / 2 });
+          });
+        });
+      } else if (sel?.shape === "circle") {
+        const c = grip("c", "centre", sel.centre, "Centre: drag to move the circle", true);
+        c.on("dragstart", () => {
+          dragging.current = true;
+          call()?.onCentre?.(sel.id, ll(c), "start");
+        });
+        c.on("drag", () => call()?.onCentre?.(sel.id, ll(c), "move"));
+        c.on("dragend", () => {
+          dragging.current = false;
+          call()?.onCentre?.(sel.id, ll(c), "end");
+        });
+        const r = grip("r", "radius", toGlobal(sel.centre, 0, sel.radiusM), "Edge: drag to change the radius", true);
+        const radius = (phase: "start" | "move" | "end") => {
+          const z = call()?.zones.find((x) => x.id === sel.id);
+          if (z?.shape === "circle") call()?.onRadius?.(sel.id, Math.max(1, Math.round(distanceM(z.centre, ll(r)))), phase);
+        };
+        r.on("dragstart", () => {
+          dragging.current = true;
+          radius("start");
+        });
+        r.on("drag", () => radius("move"));
+        r.on("dragend", () => {
+          dragging.current = false;
+          radius("end");
+        });
+      }
+    } else if (sel?.shape === "polygon" && !dragging.current) {
+      // Same handles, new positions: follow the zone (an undo, or a corner typed elsewhere).
+      sel.points.forEach((p, i) => {
+        handles.current.get(`v${i}`)?.setLngLat([p.lon, p.lat]);
+        const next = sel.points[(i + 1) % sel.points.length];
+        handles.current.get(`m${i}`)?.setLngLat([(p.lon + next.lon) / 2, (p.lat + next.lat) / 2]);
+      });
+    } else if (sel?.shape === "circle") {
+      const c = handles.current.get("c");
+      if (c && !dragging.current) c.setLngLat([sel.centre.lon, sel.centre.lat]);
+      const r = handles.current.get("r");
+      const edge = toGlobal(sel.centre, 0, sel.radiusM);
+      if (r && !dragging.current) r.setLngLat([edge.lon, edge.lat]);
+    }
+  }, [ready, fl, drawPointer]);
 
   // Home has just been taken from an aircraft's GPS: show it.
   useEffect(() => {
@@ -441,8 +598,8 @@ export default function RealMap(props: RealMapProps) {
   }
 
   return (
-    <div className={`rmap${props.onPick ? " pickable" : ""}`}>
-      <div ref={box} className="rmap-canvas" role="application" aria-label="Map of the route. Click to add a waypoint; drag a marker to move it." />
+    <div className={`rmap${props.onPick ? " pickable" : ""}${fl?.drawing ? " drawing" : ""}`}>
+      <div ref={box} className="rmap-canvas" role="application" aria-label={fl?.editing ? "Map of the fence. Click a zone to select it; drag its corners to move them." : "Map of the route. Click to add a waypoint; drag a marker to move it."} />
 
       <div className="rmap-tools" role="group" aria-label="Map controls">
         <button onClick={() => zoom(1)} aria-label="Zoom in" data-tip="Zoom in"><Plus /></button>
@@ -551,7 +708,21 @@ export default function RealMap(props: RealMapProps) {
         {wind && wind.speed > 0 && (
           <span><i className="fmap-wind" style={{ transform: `rotate(${wind.fromDeg + 180}deg)` }} aria-hidden /> Wind {wind.speed.toFixed(0)} m/s from {Math.round(wind.fromDeg)}°</span>
         )}
-        <span className="fmap-hint">{placing ? "Click to put home there. Esc cancels." : props.onPick ? "Click to add a waypoint. Drag a marker to move it." : "Scroll to zoom, drag to move."}</span>
+        <span className="fmap-hint">
+          {placing
+            ? "Click to put home there. Esc cancels."
+            : fl?.drawing
+              ? fl.drawing.shape === "circle"
+                ? fl.drawing.points.length
+                  ? "Click to set the radius. Esc cancels."
+                  : "Click the centre of the circle. Esc cancels."
+                : "Click to place each corner. Click the first corner, or press Enter, to finish."
+              : fl?.editing
+                ? "Click a zone to select it, then drag its corners."
+                : props.onPick
+                  ? "Click to add a waypoint. Drag a marker to move it."
+                  : "Scroll to zoom, drag to move."}
+        </span>
       </div>
     </div>
   );

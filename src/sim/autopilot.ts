@@ -1,6 +1,7 @@
 import { G } from "./airframe";
 import { euler, MOTORS, type Physics } from "./physics";
 import type { Params } from "./params";
+import { breachAt, FENCE_TYPE, GIVE_UP_M, localZones, OPTION_UNION, toBoundary, wireProblem, wireToZones, type FenceWire, type LocalZone } from "../geo/fence";
 
 /*
   A model of ArduCopter's flight controller.
@@ -97,6 +98,12 @@ export class Autopilot {
   armed = false;
   mission: MissionItem[] = [];
   missionSeq = 0;
+  /** The fence zones as the aircraft stores them, and in metres from home. */
+  fence: FenceWire[] = [];
+  private fenceZones: LocalZone[] = [];
+  /** Fence types breached now (FENCE_TYPE bits), and whether the floor has switched itself on. */
+  private fenceBreached = 0;
+  private floorOn = false;
   /** Bitmask-free list of failsafes that have fired this flight. */
   failsafes = new Set<string>();
   events: SimEvent[] = [];
@@ -160,6 +167,14 @@ export class Autopilot {
     return -this.phys.s.pos[2];
   }
 
+  /** Store fence items; they have already passed the loader's checks. */
+  setFence(items: FenceWire[]) {
+    if (wireProblem(items)) throw new Error("Fence items do not make whole zones");
+    this.fence = items;
+    this.fenceZones = localZones(wireToZones(items).zones, this.home);
+    this.fenceBreached = 0;
+  }
+
   toLocal(latE7: number, lonE7: number): { n: number; e: number } {
     const lat = latE7 / 1e7;
     const lon = lonE7 / 1e7;
@@ -192,8 +207,29 @@ export class Autopilot {
     const lowMah = this.p("BATT_LOW_MAH");
     if (lowMah > 0 && this.phys.af.capacityMah - s.usedMah < lowMah) why.push("Battery below low capacity failsafe");
     if (this.p("FS_THR_ENABLE") > 0 && !inp.rcOk && (this.mode === MODE.STABILIZE || this.mode === MODE.ALT_HOLD || this.mode === MODE.LOITER)) why.push("Radio failsafe on");
-    if (this.p("FENCE_ENABLE") && !inp.gpsOk) why.push("Fence requires position");
+    why.push(...this.fencePrearm(inp));
     return why;
+  }
+
+  /** AC_Fence::pre_arm_check, in the order the firmware makes it, with its words. */
+  private fencePrearm(inp: Inputs): string[] {
+    const type = Math.round(this.p("FENCE_TYPE"));
+    const live = this.p("FENCE_ENABLE") >= 1 || this.p("FENCE_AUTOENABLE") > 0;
+    const present = (type & (FENCE_TYPE.ALT_MAX | FENCE_TYPE.CIRCLE | FENCE_TYPE.ALT_MIN)) | (type & FENCE_TYPE.POLYGON && this.fenceZones.length ? FENCE_TYPE.POLYGON : 0);
+    if (this.p("FENCE_ENABLE") >= 1 && !present) return ["Fences enabled, but none selected"];
+    if (!live || !type) return [];
+    if (type & (FENCE_TYPE.CIRCLE | FENCE_TYPE.POLYGON) && !inp.gpsOk) return ["Fence requires position"];
+    const xy = this.p("FENCE_MARGIN_XY") > 0 ? this.p("FENCE_MARGIN_XY") : this.p("FENCE_MARGIN");
+    if (type & FENCE_TYPE.POLYGON && this.fenceZones.some((z) => z.role === "in" && z.shape === "circle" && z.r < xy)) return ["Polygon fence margin is greater than inclusion circle radius"];
+    if (this.p("FENCE_RADIUS") < xy) return ["Circle FENCE_MARGIN is greater than FENCE_RADIUS"];
+    if (this.p("FENCE_ALT_MAX") < 0) return ["Invalid FENCE_ALT_MAX value"];
+    if (this.p("FENCE_ALT_MIN") < -100) return ["Invalid FENCE_ALT_MIN value"];
+    const s = this.phys.s;
+    if (this.p("FENCE_ENABLE") >= 1 && type & FENCE_TYPE.POLYGON && breachAt(this.fenceZones, { n: s.pos[0], e: s.pos[1] }, (this.p("FENCE_OPTIONS") & OPTION_UNION) !== 0)) return ["Vehicle breaching Polygon fence"];
+    if (this.p("FENCE_ENABLE") >= 1 && type & FENCE_TYPE.CIRCLE && Math.hypot(s.pos[0], s.pos[1]) >= this.p("FENCE_RADIUS")) return ["Vehicle breaching Circle fence"];
+    if (this.p("FENCE_ALT_MAX") < this.p("FENCE_ALT_MIN")) return ["FENCE_ALT_MAX < FENCE_ALT_MIN"];
+    if (this.p("FENCE_ALT_MAX") - this.p("FENCE_ALT_MIN") <= 2 * this.p("FENCE_MARGIN")) return ["FENCE_MARGIN too big"];
+    return [];
   }
 
   arm(inp: Inputs, force = false): string[] {
@@ -561,13 +597,16 @@ export class Autopilot {
   private runRtl(dt: number, wpSpeed: number) {
     const s = this.phys.s;
     const r = this.rtl;
-    const rtlAlt = Math.max(this.alt, this.p("RTL_ALT") / 100);
+    let rtlAlt = Math.max(this.alt, this.p("RTL_ALT") / 100);
+    // Copter keeps the return below the fence ceiling, less its margin (mode_rtl.cpp).
+    if (this.fenceOn() && this.p("FENCE_TYPE") & FENCE_TYPE.ALT_MAX) rtlAlt = Math.min(rtlAlt, this.p("FENCE_ALT_MAX") - this.p("FENCE_MARGIN"));
     this.goal = r.stage === "climb" ? { n: s.pos[0], e: s.pos[1], alt: Math.max(this.target.alt, rtlAlt) } : r.stage === "return" ? { n: 0, e: 0, alt: this.target.alt } : null;
     const speed = this.p("RTL_SPEED") > 0 ? this.p("RTL_SPEED") / 100 : wpSpeed;
     if (r.stage === "climb") {
       if (this.target.alt < rtlAlt) this.target.alt = rtlAlt;
       this.slewVel(0, 0, this.p("WPNAV_ACCEL") / 100, dt);
-      if (this.alt >= this.target.alt - 0.5) {
+      // Copter's RTL starts from its stopping point: it brakes to a stop at WPNAV_ACCEL before it turns for home.
+      if (this.alt >= this.target.alt - 0.5 && Math.hypot(s.vel[0], s.vel[1]) < 0.5) {
         this.rtl = { stage: "return", since: s.t };
         this.auto.legFrom = null;
       }
@@ -858,6 +897,90 @@ export class Autopilot {
     this.setMode(MODE.LAND, inp, "failsafe");
   }
 
+  private fenceOn() {
+    return this.p("FENCE_ENABLE") >= 1 || (this.p("FENCE_AUTOENABLE") === 3 && this.armed);
+  }
+
+  /**
+   * The fence, as Copter's fence_check and AC_Fence::check run it: each kind
+   * is tested, a fresh breach triggers FENCE_ACTION once, and a breach clears
+   * when the aircraft is back inside, so a second breach acts again. The
+   * floor switches itself on once the aircraft is above it by the margin and
+   * is ignored while landing. More than 100 m outside, it gives up and lands.
+   */
+  private checkFence(inp: Inputs) {
+    const s = this.phys.s;
+    if (!this.fenceOn() || !inp.gpsOk || !this.armed) {
+      this.fenceBreached = 0;
+      if (!this.armed) this.floorOn = false;
+      return;
+    }
+    const type = Math.round(this.p("FENCE_TYPE"));
+    const margin = this.p("FENCE_MARGIN");
+    const here = { n: s.pos[0], e: s.pos[1] };
+    const landing = this.landed || this.mode === MODE.LAND || (this.mode === MODE.RTL && this.rtl.stage === "land");
+    let now = 0;
+    let outBy = 0;
+    if (type & FENCE_TYPE.ALT_MAX && this.alt >= this.p("FENCE_ALT_MAX")) {
+      now |= FENCE_TYPE.ALT_MAX;
+      outBy = Math.max(outBy, this.alt - this.p("FENCE_ALT_MAX"));
+    }
+    if (type & FENCE_TYPE.ALT_MIN) {
+      if (landing) this.floorOn = false;
+      else if (!this.floorOn && this.alt >= this.p("FENCE_ALT_MIN") + margin) {
+        this.floorOn = true;
+        this.log("info", "Min Alt fence enabled (auto enable)", "fence-floor");
+      }
+      if (this.floorOn && this.alt <= this.p("FENCE_ALT_MIN")) {
+        now |= FENCE_TYPE.ALT_MIN;
+        outBy = Math.max(outBy, this.p("FENCE_ALT_MIN") - this.alt);
+      }
+    }
+    const fromHome = Math.hypot(here.n, here.e);
+    if (type & FENCE_TYPE.CIRCLE && fromHome >= this.p("FENCE_RADIUS")) {
+      now |= FENCE_TYPE.CIRCLE;
+      outBy = Math.max(outBy, fromHome - this.p("FENCE_RADIUS"));
+    }
+    if (type & FENCE_TYPE.POLYGON && this.fenceZones.length) {
+      const z = breachAt(this.fenceZones, here, (this.p("FENCE_OPTIONS") & OPTION_UNION) !== 0);
+      if (z) {
+        now |= FENCE_TYPE.POLYGON;
+        outBy = Math.max(outBy, toBoundary(z, here));
+      }
+    }
+    const fresh = now & ~this.fenceBreached;
+    if (this.fenceBreached && !now) {
+      this.failsafes.delete("fence");
+      this.log("info", "Fence breach cleared", "fence-clear");
+    }
+    this.fenceBreached = now;
+    if (!fresh) return;
+    const names = [[FENCE_TYPE.ALT_MAX, "Max Alt"], [FENCE_TYPE.CIRCLE, "Circle"], [FENCE_TYPE.POLYGON, "Polygon"], [FENCE_TYPE.ALT_MIN, "Min Alt"]]
+      .filter(([bit]) => fresh & (bit as number))
+      .map(([, n]) => n);
+    const text = `${names.join(" and ")} fence${names.length > 1 ? "s" : ""} breached`;
+    const a = Math.round(this.p("FENCE_ACTION"));
+    // A new breach acts even if an older one has not cleared.
+    this.failsafes.delete("fence");
+    if (a === 0) {
+      this.failsafeAction("fence", text, "none", inp);
+      return;
+    }
+    if (outBy > GIVE_UP_M) {
+      this.failsafeAction("fence", `${text}: more than ${GIVE_UP_M} m outside, landing`, "land", inp);
+      return;
+    }
+    if (a === 4) {
+      this.failsafes.add("fence");
+      this.log("error", text, "fs-fence");
+      if (this.landed && s.onGround) this.disarm(`${text}: disarmed on the ground`);
+      else if (!this.setMode(MODE.BRAKE, inp, "failsafe")) this.setMode(MODE.LAND, inp, "failsafe");
+      return;
+    }
+    // SmartRTL (3, 5) is not modelled: it is flown as RTL, its usual fallback.
+    this.failsafeAction("fence", text, a === 2 ? "land" : "rtl", inp);
+  }
+
   private checkFailsafes(inp: Inputs) {
     const s = this.phys.s;
     const act = (v: number): "rtl" | "land" | "none" | "disarm" => (v === 1 ? "land" : v === 2 || v === 3 || v === 4 || v === 6 ? "rtl" : v === 5 ? "disarm" : v === 7 ? "land" : "none");
@@ -929,16 +1052,7 @@ export class Autopilot {
       this.gpsLostSince = null;
     }
 
-    // Fence.
-    if (this.p("FENCE_ENABLE") && inp.gpsOk && !this.landed) {
-      const type = this.p("FENCE_TYPE");
-      const tooHigh = type & 1 && this.alt > this.p("FENCE_ALT_MAX");
-      const tooFar = type & 2 && Math.hypot(s.pos[0], s.pos[1]) > this.p("FENCE_RADIUS");
-      if (tooHigh || tooFar) {
-        const a = this.p("FENCE_ACTION");
-        this.failsafeAction("fence", `Fence breached: ${tooHigh ? "above the ceiling" : "outside the radius"}`, a === 0 ? "none" : a === 2 ? "land" : "rtl", inp);
-      }
-    }
+    this.checkFence(inp);
 
     // Crash: far from the attitude it wants and not recovering.
     if (this.p("FS_CRASH_CHECK")) {

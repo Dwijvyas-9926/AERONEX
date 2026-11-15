@@ -75,12 +75,7 @@ export function checkPlan(inp: CheckInput): CheckItem[] {
     out.push({ sev: "warn", text: `The route comes within ${Math.round(profile.lowest.clear)} m of the ground. See the height profile under the map.` });
   }
 
-  // The fence.
-  if (p.FENCE_ENABLE) {
-    const type = p.FENCE_TYPE ?? 3;
-    if (type & 2 && farthest > p.FENCE_RADIUS) out.push({ sev: "bad", text: `Waypoint ${farI} is ${far(farthest)} from home, outside the ${far(p.FENCE_RADIUS)} fence (FENCE_RADIUS). The aircraft will turn back at the fence and not finish the mission.` });
-    if (type & 1 && highest > p.FENCE_ALT_MAX) out.push({ sev: "bad", text: `The plan climbs to ${Math.round(highest)} m, above the ${Math.round(p.FENCE_ALT_MAX)} m fence ceiling (FENCE_ALT_MAX). The aircraft will turn back there.` });
-  }
+  // The fence is checked by the fence's own check (fenceCheck.ts), against the fence being planned.
 
   // Time against the battery.
   const secs = flightSeconds(inp);

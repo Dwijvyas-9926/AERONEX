@@ -79,9 +79,12 @@ export const PARAM_DEFS: ParamDef[] = [
   { name: "FS_CRASH_CHECK", def: 1, help: "Disarm when a crash is detected" },
   { name: "RC_FS_TIMEOUT", def: 1, help: "Seconds of radio loss before failsafe" },
   { name: "FENCE_ENABLE", def: 0, help: "Geofence on" },
-  { name: "FENCE_TYPE", def: 7, help: "Bitmask: 1 max altitude, 2 circle" },
-  { name: "FENCE_ACTION", def: 1, help: "Breach action: 0 report, 1 RTL or Land, 2 Land" },
+  { name: "FENCE_TYPE", def: 7, help: "Bitmask: 1 max altitude, 2 circle round home, 4 zones, 8 min altitude" },
+  { name: "FENCE_ACTION", def: 1, help: "Breach action: 0 report, 1 RTL or Land, 2 Land, 3 SmartRTL or RTL, 4 Brake, 5 SmartRTL or Land" },
   { name: "FENCE_ALT_MAX", def: 100, help: "Fence ceiling, m" },
+  { name: "FENCE_ALT_MIN", def: -10, help: "Fence floor, m; switches on once climbed above" },
+  { name: "FENCE_OPTIONS", def: 0, help: "Bitmask: 2 inside any keep-in zone is enough" },
+  { name: "FENCE_AUTOENABLE", def: 0, help: "3: fence on when armed" },
   { name: "FENCE_RADIUS", def: 300, help: "Fence radius, m" },
   { name: "FENCE_MARGIN", def: 2, help: "Fence margin, m" },
   { name: "ARMING_CHECK", def: 1, help: "Pre-arm checks on" },
@@ -125,6 +128,7 @@ const RANGE: Record<string, [number, number]> = {
   FS_GCS_TIMEOUT: [2, 120],
   RC_FS_TIMEOUT: [0.5, 10],
   FENCE_ALT_MAX: [10, 1000],
+  FENCE_ALT_MIN: [-100, 100],
   FENCE_RADIUS: [30, 10000],
   FENCE_MARGIN: [1, 10],
 };
@@ -142,7 +146,7 @@ export const PARAM_TYPES: Record<string, number> = {
   ANGLE_MAX: 4, RTL_ALT: 6, RTL_SPEED: 4, RTL_LOIT_TIME: 6, RTL_ALT_FINAL: 4, LAND_SPEED: 4, LAND_ALT_LOW: 4,
   DISARM_DELAY: 2, PILOT_SPEED_UP: 4, BATT_CAPACITY: 6, BATT_LOW_TIMER: 2, BATT_FS_LOW_ACT: 2, BATT_FS_CRT_ACT: 2,
   FS_THR_ENABLE: 2, FS_GCS_ENABLE: 2, FS_OPTIONS: 6, FS_EKF_ACTION: 2, FS_CRASH_CHECK: 2, FENCE_ENABLE: 2,
-  FENCE_TYPE: 2, FENCE_ACTION: 2, ARMING_CHECK: 6, AUTO_OPTIONS: 6, SYSID_THISMAV: 4,
+  FENCE_TYPE: 2, FENCE_ACTION: 2, FENCE_OPTIONS: 4, FENCE_AUTOENABLE: 2, ARMING_CHECK: 6, AUTO_OPTIONS: 6, SYSID_THISMAV: 4,
 };
 const INT_RANGE: Record<number, [number, number]> = { 2: [-128, 127], 4: [-32768, 32767], 6: [-2147483648, 2147483647] };
 

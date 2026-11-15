@@ -134,6 +134,24 @@ npm test         # run the protocol and link unit tests (Vitest)
   waypoints, drag to move them, undo and redo, reorder, set every height.
 - A height profile along the whole route and an instant plan check: clearance,
   fence, flight time against the battery, height and distance.
+- A Fence tab for the geofence: ceiling, floor, distance from home, margin and
+  breach action (the FENCE_ settings), and keep-in and keep-out zones drawn on
+  either map as areas or circles, with corners to drag, undo, and a keep-in
+  drawn round the route in one click. Its check follows ArduCopter's own code
+  (AC_Fence, AC_PolyFence_loader, 4.6 and 4.7): what the firmware would refuse
+  to arm with, shapes that cross themselves (which ArduCopter accepts and gets
+  wrong), storage, home outside a keep-in, legs that breach and where, how far
+  past the edge the aircraft goes while it stops, returns home that cut
+  through a zone, and the ceiling and floor against the route.
+- Sending the fence turns it off first if it is being turned off, sends the
+  zones and reads them back, writes the settings, and turns it on last. A
+  refusal is reported in the aircraft's own words. It works round a firmware
+  trap found in testing: ArduCopter 4.6 wipes a fence of one or two circles a
+  moment after accepting it, if a larger fence was there before.
+- Checked against ArduCopter itself in SITL (`sitl/fence.test.ts`): it holds
+  exactly what is sent, refuses to arm exactly where the app says it will,
+  turns back where the app says the route breaches, and keeps the return
+  under the ceiling as the app says.
 - Predict the flight in the simulator model with wind, battery level and a
   chosen failure.
 - Plans save and open as `.waypoints` files (QGC WPL 110), which Mission

@@ -1,3 +1,5 @@
+import { FENCE_TYPE, wireToZones, type FenceWire } from "../../geo/fence";
+import type { FenceLayer } from "../mission-planning/fenceLayer";
 import { Pause, Pencil, SlidersHorizontal, BatteryWarning, CircleStop, Home as HomeIcon, Info, PlaneLanding, PlaneTakeoff, Play, Power, RotateCcw, Route, Satellite, TriangleAlert, Unplug, Wind } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
@@ -342,6 +344,9 @@ interface Snap {
   gpsOk: boolean;
   rcOk: boolean;
   fence: number | null;
+  /** The fence zones the virtual aircraft holds, as stored (a new array whenever they change). */
+  fenceItems: FenceWire[];
+  zonesOn: boolean;
   failsafes: string[];
   /** Which mission command it is on, how many there are, and how far the next point is. */
   missionSeq: number;
@@ -384,7 +389,9 @@ function useSnap(): { snap: Snap | null; track: MapPoint[]; clearTrack: () => vo
         motors: [...v.phys.faults.motor],
         gpsOk: v.gpsOk,
         rcOk: v.rcOk,
-        fence: v.ap.params.FENCE_ENABLE ? v.ap.params.FENCE_RADIUS : null,
+        fence: v.ap.params.FENCE_ENABLE && v.ap.params.FENCE_TYPE & FENCE_TYPE.CIRCLE ? v.ap.params.FENCE_RADIUS : null,
+        fenceItems: v.ap.fence,
+        zonesOn: !!(v.ap.params.FENCE_ENABLE && v.ap.params.FENCE_TYPE & FENCE_TYPE.POLYGON),
         failsafes: [...v.ap.failsafes],
         missionSeq: v.ap.missionSeq,
         missionLen: v.ap.mission.length,
@@ -431,6 +438,17 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
     if (profile && profile.model.source === "imported") void rehydrateModel(profile.id, profile.model);
   }, [profile]);
   const terrain = linkManager.sim?.terrain ?? FLAT;
+  // The zones the virtual aircraft enforces, drawn where it flies; only while they are switched on.
+  const fenceItems = snap?.fenceItems;
+  const zonesOn = !!snap?.zonesOn;
+  const fenceLayer = useMemo<FenceLayer | undefined>(() => {
+    if (!fenceItems?.length || !zonesOn) return undefined;
+    try {
+      return { zones: wireToZones(fenceItems).zones, selected: null, bad: [], drawing: null, editing: false };
+    } catch {
+      return undefined;
+    }
+  }, [fenceItems, zonesOn]);
   const ready = status === "connected";
 
   useEffect(() => {
@@ -588,7 +606,7 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
             </div>
           ) : terrain.kind === "real" ? (
             <Suspense fallback={<div className="rmap rmap-loading">Loading the map…</div>}>
-              <RealMap home={sim.home} route={route} closeRoute={sim.ending === "rtl"} fenceRadius={snap.fence} wind={windShown} homeLocked />
+              <RealMap home={sim.home} route={route} closeRoute={sim.ending === "rtl"} fenceRadius={snap.fence} fenceLayer={fenceLayer} wind={windShown} homeLocked />
             </Suspense>
           ) : (
             <FlightMap
@@ -597,6 +615,8 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
               track={track}
               aircraft={{ n: snap.n, e: snap.e, yawDeg: snap.yawDeg }}
               fenceRadius={snap.fence}
+              origin={sim.home}
+              fenceLayer={fenceLayer}
               wind={{ speed: wind.windSpeed, fromDeg: wind.windFromDeg }}
               terrain={terrain}
             />

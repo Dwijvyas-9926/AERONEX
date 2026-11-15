@@ -190,12 +190,10 @@ describe("plan check", () => {
     expect(has(check([pt(0, 100, 70), pt(0, 500, 70)], {}, ridge), "warn", /within 1\d m of the ground/)).toBe(true);
   });
 
-  it("flags waypoints outside an enabled fence, and not a disabled one", () => {
+  it("leaves the fence to the fence check, which uses the fence being planned", () => {
+    // The plan check used to read the aircraft's FENCE_ parameters; the fence check now does that with zones too.
     const fenced = { ...P, FENCE_ENABLE: 1, FENCE_TYPE: 3, FENCE_RADIUS: 300, FENCE_ALT_MAX: 100 };
-    const r = check([pt(400, 0, 120)], { params: fenced });
-    expect(has(r, "bad", /outside the 300 m fence/)).toBe(true);
-    expect(has(r, "bad", /fence ceiling/)).toBe(true);
-    expect(check([pt(400, 0, 120)]).some((i) => /fence/.test(i.text))).toBe(false);
+    expect(check([pt(400, 0, 120)], { params: fenced }).some((i) => /fence/i.test(i.text))).toBe(false);
   });
 
   it("compares the flight time with what the battery can give", () => {

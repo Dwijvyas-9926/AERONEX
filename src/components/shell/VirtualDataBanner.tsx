@@ -1,4 +1,5 @@
 import { FlaskConical } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { linkManager } from "../../services/link/linkManager";
 import { isPortOpen, useLink } from "../../state/linkStore";
@@ -17,9 +18,26 @@ export function VirtualDataBanner() {
   const open = useLink((s) => isPortOpen(s.status));
   const { pathname } = useLocation();
   const nav = useNavigate();
-  if (!virtual || !open || QUIET.has(pathname)) return null;
+  const shown = virtual && open && !QUIET.has(pathname);
+  const box = useRef<HTMLDivElement>(null);
+  // Its height, for anything else that sticks to the top of the page and must sit below it.
+  useEffect(() => {
+    const root = document.documentElement.style;
+    const el = box.current;
+    if (!shown || !el) {
+      root.setProperty("--banner-h", "0px");
+      return;
+    }
+    const size = new ResizeObserver(() => root.setProperty("--banner-h", `${el.offsetHeight}px`));
+    size.observe(el);
+    return () => {
+      size.disconnect();
+      root.setProperty("--banner-h", "0px");
+    };
+  }, [shown]);
+  if (!shown) return null;
   return (
-    <div className="virtual-banner" role="status">
+    <div className="virtual-banner" role="status" ref={box}>
       <FlaskConical aria-hidden className="vb-icon" />
       <p>
         <strong>Simulated data.</strong>{" "}

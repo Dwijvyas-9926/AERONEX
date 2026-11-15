@@ -1,6 +1,8 @@
 import { Maximize, Minus, Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Terrain } from "../../sim/terrain";
+import { distanceM, toGlobal, toLocal, type LatLon } from "../../geo/geo";
+import { ZONE_COLOR, type DragPhase, type FenceLayer } from "../mission-planning/fenceLayer";
 
 /*
   A plan view in metres, north up, with home at the origin.
@@ -33,6 +35,9 @@ interface Props {
   minSpan?: number;
   /** The landscape, shaded under the grid. */
   terrain?: Terrain | null;
+  /** Where home is on the Earth, for the fence zones, which are held in latitude and longitude. */
+  origin?: LatLon;
+  fenceLayer?: FenceLayer;
 }
 
 /** The ground as a picture: green low, brown high, lit from the north-west, water blue. */
@@ -70,7 +75,7 @@ const niceStep = (span: number) => {
   return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * pow;
 };
 
-export function FlightMap({ route = [], closeRoute, track = [], ghost = [], aircraft, fenceRadius, wind, mark, onPick, minSpan = 60, terrain }: Props) {
+export function FlightMap({ route = [], closeRoute, track = [], ghost = [], aircraft, fenceRadius, wind, mark, onPick, minSpan = 60, terrain, origin, fenceLayer: fl }: Props) {
   const ref = useRef<SVGSVGElement>(null);
 
   // Fit everything worth seeing, square, with room round the edge.
@@ -81,13 +86,22 @@ export function FlightMap({ route = [], closeRoute, track = [], ghost = [], airc
     };
     route.forEach(see);
     ghost.forEach(see);
+    if (origin && fl) {
+      for (const z of fl.zones) {
+        if (z.shape === "polygon") z.points.forEach((p) => see(toLocal(origin, p.lat, p.lon)));
+        else {
+          const c = toLocal(origin, z.centre.lat, z.centre.lon);
+          see({ n: c.n + Math.sign(c.n || 1) * z.radiusM, e: c.e + Math.sign(c.e || 1) * z.radiusM });
+        }
+      }
+    }
     if (aircraft) see(aircraft);
     if (mark) see(mark);
     if (track.length) see(track[track.length - 1]);
     for (let i = 0; i < track.length; i += Math.max(1, Math.floor(track.length / 60))) see(track[i]);
     const step = niceStep(far);
     return Math.ceil(far / step) * step;
-  }, [route, ghost, track, aircraft, mark, minSpan]);
+  }, [route, ghost, track, aircraft, mark, minSpan, origin, fl]);
 
   /*
     The view: fitted to the route until the reader takes hold of it. Scrolling
@@ -158,13 +172,51 @@ export function FlightMap({ route = [], closeRoute, track = [], ghost = [], airc
   const pick = (ev: React.MouseEvent) => {
     // The end of a drag is not a click.
     if (drag.current?.moved) return;
+    // With the Fence tab open, a click on open ground lets go of the selected zone.
+    if (fl?.editing && !fl.drawing) {
+      fl.onSelect?.(null);
+      return;
+    }
     if (!onPick) return;
     const p = toWorld(ev.clientX, ev.clientY);
     if (p) onPick(p.n, p.e);
   };
 
+  /* The fence: zones in metres from home, and handles to edit the selected one. */
+  const [hover, setHover] = useState<MapPoint | null>(null);
+  const grip = useRef<{ move: (at: LatLon, phase: DragPhase) => void } | null>(null);
+  const L = (p: LatLon) => (origin ? toLocal(origin, p.lat, p.lon) : { n: 0, e: 0 });
+  const G = (p: MapPoint): LatLon => (origin ? toGlobal(origin, p.n, p.e) : { lat: 0, lon: 0 });
+  const startGrip = (ev: React.PointerEvent, move: (at: LatLon, phase: DragPhase) => void) => {
+    ev.stopPropagation();
+    ev.currentTarget.setPointerCapture(ev.pointerId);
+    grip.current = { move };
+    const w = toWorld(ev.clientX, ev.clientY);
+    if (w) move(G(w), "start");
+  };
+  const gripEvents = (move: (at: LatLon, phase: DragPhase) => void) => ({
+    onPointerDown: (ev: React.PointerEvent) => startGrip(ev, move),
+    onPointerMove: (ev: React.PointerEvent) => {
+      if (!grip.current || ev.buttons === 0) return;
+      ev.stopPropagation();
+      const w = toWorld(ev.clientX, ev.clientY);
+      if (w) grip.current.move(G(w), "move");
+    },
+    onPointerUp: (ev: React.PointerEvent) => {
+      if (!grip.current) return;
+      ev.stopPropagation();
+      const w = toWorld(ev.clientX, ev.clientY);
+      if (w) grip.current.move(G(w), "end");
+      grip.current = null;
+    },
+    onClick: (ev: React.MouseEvent) => ev.stopPropagation(),
+  });
+  const zones = origin && fl ? fl.zones : [];
+  const sel = fl?.editing && !fl.drawing ? zones.find((z) => z.id === fl.selected) : undefined;
+  const draft = origin ? fl?.drawing : null;
+
   return (
-    <div className={`fmap${onPick ? " pickable" : ""}`}>
+    <div className={`fmap${onPick ? " pickable" : ""}${draft ? " drawing" : ""}`}>
       <svg
         ref={ref}
         viewBox={`${ce - half} ${-cn - half} ${half * 2} ${half * 2}`}
@@ -173,6 +225,7 @@ export function FlightMap({ route = [], closeRoute, track = [], ghost = [], airc
           drag.current = { x: ev.clientX, y: ev.clientY, moved: false };
         }}
         onPointerMove={(ev) => {
+          if (draft) setHover(toWorld(ev.clientX, ev.clientY));
           const d = drag.current;
           if (!d || ev.buttons === 0) return;
           const dx = ev.clientX - d.x;
@@ -203,6 +256,46 @@ export function FlightMap({ route = [], closeRoute, track = [], ghost = [], airc
           ))}
         </g>
         {fenceRadius ? <circle className="fmap-fence" r={fenceRadius} /> : null}
+        {zones.map((z) => {
+          const selected = fl?.editing && fl.selected === z.id;
+          const bad = fl?.bad.includes(z.id);
+          const style = { fill: ZONE_COLOR[z.role], stroke: ZONE_COLOR[z.role], fillOpacity: z.role === "out" ? (selected ? 0.3 : 0.2) : selected ? 0.1 : 0.03, strokeWidth: u * (selected ? 0.9 : 0.6), strokeDasharray: bad ? `${u * 2} ${u * 1.5}` : undefined };
+          const pickZone = fl?.editing && !fl.drawing ? (ev: React.MouseEvent) => {
+            ev.stopPropagation();
+            if (!drag.current?.moved) fl.onSelect?.(z.id);
+          } : undefined;
+          if (z.shape === "circle") {
+            const c = L(z.centre);
+            return <circle key={z.id} className="fmap-zone" cx={c.e} cy={-c.n} r={z.radiusM} style={style} onClick={pickZone} />;
+          }
+          if (z.points.length < 2) return null;
+          return <path key={z.id} className="fmap-zone" d={`${path(z.points.map(L))} Z`} style={style} onClick={pickZone} />;
+        })}
+        {draft && draft.points.length > 0 && (
+          <g className="fmap-draft" style={{ stroke: ZONE_COLOR[draft.role] }}>
+            {draft.shape === "polygon" ? (
+              <path d={path([...draft.points.map(L), ...(hover ? [hover] : [])])} strokeWidth={u * 0.6} strokeDasharray={`${u * 1.5} ${u * 1.2}`} fill="none" />
+            ) : (
+              hover && <circle cx={L(draft.points[0]).e} cy={-L(draft.points[0]).n} r={distanceM(draft.points[0], G(hover))} strokeWidth={u * 0.6} strokeDasharray={`${u * 1.5} ${u * 1.2}`} fill="none" />
+            )}
+            {draft.points.map((p, i) => {
+              const q = L(p);
+              const closes = i === 0 && draft.shape === "polygon" && draft.points.length >= 3;
+              return (
+                <circle
+                  key={i}
+                  className={`fmap-grip draw${closes ? " closes" : ""}`}
+                  cx={q.e}
+                  cy={-q.n}
+                  r={u * (closes ? 2 : 1.3)}
+                  onClick={closes ? (ev) => { ev.stopPropagation(); fl?.onClose?.(); } : undefined}
+                >
+                  <title>{closes ? "Click to close the shape" : `Corner ${i + 1}`}</title>
+                </circle>
+              );
+            })}
+          </g>
+        )}
         {fullRoute.length > 1 && <path className="fmap-route" d={path(fullRoute)} />}
         {ghost.length > 1 && <path className="fmap-ghost" d={path(ghost)} />}
         {track.length > 1 && <path className="fmap-track" d={path(track)} />}
@@ -239,6 +332,67 @@ export function FlightMap({ route = [], closeRoute, track = [], ghost = [], airc
             </text>
           </g>
         )}
+        {sel?.shape === "polygon" &&
+          sel.points.map((p, i) => {
+            const a = L(p);
+            const b = L(sel.points[(i + 1) % sel.points.length]);
+            return (
+              <g key={`${sel.id}${i}`}>
+                <g
+                  className="fmap-grip mid"
+                  transform={`translate(${(a.e + b.e) / 2} ${-(a.n + b.n) / 2})`}
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    const z = fl?.zones.find((x) => x.id === sel.id);
+                    if (z?.shape !== "polygon") return;
+                    const p0 = z.points[i];
+                    const p1 = z.points[(i + 1) % z.points.length];
+                    fl?.onInsert?.(sel.id, i + 1, { lat: (p0.lat + p1.lat) / 2, lon: (p0.lon + p1.lon) / 2 });
+                  }}
+                >
+                  <circle r={u * 1.4} />
+                  <path d={`M${-u * 0.7},0 H${u * 0.7} M0,${-u * 0.7} V${u * 0.7}`} strokeWidth={u * 0.35} />
+                  <title>Add a corner here</title>
+                </g>
+                <circle
+                  className="fmap-grip vertex"
+                  cx={a.e}
+                  cy={-a.n}
+                  r={u * 1.7}
+                  {...gripEvents((at, phase) => fl?.onVertex?.(sel.id, i, at, phase))}
+                  onContextMenu={(ev) => {
+                    ev.preventDefault();
+                    fl?.onRemoveVertex?.(sel.id, i);
+                  }}
+                >
+                  <title>{`Corner ${i + 1}: drag to move. Right-click to remove.`}</title>
+                </circle>
+              </g>
+            );
+          })}
+        {sel?.shape === "circle" &&
+          (() => {
+            const c = L(sel.centre);
+            return (
+              <>
+                <circle className="fmap-grip centre" cx={c.e} cy={-c.n} r={u * 1.9} {...gripEvents((at, phase) => fl?.onCentre?.(sel.id, at, phase))}>
+                  <title>Centre: drag to move the circle</title>
+                </circle>
+                <circle
+                  className="fmap-grip radius"
+                  cx={c.e + sel.radiusM}
+                  cy={-c.n}
+                  r={u * 1.6}
+                  {...gripEvents((at, phase) => {
+                    const z = fl?.zones.find((x) => x.id === sel.id);
+                    if (z?.shape === "circle") fl?.onRadius?.(sel.id, Math.max(1, Math.round(distanceM(z.centre, at))), phase);
+                  })}
+                >
+                  <title>Edge: drag to change the radius</title>
+                </circle>
+              </>
+            );
+          })()}
         {aircraft && (
           <g className="fmap-ac" transform={`translate(${aircraft.e} ${-aircraft.n}) rotate(${aircraft.yawDeg})`}>
             <path d={`M0,${-u * 4.4} L${u * 3},${u * 3.2} L0,${u * 1.6} L${-u * 3},${u * 3.2} Z`} strokeWidth={u * 0.4} />
@@ -267,7 +421,19 @@ export function FlightMap({ route = [], closeRoute, track = [], ghost = [], airc
           </span>
         )}
         <span>{half >= 1000 ? `${((half * 2) / 1000).toFixed(1)} km` : `${Math.round(half * 2)} m`} across</span>
-        <span className="fmap-hint">{onPick ? "Click to add a waypoint. Scroll to zoom, drag to move." : "Scroll to zoom, drag to move."}</span>
+        <span className="fmap-hint">
+          {draft
+            ? draft.shape === "circle"
+              ? draft.points.length
+                ? "Click to set the radius. Esc cancels."
+                : "Click the centre of the circle. Esc cancels."
+              : "Click to place each corner. Click the first corner, or press Enter, to finish."
+            : fl?.editing
+              ? "Click a zone to select it, then drag its corners."
+              : onPick
+                ? "Click to add a waypoint. Scroll to zoom, drag to move."
+                : "Scroll to zoom, drag to move."}
+        </span>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import type { Airframe } from "./airframe";
 import { Autopilot, MODE, type Home, type Inputs, type MissionItem, type SimEvent } from "./autopilot";
 import { defaultParams, PARAM_DEFS, PARAM_TYPES, sanitizeParam, sanitizeParams, storedValue, type Params } from "./params";
 import { euler, Physics } from "./physics";
+import { FENCE_CMD, PIXHAWK_FENCE_BYTES, wireProblem, type FenceWire } from "../geo/fence";
 import type { Terrain } from "./terrain";
 
 /*
@@ -59,6 +60,7 @@ export class VirtualVehicle {
   private sentEvents = 0;
   private paramQueue: number[] = [];
   private upload: { count: number; next: number; items: MissionItem[] } | null = null;
+  private fenceUp: { count: number; next: number; items: FenceWire[] } | null = null;
   private accelCal: number | null = null;
   private magCal: { start: number; last: number } | null = null;
   private paramNames: string[];
@@ -415,8 +417,13 @@ export class VirtualVehicle {
         break;
       }
       case "MISSION_COUNT": {
-        if (num("mission_type") !== 0) {
-          this.send("MISSION_ACK", { target_system: 255, target_component: 190, type: num("count") === 0 ? 0 : 3, mission_type: num("mission_type") });
+        const type = num("mission_type");
+        if (type === 1) {
+          this.fenceCount(num("count"));
+          break;
+        }
+        if (type !== 0) {
+          this.send("MISSION_ACK", { target_system: 255, target_component: 190, type: num("count") === 0 ? 0 : 3, mission_type: type });
           break;
         }
         const count = num("count");
@@ -431,6 +438,10 @@ export class VirtualVehicle {
       }
       case "MISSION_ITEM_INT":
       case "MISSION_ITEM": {
+        if (num("mission_type") === 1) {
+          this.fenceItem(name, num);
+          break;
+        }
         const u = this.upload;
         if (!u) break;
         const seq = num("seq");
@@ -452,11 +463,20 @@ export class VirtualVehicle {
         }
         break;
       }
-      case "MISSION_REQUEST_LIST":
-        this.send("MISSION_COUNT", { target_system: 255, target_component: 190, count: num("mission_type") === 0 ? ap.mission.length : 0, mission_type: num("mission_type") });
+      case "MISSION_REQUEST_LIST": {
+        const type = num("mission_type");
+        this.send("MISSION_COUNT", { target_system: 255, target_component: 190, count: type === 0 ? ap.mission.length : type === 1 ? ap.fence.length : 0, mission_type: type });
         break;
+      }
       case "MISSION_REQUEST_INT":
       case "MISSION_REQUEST": {
+        if (num("mission_type") === 1) {
+          const f = ap.fence[num("seq")];
+          if (!f) this.send("MISSION_ACK", { target_system: 255, target_component: 190, type: 13, mission_type: 1 });
+          // ArduPilot reports fence items with the frame left at zero and no height.
+          else this.send("MISSION_ITEM_INT", { target_system: 255, target_component: 190, seq: num("seq"), frame: 0, command: f.command, current: 0, autocontinue: 0, param1: f.p1, param2: 0, param3: 0, param4: 0, x: f.x, y: f.y, z: 0, mission_type: 1 });
+          break;
+        }
         const it = ap.mission[num("seq")];
         if (!it) {
           this.send("MISSION_ACK", { target_system: 255, target_component: 190, type: 13, mission_type: 0 });
@@ -466,14 +486,95 @@ export class VirtualVehicle {
         break;
       }
       case "MISSION_CLEAR_ALL":
-        ap.mission = [];
-        ap.missionSeq = 0;
+        if (num("mission_type") === 1) ap.setFence([]);
+        else {
+          ap.mission = [];
+          ap.missionSeq = 0;
+        }
         this.send("MISSION_ACK", { target_system: 255, target_component: 190, type: 0, mission_type: num("mission_type") });
         break;
       case "MISSION_SET_CURRENT":
         if (num("seq") < ap.mission.length) ap.missionSeq = num("seq");
         break;
     }
+  }
+
+  /*
+    The fence list, as ArduPilot's MissionItemProtocol_Fence takes it: more
+    items than storage can hold are refused at the count; the whole set is
+    checked by the loader's rules once the last item is in, and either stored
+    or refused with its reason in a status text.
+  */
+  private fenceCount(count: number) {
+    const ack = (type: number) => this.send("MISSION_ACK", { target_system: 255, target_component: 190, type, mission_type: 1 });
+    if (count > PIXHAWK_FENCE_BYTES / 8) {
+      ack(4);
+      return;
+    }
+    if (count === 0) {
+      this.ap.setFence([]);
+      ack(0);
+      return;
+    }
+    this.fenceUp = { count, next: 0, items: [] };
+    this.send("MISSION_REQUEST_INT", { target_system: 255, target_component: 190, seq: 0, mission_type: 1 });
+  }
+
+  private fenceItem(name: string, num: (k: string) => number) {
+    const u = this.fenceUp;
+    if (!u) return;
+    const ack = (type: number) => this.send("MISSION_ACK", { target_system: 255, target_component: 190, type, mission_type: 1 });
+    const seq = num("seq");
+    if (seq !== u.next) {
+      this.send("MISSION_REQUEST_INT", { target_system: 255, target_component: 190, seq: u.next, mission_type: 1 });
+      return;
+    }
+    const frame = num("frame");
+    if (![0, 3, 5, 6, 10, 11].includes(frame)) {
+      this.fenceUp = null;
+      ack(6);
+      return;
+    }
+    const cmd = num("command");
+    if (!(Object.values(FENCE_CMD) as number[]).includes(cmd)) {
+      this.fenceUp = null;
+      ack(3);
+      return;
+    }
+    const scale = name === "MISSION_ITEM" ? 1e7 : 1;
+    u.items.push({ seq, frame: 0, command: cmd, p1: Math.fround(num("param1")), p2: 0, p3: 0, p4: 0, x: Math.round(num("x") * scale), y: Math.round(num("y") * scale), z: 0 });
+    u.next++;
+    if (u.next < u.count) {
+      this.send("MISSION_REQUEST_INT", { target_system: 255, target_component: 190, seq: u.next, mission_type: 1 });
+      return;
+    }
+    this.fenceUp = null;
+    const problem = wireProblem(u.items);
+    if (problem) {
+      this.text(4, problem);
+      this.text(4, "Fence validation failed");
+      ack(1);
+      return;
+    }
+    // fence_storage_space_required, against a Pixhawk's fence storage.
+    let bytes = 5;
+    for (let i = 0; i < u.items.length; ) {
+      const it = u.items[i];
+      if (it.command === FENCE_CMD.POLYGON_IN || it.command === FENCE_CMD.POLYGON_OUT) {
+        bytes += 2 + 8 * it.p1;
+        i += it.p1;
+      } else {
+        bytes += it.command === FENCE_CMD.RETURN_POINT ? 9 : 13;
+        i++;
+      }
+    }
+    if (bytes > PIXHAWK_FENCE_BYTES) {
+      this.text(4, "Fence exceeds storage size");
+      ack(1);
+      return;
+    }
+    this.ap.setFence(u.items);
+    ack(0);
   }
 
   private command(cmd: number, p: number[]) {

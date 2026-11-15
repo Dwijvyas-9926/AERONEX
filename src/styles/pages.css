@@ -4710,7 +4710,7 @@ input[type="range"]::-moz-range-thumb {
 
 .mp-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   padding: 4px;
   border: 1px solid var(--line-soft);
@@ -5082,4 +5082,523 @@ input[type="range"]::-moz-range-thumb {
   font-size: var(--t-xs);
   font-weight: 500;
   color: var(--muted);
+}
+
+
+/* ------------------------------------------------------------------ geofence */
+
+.fz {
+  display: grid;
+  gap: var(--s4);
+}
+
+.fz code {
+  font: 500 0.6875rem/1 ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+.fz-status {
+  display: flex;
+  gap: var(--s3);
+  padding: var(--s3);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-ctl);
+  background: var(--midnight-deep);
+  font-size: var(--t-sm);
+  line-height: 1.45;
+}
+
+.fz-status > svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  color: var(--muted);
+}
+
+.fz-status > div {
+  display: grid;
+  gap: 2px;
+}
+
+.fz-status strong {
+  color: var(--ink);
+}
+
+.fz-status span {
+  color: var(--ink-2);
+}
+
+.fz-status.ok {
+  border-color: var(--ok-line);
+  background: var(--ok-soft);
+}
+
+.fz-status.ok > svg {
+  color: var(--ok);
+}
+
+.fz-status.warn {
+  border-color: var(--warn-line);
+  background: var(--warn-soft);
+}
+
+.fz-status.warn > svg {
+  color: var(--warn);
+}
+
+.fz-status .fz-note {
+  font-size: var(--t-xs);
+  color: var(--muted);
+}
+
+.fz-master {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+.fz-master > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.fz-master strong {
+  font-size: var(--t-md);
+  color: var(--ink);
+}
+
+.fz-master small {
+  color: var(--muted);
+  font-size: var(--t-xs);
+}
+
+.fz-section {
+  display: grid;
+  gap: var(--s3);
+}
+
+.fz-section h4 {
+  font-size: var(--t-sm);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.fz-limits {
+  display: grid;
+  border-top: 1px solid var(--line-soft);
+}
+
+.fz-limit {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 52px;
+  padding: var(--s2) 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.fz-limit input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--navy-2);
+}
+
+.fz-limit-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fz-limit-text strong {
+  font-size: var(--t-sm);
+  color: var(--ink);
+}
+
+.fz-limit-text small {
+  font-size: var(--t-xs);
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.fz-limit.off .fz-limit-text strong,
+.fz-limit.off .fz-limit-num {
+  color: var(--faint);
+  opacity: 0.62;
+}
+
+.fz-limit-num {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--t-sm);
+  color: var(--muted);
+}
+
+.fz-limit-num .mp-num {
+  width: 84px;
+}
+
+.fz-action select {
+  width: 100%;
+}
+
+.fz-action > span {
+  display: flex;
+  gap: var(--s2);
+  align-items: baseline;
+}
+
+.fz-rule {
+  display: grid;
+  gap: var(--s2);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.fz-rule > span {
+  display: flex;
+  gap: var(--s2);
+  align-items: baseline;
+}
+
+.fz-zones-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fz-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.fz-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: var(--slate);
+  color: var(--ink);
+  font: 600 var(--t-xs) var(--font-ui);
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+
+.fz-add-btn:hover:not(:disabled) {
+  background: var(--slate-hi);
+}
+
+.fz-add-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.fz-add-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.fz-add-btn.in svg {
+  color: #2f7d4f;
+}
+
+.fz-add-btn.out svg {
+  color: #c0392b;
+}
+
+.fz-drawing {
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s3);
+  border: 1.5px dashed var(--line);
+  border-radius: var(--r-ctl);
+  background: var(--field);
+  font-size: var(--t-sm);
+}
+
+.fz-drawing > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.fz-drawing strong {
+  color: var(--ink);
+}
+
+.fz-drawing span {
+  color: var(--ink-2);
+}
+
+.fz-drawing-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.fz-empty {
+  padding: var(--s3) var(--s4);
+  border: 1px dashed var(--line);
+  border-radius: var(--r-ctl);
+  color: var(--muted);
+  font-size: var(--t-sm);
+  line-height: 1.5;
+}
+
+.fz-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fz-zone {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 2px;
+  padding-right: 4px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-ctl);
+  background: var(--field);
+}
+
+.fz-zone.sel {
+  border-color: var(--navy-2);
+  box-shadow: 0 0 0 1px var(--navy-2) inset;
+}
+
+.fz-zone.bad {
+  border-color: var(--danger-line);
+}
+
+.fz-zone-main {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-width: 0;
+  padding: var(--s2) var(--s3);
+  border: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.fz-zone-main > span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.fz-zone-main strong {
+  font-size: var(--t-sm);
+  color: var(--ink);
+}
+
+.fz-zone-main small {
+  font-size: var(--t-xs);
+  color: var(--muted);
+}
+
+.fz-zone-bad {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  color: var(--danger);
+}
+
+.fz-swatch {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: 2.5px solid;
+  border-radius: 3px;
+}
+
+.fz-swatch.circle {
+  border-radius: 50%;
+}
+
+.fz-zone-edit {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: var(--s2);
+  padding: 0 var(--s3) var(--s3);
+}
+
+.fz-zone-edit small {
+  font-size: var(--t-xs);
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.fz .mp-check .link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.fz-send {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--line-soft);
+}
+
+/* Handles on the real map: corners to drag, a + to add one, a circle's centre and edge. */
+.rmap-grip {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--navy);
+  border-radius: 50%;
+  background: #fdfcf8;
+  box-shadow: 0 1px 3px rgba(13, 22, 41, 0.35);
+  cursor: grab;
+}
+
+.rmap-grip:active {
+  cursor: grabbing;
+}
+
+.rmap-grip.mid {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border-width: 1.5px;
+  background: rgba(253, 252, 248, 0.88);
+  cursor: copy;
+}
+
+.rmap-grip.mid::before,
+.rmap-grip.mid::after {
+  content: "";
+  position: absolute;
+  inset: 50% 3px auto;
+  height: 1.5px;
+  margin-top: -0.75px;
+  background: var(--navy);
+}
+
+.rmap-grip.mid::after {
+  transform: rotate(90deg);
+}
+
+.rmap-grip.centre {
+  width: 16px;
+  height: 16px;
+  background: var(--navy);
+  border-color: #fdfcf8;
+}
+
+.rmap-grip.radius {
+  border-radius: 3px;
+}
+
+.rmap-grip.draw {
+  width: 10px;
+  height: 10px;
+  cursor: default;
+}
+
+.rmap-grip.draw.closes {
+  width: 18px;
+  height: 18px;
+  border-width: 3px;
+  cursor: pointer;
+  box-shadow: 0 0 0 4px rgba(253, 252, 248, 0.6), 0 1px 3px rgba(13, 22, 41, 0.35);
+}
+
+.rmap.drawing .maplibregl-canvas {
+  cursor: crosshair;
+}
+
+/* The same on the practice field. */
+.fmap-zone {
+  vector-effect: non-scaling-stroke;
+}
+
+.fmap-draft path,
+.fmap-draft > circle:not(.fmap-grip) {
+  vector-effect: non-scaling-stroke;
+}
+
+.fmap-grip {
+  fill: #fdfcf8;
+  stroke: var(--navy);
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+  cursor: grab;
+}
+
+.fmap-grip.centre {
+  fill: var(--navy);
+  stroke: #fdfcf8;
+}
+
+.fmap-grip.mid {
+  cursor: copy;
+}
+
+.fmap-grip.mid circle {
+  fill: rgba(253, 252, 248, 0.9);
+  stroke: var(--navy);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+
+.fmap-grip.mid path {
+  stroke: var(--navy);
+}
+
+.fmap-grip.draw {
+  cursor: default;
+}
+
+.fmap-grip.draw.closes {
+  stroke-width: 3px;
+  cursor: pointer;
+}
+
+.fmap.drawing svg {
+  cursor: crosshair;
+}
+
+@media (max-width: 520px) {
+  .fz-limit {
+    grid-template-columns: 18px minmax(0, 1fr);
+  }
+
+  .fz-limit > :last-child:not(:nth-child(2)) {
+    grid-column: 2;
+  }
+}
+
+/* On a wide screen the map stays in view while the column beside it is worked down: drawing a
+   zone happens on the map while its instructions are in the Fence tab. */
+@media (min-width: 1181px) and (min-height: 760px) {
+  .mp-grid > .mp-map {
+    position: sticky;
+    top: calc(var(--s4) + var(--banner-h, 0px));
+  }
 }
