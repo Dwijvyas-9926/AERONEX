@@ -45,6 +45,13 @@ export interface TextStyle {
 
 export type Pt = [number, number];
 
+/** A JPEG to place on a page. The bytes go into the file as they are. */
+export interface JpegImage {
+  bytes: Uint8Array;
+  widthPx: number;
+  heightPx: number;
+}
+
 /* ----------------------------------------------------------- font metrics */
 
 /*
@@ -180,6 +187,11 @@ function rgb(hex: string): string {
 export class PdfDoc {
   private pages: string[] = [];
   private ops: string[] = [];
+  /** Images used on each page, by resource name. */
+  private pageImages: Array<Map<string, number>> = [];
+  private images: JpegImage[] = [];
+  private imageIndex = new Map<JpegImage, number>();
+  private current = new Map<string, number>();
 
   private widthMm: number;
   private heightMm: number;
@@ -208,7 +220,25 @@ export class PdfDoc {
   endPage(): void {
     this.sizes.push([this.widthMm, this.heightMm]);
     this.pages.push(this.ops.join("\n"));
+    this.pageImages.push(this.current);
+    this.current = new Map();
     this.ops = [];
+  }
+
+  /**
+   * Place a JPEG in the box (x, y, w, h), page mm with y down. The same image
+   * used twice is stored once.
+   */
+  image(img: JpegImage, x: number, y: number, w: number, h: number): void {
+    let i = this.imageIndex.get(img);
+    if (i === undefined) {
+      i = this.images.length;
+      this.images.push(img);
+      this.imageIndex.set(img, i);
+    }
+    const name = `Im${i}`;
+    this.current.set(name, i);
+    this.ops.push(`q ${n(w * MM_TO_PT)} 0 0 ${n(h * MM_TO_PT)} ${this.x(x)} ${this.y(y + h)} cm /${name} Do Q`);
   }
 
   private x(v: number): string {
@@ -269,43 +299,66 @@ export class PdfDoc {
     );
   }
 
-  /** Serialise the document. Call after the last `endPage`. */
+  /**
+   * Serialise the document. Call after the last `endPage`.
+   *
+   * Built as bytes, not as one string: a JPEG's data is binary and would be
+   * mangled by a text encoder, and every cross-reference offset has to count
+   * bytes exactly or a reader refuses the file.
+   */
   build(title: string): Uint8Array {
     const enc = new TextEncoder();
-    const objects: string[] = [];
     const pageCount = this.pages.length;
 
     // 1 catalog, 2 pages, then per page: page object and content stream,
-    // then the two fonts.
+    // then the two fonts, then one object per image.
     const pageIds = this.pages.map((_, i) => 3 + i * 2);
     const fontId = 3 + pageCount * 2;
+    const imageId = (i: number) => fontId + 2 + i;
+    const objects: Array<Uint8Array[]> = [];
+    const text = (s: string) => [enc.encode(s)];
 
-    objects[1] = `<< /Type /Catalog /Pages 2 0 R >>`;
-    objects[2] =
-      `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageCount} >>`;
+    objects[1] = text(`<< /Type /Catalog /Pages 2 0 R >>`);
+    objects[2] = text(`<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageCount} >>`);
 
     this.pages.forEach((content, i) => {
       const id = pageIds[i];
-      objects[id] =
+      const imgs = [...this.pageImages[i].entries()].map(([name, idx]) => `/${name} ${imageId(idx)} 0 R`).join(" ");
+      objects[id] = text(
         `<< /Type /Page /Parent 2 0 R ` +
-        `/MediaBox [0 0 ${n(this.sizes[i][0] * MM_TO_PT)} ${n(this.sizes[i][1] * MM_TO_PT)}] ` +
-        `/Resources << /Font << /F1 ${fontId} 0 R /F2 ${fontId + 1} 0 R >> >> ` +
-        `/Contents ${id + 1} 0 R >>`;
-      objects[id + 1] = `<< /Length ${enc.encode(content).length} >>\nstream\n${content}\nendstream`;
+          `/MediaBox [0 0 ${n(this.sizes[i][0] * MM_TO_PT)} ${n(this.sizes[i][1] * MM_TO_PT)}] ` +
+          `/Resources << /Font << /F1 ${fontId} 0 R /F2 ${fontId + 1} 0 R >>${imgs ? ` /XObject << ${imgs} >>` : ""} >> ` +
+          `/Contents ${id + 1} 0 R >>`,
+      );
+      objects[id + 1] = text(`<< /Length ${enc.encode(content).length} >>\nstream\n${content}\nendstream`);
     });
 
-    objects[fontId] = `<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`;
-    objects[fontId + 1] = `<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>`;
+    objects[fontId] = text(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`);
+    objects[fontId + 1] = text(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>`);
+    this.images.forEach((img, i) => {
+      objects[imageId(i)] = [
+        enc.encode(
+          `<< /Type /XObject /Subtype /Image /Width ${img.widthPx} /Height ${img.heightPx} ` +
+            `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${img.bytes.length} >>\nstream\n`,
+        ),
+        img.bytes,
+        enc.encode(`\nendstream`),
+      ];
+    });
 
-    const head = `%PDF-1.4\n%âãÏÓ\n`;
-    let body = "";
+    const chunks: Uint8Array[] = [];
+    let at = 0;
+    const push = (b: Uint8Array) => {
+      chunks.push(b);
+      at += b.length;
+    };
+    push(enc.encode(`%PDF-1.4\n%âãÏÓ\n`));
     const offsets: number[] = [];
-    let at = enc.encode(head).length;
     for (let i = 1; i < objects.length; i++) {
-      const obj = `${i} 0 obj\n${objects[i]}\nendobj\n`;
       offsets[i] = at;
-      body += obj;
-      at += enc.encode(obj).length;
+      push(enc.encode(`${i} 0 obj\n`));
+      for (const part of objects[i]) push(part);
+      push(enc.encode(`\nendobj\n`));
     }
 
     const count = objects.length;
@@ -314,7 +367,14 @@ export class PdfDoc {
     const trailer =
       `trailer\n<< /Size ${count} /Root 1 0 R /Info << /Title (${pdfTextString(title)}) ` +
       `/Producer (AERONEX Frame Studio) >> >>\nstartxref\n${at}\n%%EOF\n`;
+    push(enc.encode(xref + trailer));
 
-    return enc.encode(head + body + xref + trailer);
+    const out = new Uint8Array(at);
+    let o = 0;
+    for (const c of chunks) {
+      out.set(c, o);
+      o += c.length;
+    }
+    return out;
   }
 }

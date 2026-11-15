@@ -9,7 +9,8 @@ import { buildManifest, exportSlug, type ManifestFile } from "../manifest";
 import { toSTLParts } from "../solid";
 import { useStudio } from "../store";
 import { worstSeverity, type Finding } from "../validate";
-import { PAGE_SIZES, pageSizeById, planPrint, toPrintPDF } from "../printsheet";
+import { PAGE_SIZES, pageSizeById, planPrint } from "../printsheet";
+import { reportPageCount, toBuildReportPDF, type ReportInput } from "../report";
 import { zip, type ZipEntry } from "../zip";
 
 /*
@@ -52,6 +53,10 @@ export function ExportPanel({ design: d, findings }: { design: FrameDesign; find
   const bom = useMemo(() => buildBOM(d), [d]);
   const recipe = useMemo(() => buildRecipe(d), [d]);
   const printPlan = useMemo(() => planPrint(d, pageSizeById(pageSizeId)), [d, pageSizeId]);
+  const reportPages = useMemo(
+    () => reportPageCount({ design: d, findings, bom, recipe, vehicleName: "", plan: printPlan }),
+    [d, findings, bom, recipe, printPlan],
+  );
 
   const blocked = worstSeverity(findings) === "error";
   const vehicleName = profile?.name?.trim() || "Untitled airframe";
@@ -129,6 +134,11 @@ export function ExportPanel({ design: d, findings }: { design: FrameDesign; find
     says. A zip of SVGs meant unzipping, opening each one in a browser, and a
     print dialog that scales to fit by default, which is precisely the failure
     the sheet exists to catch.
+
+    The build report goes in front of the drawings, in the same file, so the
+    design and the reasons for it travel with the parts. Its two pictures are
+    rendered from the solid model; the renderer is loaded only now, so the
+    page does not carry three.js for an export most visits never make.
   */
   const savePrint = async () => {
     if (busy) return;
@@ -136,16 +146,24 @@ export function ExportPanel({ design: d, findings }: { design: FrameDesign; find
     try {
       const page = pageSizeById(pageSizeId);
       const plan = planPrint(d, page);
-      const bytes = toPrintPDF(d, plan, vehicleName);
-      download(`${stem}-part-drawings.pdf`, new Blob([bytes as BlobPart], { type: "application/pdf" }));
-      const parts = new Set(plan.pages.map((pg) => pg.profile.id)).size;
+      let images: ReportInput["images"] = {};
+      try {
+        const { renderFrame } = await import("../render");
+        images = { hero: await renderFrame(d), exploded: await renderFrame(d, { exploded: true, from: [1.5, 1.25, 1.2] }) };
+      } catch {
+        images = {};
+      }
+      const bytes = toBuildReportPDF({ design: d, findings, bom, recipe, vehicleName, plan, images });
+      const name = `${stem}-build-report.pdf`;
+      download(name, new Blob([bytes as BlobPart], { type: "application/pdf" }));
+      const pictures = images.hero ? "" : " This browser could not render the 3D pictures, so the report uses drawings instead.";
       notify(
         "success",
-        `${stem}-part-drawings.pdf saved`,
-        `${parts} part${parts > 1 ? "s" : ""} across ${plan.pages.length} ${page.name} page${plan.pages.length > 1 ? "s" : ""} at 1:1. Print at 100%, check the ruler, then lay your parts on it.`,
+        `${name} saved`,
+        `A ${reportPages}-page build report, then every part at 1:1 on ${plan.pages.length} ${page.name} page${plan.pages.length > 1 ? "s" : ""}. Print the drawings at 100%, check the ruler, then lay your parts on them.${pictures}`,
       );
     } catch (err) {
-      notify("error", "Export failed", err instanceof Error ? err.message : "The part drawings could not be built.");
+      notify("error", "Export failed", err instanceof Error ? err.message : "The build report could not be built.");
     } finally {
       setBusy(null);
     }
@@ -239,11 +257,12 @@ export function ExportPanel({ design: d, findings }: { design: FrameDesign; find
         <div className="fs-xcheck">
           <button className="fs-xcard wide" onClick={savePrint} disabled={busy !== null}>
             <Printer />
-            <b>Part drawings — PDF</b>
+            <b>{busy === "print" ? "Building the report…" : "Build report and part drawings — PDF"}</b>
             <small>
-              Every part at 1:1 on its own page, dimensioned. Lay your real motors, stack and battery on the drawings
-              and find the mistakes before you pay for a cut — the cheapest check there is. Print at 100%, not "fit to
-              page".
+              What you designed and why: specifications, weight and balance, arm structure, every check, the hardware
+              to order and the build steps, with pictures of the assembled frame. Then every part at 1:1, dimensioned,
+              to lay your real motors, stack and battery on before you pay for a cut. Print the drawings at 100%, not
+              "fit to page".
             </small>
             <Download className="fs-xcard-go" />
           </button>
@@ -255,7 +274,7 @@ export function ExportPanel({ design: d, findings }: { design: FrameDesign; find
               ))}
             </select>
             <small>
-              {new Set(printPlan.pages.map((pg) => pg.profile.id)).size} parts on{" "}
+              {reportPages} report pages, then {new Set(printPlan.pages.map((pg) => pg.profile.id)).size} parts on{" "}
               {printPlan.pages.length} page{printPlan.pages.length === 1 ? "" : "s"} at 1:1, in one PDF.
             </small>
           </label>

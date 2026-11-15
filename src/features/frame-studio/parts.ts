@@ -43,3 +43,43 @@ export function lookForPart(id: string): PartLook {
   if (id.startsWith("arm")) return PART_LOOK.arm;
   return PART_LOOK[id] ?? { ...FALLBACK, label: id };
 }
+
+/*
+  Colour says which part it is; finish says what it is made of.
+
+  These were both carried by colour once — every part took the material's own
+  shade — and it failed at both jobs. Carbon is a near-black #3a352f, and on
+  the dark background this view used to have, a carbon frame was a silhouette
+  with no readable detail at all. Worse, the one thing a reader most needs
+  from an exploded assembly is which piece is which, and four parts in one
+  colour cannot say that.
+
+  So the palette below identifies the part, and the material comes through in
+  metalness and roughness, which is where it actually shows: aluminium stays
+  bright and specular, plywood and nylon stay flat, acrylic stays glassy.
+*/
+/** Surface finish by material. Colour is the part's; this is the material's. */
+export const MATERIAL_FINISH: Record<string, { metalness: number; roughness: number }> = {
+  "cf-plate": { metalness: 0.25, roughness: 0.38 },
+  g10: { metalness: 0.05, roughness: 0.6 },
+  "alu-6061": { metalness: 0.85, roughness: 0.3 },
+  "ply-birch": { metalness: 0, roughness: 0.9 },
+  acrylic: { metalness: 0.05, roughness: 0.12 },
+  "pa-cf": { metalness: 0.04, roughness: 0.85 },
+  "pa12-cf": { metalness: 0.04, roughness: 0.85 },
+  petg: { metalness: 0.04, roughness: 0.5 },
+  pla: { metalness: 0, roughness: 0.75 },
+};
+export const FALLBACK_FINISH = { metalness: 0.05, roughness: 0.65 };
+
+/** The studio's lights and ground, shared with the build report's renders. */
+export const STUDIO = {
+  background: "#ece7dd",
+  ambient: 0.85,
+  ambientColor: "#fff6e8",
+  key: 1.35,
+  keyColor: "#fffaf0",
+  fill: 0.5,
+  fillColor: "#cfd8e4",
+  standoff: "#b9b4aa",
+};
