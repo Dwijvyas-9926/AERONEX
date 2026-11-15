@@ -1637,6 +1637,7 @@ input[type="range"]::-moz-range-thumb {
 .fp-search svg { color: var(--muted); flex: none; }
 .fp-search .input { flex: 1; }
 .fp-progress { display: flex; align-items: center; gap: var(--s2); font-size: var(--t-sm); color: var(--ink-2); margin-bottom: var(--s3); }
+.fp-progress progress { flex: 1; max-width: 320px; height: 6px; accent-color: var(--accent); }
 .fp-reboot { align-items: center; margin-bottom: var(--s4); }
 .fp-reboot .btn { margin-left: auto; flex: none; }
 .fp-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr); gap: var(--s4); align-items: start; }

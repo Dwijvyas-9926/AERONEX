@@ -15,6 +15,12 @@ export function sameParam(target: number, echoed: number): boolean {
 
 export type ParamWriteState = "ok" | "writing" | "failed";
 
+/**
+ * Where the full parameter list download stands. "incomplete" means the
+ * vehicle stopped answering before every index arrived.
+ */
+export type ParamListState = "idle" | "downloading" | "complete" | "incomplete";
+
 export interface PendingWrite {
   target: number;
   at: number;
@@ -29,6 +35,8 @@ interface ParamStoreState {
   count: number | null; // param_count the vehicle reports
   received: number; // distinct params seen (download progress)
   lastUpdateAt: number | null;
+  list: ParamListState;
+  setList: (list: ParamListState) => void;
   reset: () => void;
   onParamValue: (id: string, value: number, count: number, type?: number) => void;
   markPending: (id: string, target: number) => void;
@@ -42,7 +50,9 @@ export const useParams = create<ParamStoreState>((set, get) => ({
   count: null,
   received: 0,
   lastUpdateAt: null,
-  reset: () => set({ values: {}, types: {}, pending: {}, count: null, received: 0, lastUpdateAt: null }),
+  list: "idle",
+  setList: (list) => set({ list }),
+  reset: () => set({ values: {}, types: {}, pending: {}, count: null, received: 0, lastUpdateAt: null, list: "idle" }),
   onParamValue: (id, value, count, type) => {
     const s = get();
     const wasKnown = id in s.values;

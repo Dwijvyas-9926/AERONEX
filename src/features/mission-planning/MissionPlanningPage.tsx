@@ -90,7 +90,7 @@ export function MissionPlanningPage() {
     }
     if (askedFor.current || unread.count !== null) return;
     askedFor.current = true;
-    void commandLink.requestAllParams().catch(() => (askedFor.current = false));
+    void commandLink.ensureParamList().catch(() => (askedFor.current = false));
   }, [unread]);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Prediction | null>(null);

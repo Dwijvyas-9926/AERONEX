@@ -31,6 +31,7 @@ export function FullParamsPage() {
   const types = useParams((s) => s.types);
   const count = useParams((s) => s.count);
   const received = useParams((s) => s.received);
+  const list = useParams((s) => s.list);
   const connected = !!vehicle && (status === "connected" || status === "stale");
   const canSend = !!vehicle && status === "connected";
   const edits = useParamEdits();
@@ -41,19 +42,16 @@ export function FullParamsPage() {
   const [show, setShow] = useState<Show>("all");
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<string | null>(null);
-  const [requested, setRequested] = useState(false);
   // Edits the operator explicitly allowed outside the documented range.
   const [outsideOk, setOutsideOk] = useState<Set<string>>(new Set());
   const [compare, setCompare] = useState<{ fileName: string; diff: ParamDiff; bad: number } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  // Pull the full list once when the link is ready.
+  // The link downloads the full list when a vehicle connects; this only
+  // makes sure it is here or on its way (it may have stopped short).
   useEffect(() => {
-    if (canSend && !requested && received === 0) {
-      setRequested(true);
-      void commandLink.requestAllParams();
-    }
-  }, [canSend, requested, received]);
+    if (canSend) void commandLink.ensureParamList();
+  }, [canSend]);
 
   // A closed link may come back as a rebooted controller.
   useEffect(() => {
@@ -91,7 +89,6 @@ export function FullParamsPage() {
 
   const refresh = () => {
     if (!canSend) return;
-    setRequested(true);
     void commandLink.requestAllParams();
   };
 
@@ -225,7 +222,8 @@ export function FullParamsPage() {
     );
   }
 
-  const downloading = count != null && received < count;
+  const downloading = list === "downloading";
+  const incomplete = list === "incomplete" && count != null && received < count;
   const sel = selected && selected in values ? selected : null;
   const editedCount = edits.count;
 
@@ -266,7 +264,7 @@ export function FullParamsPage() {
               if (f) void loadFile(f);
             }}
           />
-          <button className="btn btn-ghost" disabled={!names.length || downloading} onClick={() => fileInput.current?.click()} title="Compare a .param file with the aircraft and choose what to apply">
+          <button className="btn btn-ghost" disabled={!names.length || downloading || incomplete} onClick={() => fileInput.current?.click()} title="Compare a .param file with the aircraft and choose what to apply">
             <FileUp size={15} /> Load file
           </button>
           <button className="btn btn-ghost" disabled={!names.length} onClick={saveToFile} title="Save every parameter to a .param file">
@@ -297,8 +295,22 @@ export function FullParamsPage() {
       )}
 
       {downloading && (
-        <div className="fp-progress">
-          <Loader2 className="spin" size={15} /> Downloading parameters… {received.toLocaleString()} / {count!.toLocaleString()}
+        <div className="fp-progress" role="status">
+          <Loader2 className="spin" size={15} /> Downloading parameters… {received.toLocaleString()}
+          {count ? ` of ${count.toLocaleString()}` : ""}
+          {count ? <progress max={count} value={received} aria-label="Parameter download" /> : null}
+        </div>
+      )}
+
+      {incomplete && (
+        <div className="callout warn fp-reboot">
+          <TriangleAlert />
+          <span>
+            <strong>{(count! - received).toLocaleString()} parameters did not arrive.</strong> The flight controller stopped answering before the list was whole. The ones shown are current; ask again for the rest.
+          </span>
+          <button className="btn btn-sm" disabled={!canSend} onClick={() => void commandLink.ensureParamList()}>
+            Download the missing ones
+          </button>
         </div>
       )}
 

@@ -196,8 +196,10 @@ const MAV_PARAM_TYPE_REAL32 = 9;
 const PARAM_QUIET_MS = 1500;
 /** Missing parameters asked for per second. */
 const FILL_BATCH = 24;
+const FILL_BATCH_MAX = 96;
 /** Rounds of chasing after which the vehicle is taken to have stopped answering. */
-const MAX_FILL_ROUNDS = 40;
+/** Give up filling gaps after this many quiet seconds in a row with nothing new arriving. */
+const MAX_STALLED_ROUNDS = 10;
 
 type SendFn = (bytes: Uint8Array) => Promise<void> | void;
 
@@ -216,6 +218,10 @@ class CommandLink {
   private seenIndices = new Set<number>();
   private fillTimer: ReturnType<typeof setInterval> | null = null;
   private fillRounds = 0;
+  private stalledRounds = 0;
+  private fillBatch = FILL_BATCH;
+  private lastAsked = 0;
+  private seenAtLastRound = 0;
 
   /** Called by the link manager when the port's writer is ready / gone. */
   attach(send: SendFn) {
@@ -369,12 +375,42 @@ class CommandLink {
     }
   }
 
+  /** Download the whole list again from the start (Refresh). */
   async requestAllParams() {
     const t = this.target();
     this.seenIndices.clear();
     this.fillRounds = 0;
+    useParams.getState().setList("downloading");
     await this.write("PARAM_REQUEST_LIST", { target_system: t.sysid, target_component: t.compid });
     this.watchParamList();
+  }
+
+  /** Is the full list here? Every index seen, or every name (some arrive by name). */
+  private listComplete(): boolean {
+    const { count, received } = useParams.getState();
+    return count != null && count > 0 && (this.seenIndices.size >= count || received >= count);
+  }
+
+  /**
+   * Make sure the full list is here or on its way. Called when a vehicle
+   * connects and by any page that needs every parameter. A page reading a
+   * few settings by name no longer counts as having the list: that used to
+   * leave the Parameters page at "14 of 1,370" until the next reconnect.
+   */
+  async ensureParamList() {
+    if (!this.canSend || this.fillTimer) return;
+    if (this.listComplete()) {
+      useParams.getState().setList("complete");
+      return;
+    }
+    // Indices already seen are kept: only the missing ones are asked for.
+    if (this.seenIndices.size > 0 && useParams.getState().count != null) {
+      this.fillRounds = 0;
+      useParams.getState().setList("downloading");
+      this.watchParamList(true);
+      return;
+    }
+    await this.requestAllParams();
   }
 
   /**
@@ -388,33 +424,50 @@ class CommandLink {
    * time, until the list is whole or the vehicle has plainly stopped
    * answering.
    */
-  private watchParamList() {
+  private watchParamList(fillNow = false) {
     if (this.fillTimer) clearInterval(this.fillTimer);
+    this.stalledRounds = 0;
+    this.fillBatch = FILL_BATCH;
+    this.lastAsked = 0;
+    this.seenAtLastRound = this.seenIndices.size;
+    const stop = (state: "complete" | "incomplete" | null) => {
+      if (this.fillTimer) clearInterval(this.fillTimer);
+      this.fillTimer = null;
+      if (state) useParams.getState().setList(state);
+    };
     this.fillTimer = setInterval(() => {
       const { count, lastUpdateAt } = useParams.getState();
-      const done = count != null && this.seenIndices.size >= count;
-      if (!this.canSend || done || this.fillRounds >= MAX_FILL_ROUNDS) {
-        if (this.fillTimer) clearInterval(this.fillTimer);
-        this.fillTimer = null;
-        return;
-      }
+      if (!this.canSend) return stop(null);
+      if (this.listComplete()) return stop("complete");
       if (count == null) {
         // Nothing at all came back: the list request itself was lost.
-        if (++this.fillRounds % 3 === 0) {
+        this.fillRounds++;
+        if (this.fillRounds % 3 === 0) {
           const t = this.target();
           void this.write("PARAM_REQUEST_LIST", { target_system: t.sysid, target_component: t.compid }).catch(() => {});
         }
+        if (this.fillRounds >= 15) stop("incomplete");
         return;
       }
-      if (lastUpdateAt != null && Date.now() - lastUpdateAt < PARAM_QUIET_MS) return;
+      if (!fillNow && lastUpdateAt != null && Date.now() - lastUpdateAt < PARAM_QUIET_MS) return;
+      fillNow = false;
+      // Keep asking while answers keep coming; stop once the vehicle has
+      // plainly gone quiet, however many rounds that took.
+      const gained = this.seenIndices.size - this.seenAtLastRound;
+      if (gained > 0) this.stalledRounds = 0;
+      else if (this.fillRounds > 0 && ++this.stalledRounds >= MAX_STALLED_ROUNDS) return stop("incomplete");
+      // A batch answered in full means the link has room: ask for more next time.
+      this.fillBatch = this.fillRounds > 0 && gained >= this.lastAsked ? Math.min(this.fillBatch * 2, FILL_BATCH_MAX) : FILL_BATCH;
+      this.seenAtLastRound = this.seenIndices.size;
       this.fillRounds++;
       const t = this.target();
       let asked = 0;
-      for (let i = 0; i < count && asked < FILL_BATCH; i++) {
+      for (let i = 0; i < count && asked < this.fillBatch; i++) {
         if (this.seenIndices.has(i)) continue;
         asked++;
         void this.write("PARAM_REQUEST_READ", { target_system: t.sysid, target_component: t.compid, param_id: "", param_index: i }).catch(() => {});
       }
+      this.lastAsked = asked;
     }, 1000);
   }
 

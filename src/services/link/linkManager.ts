@@ -21,6 +21,8 @@ import { VirtualVehicle, type VehicleOptions } from "../../sim/vehicle";
 
 const HEARTBEAT_TIMEOUT_MS = 8000; // first heartbeat must arrive within this window
 const STALE_AFTER_MS = 3000; // heartbeats are nominally 1 Hz
+// Let the identity and telemetry requests go first; the list then has the link to itself.
+const PARAM_LIST_DELAY_MS = 1000;
 const FLUSH_MS = 200;
 
 class LinkManager {
@@ -29,6 +31,7 @@ class LinkManager {
   private writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
   private session: VehicleSession | null = null;
   private timers: number[] = [];
+  private paramTimer: ReturnType<typeof setTimeout> | null = null;
   private closing = false;
   private dirty = false;
   /** Settles when the read loop has let go of the port. */
@@ -265,8 +268,15 @@ class LinkManager {
       ...snap,
       ...(becameConnected ? { status: "connected", connectedAt: Date.now() } : null),
     });
-    // Ask for telemetry as soon as a vehicle appears, so attitude/GPS/battery flow immediately.
-    if (becameConnected) void commandLink.requestDataStreams();
+    // Ask for telemetry as soon as a vehicle appears, so attitude/GPS/battery flow immediately,
+    // then download the whole parameter list once, as Mission Planner and QGroundControl do.
+    // Every page then reads from a complete list, whichever page is opened first.
+    if (becameConnected) {
+      void commandLink.requestDataStreams().then(() => {
+        const t = setTimeout(() => void commandLink.ensureParamList(), PARAM_LIST_DELAY_MS);
+        this.paramTimer = t;
+      });
+    }
   }
 
   private streamKeepalive() {
@@ -294,6 +304,8 @@ class LinkManager {
 
   private async teardown() {
     this.closing = true;
+    if (this.paramTimer) clearTimeout(this.paramTimer);
+    this.paramTimer = null;
     this.timers.forEach((t) => clearInterval(t));
     this.timers = [];
     // Keep what a real aircraft told us, so the simulator can fly on its settings.
