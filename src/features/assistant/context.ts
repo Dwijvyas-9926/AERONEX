@@ -33,6 +33,8 @@ export interface LiveInput {
   paramCount: number;
   plan: { points: PlanPoint[]; ending: Ending; takeoffAlt: number };
   fence: { zones: FenceZone[]; limits: FenceLimits; sentAndSame: boolean | null };
+  /** The flight log open in Flight Logs, summarised, or null. */
+  log?: string | null;
 }
 
 const FRESH = 6000;
@@ -77,6 +79,8 @@ export function buildLiveContext(i: LiveInput): string {
     out.push("Aircraft data: the person has turned off sharing aircraft data with the assistant. Nothing about their aircraft is known; ask them for any reading you need.");
     return out.join("\n");
   }
+
+  if (i.log) out.push(`Flight log open in Flight Logs (the person is asking about it; answer from these findings and say they came from AERONEX's checks):\n${i.log}`);
 
   const v = i.vehicle;
   const linked = !!v && (i.status === "connected" || i.status === "stale");

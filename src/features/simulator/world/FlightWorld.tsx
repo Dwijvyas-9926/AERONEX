@@ -44,6 +44,24 @@ export interface FlightWorldProps {
   up: AxisDir;
   scalePercent: number;
   fenceRadius: number | null;
+  /**
+    Fly this instead of the simulator: a flight log being replayed. Read every
+    frame; metres from home (north, east, down) and degrees.
+  */
+  source?: MutableRefObject<ReplayPose | null>;
+}
+
+/** One moment of a replayed flight. */
+export interface ReplayPose {
+  t: number;
+  n: number;
+  e: number;
+  d: number;
+  roll: number;
+  pitch: number;
+  yaw: number;
+  throttle: number;
+  armed: boolean;
 }
 
 /** Where the aircraft is this frame, shared by everything that follows it. */
@@ -497,6 +515,10 @@ function Flight(props: FlightWorldProps & { pose: MutableRefObject<Pose>; env: T
   useEffect(() => () => trail.geo.dispose(), [trail]);
 
   useFrame(() => {
+    if (props.source) {
+      replayFrame();
+      return;
+    }
     const v = linkManager.sim;
     if (!v) return;
     const s = v.phys.s;
@@ -569,6 +591,66 @@ function Flight(props: FlightWorldProps & { pose: MutableRefObject<Pose>; env: T
     }
     trail.geo.setDrawRange(0, trail.n);
   });
+
+  /** The replay: the same drawing, driven by the log instead of the physics. */
+  function replayFrame() {
+    const r = props.source?.current;
+    if (!r) return;
+    const p = pose.current;
+    const D = Math.PI / 180;
+    p.pos.set(r.e, -r.d, -r.n);
+    p.quat.setFromEuler(attitudeToEuler(r.roll * D, r.pitch * D, r.yaw * D, e3));
+    p.yaw = r.yaw * D;
+    p.ground = terrain.surface(r.n, r.e);
+    // The log's heights are above home; the replay ground is level at home, so never draw it below the surface.
+    if (p.pos.y < p.ground) p.pos.y = p.ground;
+    p.throttle = r.throttle;
+    p.armed = r.armed;
+    p.crashed = false;
+    spin.current = r.armed ? 60 + 620 * r.throttle : 0;
+    if (craft.current) {
+      craft.current.position.copy(p.pos);
+      craft.current.quaternion.copy(p.quat);
+      craft.current.visible = view !== "fpv";
+    }
+    const agl = Math.max(0, p.pos.y - p.ground);
+    const far = camera.position.distanceTo(p.pos);
+    if (blob.current) {
+      const size = (props.airframe.diagonalM + props.airframe.propDiaM) * (1.3 + agl * 0.05);
+      blob.current.position.set(p.pos.x, p.ground + 0.06, p.pos.z);
+      blob.current.scale.setScalar(size);
+      (blob.current.material as THREE.MeshBasicMaterial).opacity = Math.max(0.08, 0.7 - agl * 0.02);
+    }
+    if (drop.current) {
+      drop.current.visible = agl > 1.5 && view !== "fpv";
+      drop.current.position.set(p.pos.x, p.ground + agl / 2, p.pos.z);
+      drop.current.scale.set(1, agl, 1);
+    }
+    if (beacon.current) {
+      beacon.current.visible = far > 45 && view !== "fpv" && view !== "top";
+      beacon.current.position.set(p.pos.x, p.pos.y + 0.6 + far * 0.012 * lensScale(camera), p.pos.z);
+      const k = lensScale(camera);
+      beacon.current.scale.set(0.03 * beaconTex.aspect * k, 0.03 * k, 1);
+    }
+    if (sun.current) {
+      sun.current.position.copy(p.pos).addScaledVector(SUN, 70);
+      sun.current.target.position.copy(p.pos);
+      sun.current.target.updateMatrixWorld();
+    }
+    // Seeking back starts the trail again.
+    if (r.t < trail.t - 0.5) {
+      trail.n = 0;
+      trail.last.set(1e9, 0, 0);
+    }
+    trail.t = r.t;
+    if (trail.last.distanceTo(p.pos) > 1 && trail.n < trail.MAX) {
+      const arr = trail.geo.attributes.position as THREE.BufferAttribute;
+      arr.setXYZ(trail.n++, p.pos.x, p.pos.y, p.pos.z);
+      arr.needsUpdate = true;
+      trail.last.copy(p.pos);
+    }
+    trail.geo.setDrawRange(0, trail.n);
+  }
 
   return (
     <>

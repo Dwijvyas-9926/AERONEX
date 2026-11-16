@@ -112,4 +112,16 @@ describe("the manual searched without the AI", () => {
     expect(new Set(hits.map((h) => h.topic.id)).size).toBe(hits.length);
     expect(searchManual("the and of")).toEqual([]);
   });
+
+  it("includes the open flight log's findings, unless sharing is off", async () => {
+    const { loadLog } = await import("../../../logs/load");
+    const { logBrief } = await import("../../../logs/export");
+    const { synthLog } = await import("../../../logs/__tests__/synth");
+    const l = loadLog(synthLog({ vibe: 45 }), "flight.bin");
+    const brief = logBrief(l.flight, l.analysis, "flight.bin");
+    const c = buildLiveContext(input({ path: "/logs", log: brief }));
+    expect(c).toContain("Flight log open in Flight Logs");
+    expect(c).toMatch(/\[CHECK\] IMU 1 vibration is high: 45 m\/s²/);
+    expect(buildLiveContext(input({ path: "/logs", log: brief, share: false }))).not.toContain("vibration");
+  });
 });

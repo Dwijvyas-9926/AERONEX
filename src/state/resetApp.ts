@@ -5,7 +5,7 @@
   settings, frame designs, the mission plan, map preferences and keys, the
   last aircraft's settings, the key-remember flag), in localStorage and in
   sessionStorage. Imported 3D models are in the IndexedDB database
-  "avion.models.v1"; saved map tiles are in Cache Storage under
+  "avion.models.v1", the flight-log library in "aeronex.logs.v1"; saved map tiles are in Cache Storage under
   "aeronex-…". Reset used to remove only the profiles and settings and leave
   the rest, including the map provider's key.
 
@@ -15,6 +15,8 @@
 const OURS = /^(avion|aeronex)[.-]/;
 
 export const MODEL_DB = "avion.models.v1";
+/** The flight-log library (logs/library.ts). */
+export const LOG_DB = "aeronex.logs.v1";
 
 function clearStorage(s: Storage) {
   const keys: string[] = [];
@@ -55,7 +57,10 @@ export function clearStoredKeys() {
 export async function resetAppData(): Promise<void> {
   window.addEventListener("pagehide", clearStoredKeys);
   clearStoredKeys();
-  if (typeof indexedDB !== "undefined") await deleteDb(MODEL_DB);
+  if (typeof indexedDB !== "undefined") {
+    await deleteDb(MODEL_DB);
+    await deleteDb(LOG_DB);
+  }
   if (typeof caches !== "undefined") {
     try {
       for (const name of await caches.keys()) if (OURS.test(name)) await caches.delete(name);

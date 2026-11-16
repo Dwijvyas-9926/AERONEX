@@ -34,7 +34,9 @@ export interface SessionSnapshot {
 let eventSeq = 0;
 
 export class VehicleSession {
-  private parser = new MavlinkParser();
+  private parser = new MavlinkParser({ keepRaw: true });
+  /** Sees every valid frame as it arrives, before any filtering (the flight recorder). */
+  onFrame: ((f: MavFrame) => void) | null = null;
   private target: { sysid: number; compid: number } | null = null;
   private counts: Record<string, number> = {};
   private lastRateCounts: Record<string, number> = {};
@@ -64,6 +66,13 @@ export class VehicleSession {
   ingest(bytes: Uint8Array): boolean {
     let identityChanged = false;
     for (const f of this.parser.push(bytes)) {
+      if (this.onFrame) {
+        try {
+          this.onFrame(f);
+        } catch {
+          /* the recorder must never stop telemetry */
+        }
+      }
       if (this.handle(f)) identityChanged = true;
     }
     return identityChanged;
@@ -274,6 +283,8 @@ export class VehicleSession {
       case "MISSION_ACK":
       case "MISSION_COUNT":
       case "MISSION_ITEM_INT":
+      case "LOG_ENTRY":
+      case "LOG_DATA":
         this.onDecoded?.(f.name, d);
         break;
     }

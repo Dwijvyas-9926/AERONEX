@@ -51,8 +51,8 @@ describe("the question bank", () => {
   });
 
   it("fails an answer that claims a feature AERONEX lacks", () => {
-    expect(grade("logs", "Open Flight Logs and drop the .bin file in.").missing).toBeGreaterThan(0);
-    expect(grade("logs", "AERONEX can't open logs yet (Flight Logs is planned). Use Mission Planner or UAV Log Viewer.").missing).toBe(0);
+    expect(grade("ulg", "Yes: open Flight Logs and drop the .ulg file in.").missing).toBeGreaterThan(0);
+    expect(grade("ulg", "No. Flight Logs reads ArduPilot .bin and .tlog logs, not PX4 .ulg.").missing).toBe(0);
     expect(grade("px4-kf", "Yes, just connect it and press T.").missing).toBe(1);
     expect(grade("px4-kf", "No. Keyboard Flight is ArduCopter only; a PX4 aircraft is read but never commanded.").missing).toBe(0);
   });

@@ -226,9 +226,23 @@ class CommandLink {
   private lastAsked = 0;
   private seenAtLastRound = 0;
 
+  private taps = new Set<(name: string, d: Decoded) => void>();
+
   /** Called by the link manager when the port's writer is ready / gone. */
   attach(send: SendFn) {
     this.send = send;
+  }
+
+  /** Hear every message the session forwards here (log download). Returns a function that stops it. */
+  tap(fn: (name: string, d: Decoded) => void): () => void {
+    this.taps.add(fn);
+    return () => this.taps.delete(fn);
+  }
+
+  /** Send one message to the connected aircraft, its target fields filled in. */
+  async post(name: string, fields: Record<string, number | string | number[]>) {
+    const t = this.target();
+    await this.write(name, { target_system: t.sysid, target_component: t.compid, ...fields });
   }
   detach() {
     this.send = null;
@@ -929,6 +943,13 @@ class CommandLink {
   }
 
   handle(name: string, d: Decoded) {
+    for (const fn of this.taps) {
+      try {
+        fn(name, d);
+      } catch {
+        /* a listener's fault is its own */
+      }
+    }
     if (name.startsWith("MISSION_")) {
       this.onMission(name, d);
       return;

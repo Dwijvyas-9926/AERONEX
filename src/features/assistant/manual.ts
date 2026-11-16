@@ -107,7 +107,7 @@ const DETAIL: Record<string, string> = {
 - The advisor maps what you see to a staged change: fast high-pitched wobble (lower rate D first, then rate P; rule out vibration first), slow rocking (lower rate P, then angle P), bouncing up and down (lower Accel Z P and I together, keeping about 2:1), twitchy (lower angle P), sluggish (raise angle P in small steps), nose wag (yaw rate P). Drifting or not holding position is usually compass, GPS or EKF, not PID.
 - ArduCopter 4.7 renamed the vertical gains (PSC_D_*) and its acceleration gains are one tenth of 4.6's PSC_ACCZ_P and PSC_ACCZ_I; the page uses the right names and units for the firmware it sees.
 - Uploading to an armed aircraft asks for confirmation. Revert goes back.
-- It does not run AutoTune and has no log-based step response (there are no logs yet).`,
+- It does not run AutoTune and has no log-based step response. To judge tuning from a flight, open its log in Flight Logs: the Attitude charts draw desired against actual roll and pitch.`,
 
   "/params": `
 - The whole parameter list downloads when an aircraft connects; lost messages are asked for again, so it arrives whole even over a radio. "Download every parameter again" refreshes it.
@@ -191,10 +191,18 @@ ${fenceActions}
 - Messages: every kind of MAVLink message arriving and its rate in Hz; zero means the aircraft stopped sending it.
 - Link: time since the last heartbeat, and damaged (CRC) messages; a few on a radio are normal, many mean a poor link.
 - Events and vehicle messages: the aircraft's own status texts (including PreArm reasons) in order, and the raw frame stream.
-- Live only: nothing is recorded to a file yet.`,
+- Every link session (a real aircraft or the virtual one) is recorded as a .tlog in the Flight Logs library, unless "Record telemetry logs" is off in Settings.`,
 
   "/logs": `
-- Not built. Nothing on this page works yet: no .bin or .ulg parsing, no .tlog recording, no replay. Use Mission Planner or ArduPilot's online log viewer (UAV Log Viewer) for logs meanwhile, and Drone Doctor for a live health check.`,
+- Opens ArduPilot DataFlash logs (.bin, the aircraft's on-board log, any ArduPilot version that writes FMT/FMTU) and MAVLink telemetry logs (.tlog, from Mission Planner, QGroundControl, MAVProxy or AERONEX). Read in the browser, never uploaded. Not PX4 .ulg.
+- Three ways in: drop or choose a file; the log library (kept in this browser: every link session is recorded there as a .tlog automatically, plus logs opened or downloaded); or Logs on the aircraft: with the aircraft connected over MAVLink and disarmed, List logs, then Download (LOG_REQUEST protocol; lost pieces are re-requested, the log opens only when complete). Over USB a large log takes a minute or two, over a telemetry radio much longer. Erase all deletes every log on the card after a confirmation.
+- Report: a verdict (Problems found / Worth a look / No problems found), summary tiles (time in the air, distance, highest, farthest, top speed, battery used and lowest voltage), a strip of modes, armed and flying time with findings pinned, then each finding: what was measured, the limit, what to do, Show on chart, Replay from here and the ArduPilot guide. "Every check" lists all 15 checks with what each measured, including ones skipped because the log lacks the data.
+- The checks (flying time only, take-off and touchdown trimmed): log integrity; log ends while flying (on a .bin: likely power loss/brownout; on a .tlog: the link or recording may simply have stopped); crash and thrust loss (ERR 12 and 25, the autopilot's own messages, ending tilted over 60°); attitude tracking (desired vs actual roll/pitch: more than 30° off for 1 s = control lost, over 10° for 1 s = warning); motors (a motor within 2% of full output for 2 s, outputs differing by more than 20% of range, hover throttle above 75%); vibration per IMU (95th percentile: over 30 m/s² warning, over 60 problem) and clipping (any in flight is a warning, 100 or more a problem); compass (field 120–550 mGauss on the ground, interference with motor current or throttle: over 30% warning, over 60% problem, as compassmot); GPS (fix lost, fewer than 6 satellites a problem, fewer than 10 a warning, HDOP over 2.0, glitches); EKF test ratios (above 1 for 1 s = rejected, above FS_EKF_THRESH warning, lane switches, EKF failsafe); battery (below 3.3 V a cell a problem, 3.5 a warning, sag over 0.5 V a cell, over 80%/90% of BATT_CAPACITY used, no current sensor); board voltage outside 4.3–5.8 V or varying over 0.3 V, peripheral over-current; processor load over 90%, slow loops, dropped log messages; every ERR code and failsafe mode change decoded; altitude more than 3 m off target for 3 s; settings (pre-arm checks off, radio failsafe off, low battery does nothing, harmonic notch off, settings changed while armed).
+- A .tlog has fewer samples and no desired altitude or per-IMU detail; checks that need those say so. Checks are written for ArduCopter; other vehicles' logs open, with a note.
+- Charts: sets for attitude (with desired, dashed), altitude, motors, vibration (30 and 60 lines), clipping, battery, compass, GPS, EKF, board power and processor; search adds any field of any message. All charts share one time window and cursor: drag pans, scroll zooms, double-click shows the whole log, arrow keys step; mode bands shaded, events and errors as lines. Spikes are never thinned away when zoomed out.
+- Replay: the logged flight in the 3D world (level ground, home at the log's home) with the flight display, battery, satellites, distance and the map with the flown path; play, pause, 0.5–20×, scrub, jump to findings; space plays/pauses and arrow keys step. The time is shared with Charts.
+- Events: every mode change (with the reason, on a .bin), arming, event, decoded error and autopilot message, filterable. Parameters: search, values not at default (4.7 logs record defaults), changed during the log, and differences from the connected aircraft; save as .param. All data: every message type and field, rows from the cursor, CSV export.
+- Export: report (Markdown), flight path (KML for Google Earth), parameters (.param), or the log itself from the library.`,
 
   "/about": `
 - Explains the workflow, the safety design (ArduCopter only, no settings changed in flight without confirmation, the autopilot's own pre-arm checks, Keyboard Flight's limits, missions checked and read back) and how the app is tested (unit tests plus ArduPilot's own SITL build of ArduCopter 4.6 and 4.7).
@@ -203,7 +211,8 @@ ${fenceActions}
   "/settings": `
 - Motion (system, reduced, full), graphics quality (low, medium, high, ultra), units (Metric or Imperial; applies to Flight Data and Connection only; everything else is metric, as ArduPilot is).
 - Assistant: the Anthropic API key, the model, and whether it may search the web. The key is sent only to Anthropic; AERONEX has no server. It is kept until the tab closes unless "Remember keys on this device" is on (leave it off on a shared computer).
-- Reset app data removes everything AERONEX keeps in this browser: profiles, settings, keys, frame designs, the mission plan, imported models and saved map areas. Nothing on a flight controller changes.`,
+- Reset app data removes everything AERONEX keeps in this browser: profiles, settings, keys, frame designs, the mission plan, imported models, saved map areas and the flight-log library. Nothing on a flight controller changes.
+- Record telemetry logs: on by default; keeps a .tlog of every link session in the Flight Logs library.`,
 };
 
 /* ------------------------------------------------------------------ */
@@ -233,7 +242,7 @@ ${pageList}`,
     body: `Say so plainly when asked for any of these, and point to what does it today.
 - Install or update firmware on a flight controller: use Mission Planner or QGroundControl.
 - Command PX4, ArduPlane, ArduRover or ArduSub: read-only. Missions, Keyboard Flight, calibration and motor tests are ArduCopter only.
-- Flight logs: no .bin/.ulg analysis, no log download, no .tlog recording or replay (Flight Logs is planned). Use Mission Planner or UAV Log Viewer.
+- Flight logs: PX4 .ulg logs are not read (Flight Logs reads ArduPilot .bin and MAVLink .tlog). No log-based PID tuning or step-response analysis, and no FFT of the IMU (set up the harmonic notch with ArduPilot's own Filter Review tool). Log download needs a MAVLink link; logs on the SD card can also be copied from its APM/LOGS folder.
 - Links other than serial: no UDP, TCP, Wi-Fi or WebSocket, so no direct companion-computer or MAVProxy connection. No MAVLink signing. One aircraft at a time.
 - Missions: only take-off, waypoints with waits, and a return/land/hover ending, heights above home. No survey grids, terrain following, speed changes, ROI, camera triggers, splines, loiter turns, jumps, rally points or QGroundControl .plan files.
 - Tuning: no AutoTune run and no log-based tuning. No CompassMot, no battery-monitor wizard, no servo-output mapping page.

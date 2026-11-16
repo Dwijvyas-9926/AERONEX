@@ -1,3 +1,4 @@
+import { recorder } from "../../logs/recorder";
 import { describeUsbDevice, hasWebSerial } from "../capabilities";
 import { emptyStats, useLink, type LinkError } from "../../state/linkStore";
 import { VehicleSession } from "./vehicleSession";
@@ -63,9 +64,12 @@ class LinkManager {
     useParams.getState().reset();
     useCalibration.getState().reset();
     this.session = new VehicleSession(undefined, (name, d) => commandLink.handle(name, d));
-    commandLink.attach(async (bytes) => {
-      vehicle.receive(bytes);
-    });
+    this.record(`Virtual ${options.airframe.name}`);
+    commandLink.attach(
+      recorder.wrapSend(async (bytes) => {
+        vehicle.receive(bytes);
+      }),
+    );
     this.session.log("info", `Virtual aircraft started: ${options.airframe.name}. It speaks MAVLink like a flight controller, but nothing here is hardware.`);
     useLink.setState({
       status: "listening",
@@ -164,7 +168,8 @@ class LinkManager {
     } catch {
       this.writer = null;
     }
-    commandLink.attach((bytes) => this.writeBytes(bytes));
+    this.record("Serial");
+    commandLink.attach(recorder.wrapSend((bytes) => this.writeBytes(bytes)));
     this.session.log("info", `Serial port opened at ${baud.toLocaleString()} baud. Listening for MAVLink.`);
     const t = Date.now();
     useLink.setState({
@@ -297,6 +302,17 @@ class LinkManager {
     });
   }
 
+  /** Record this session to the log library (Settings decides whether). */
+  private record(label: string) {
+    recorder.start(label);
+    if (!this.session) return;
+    this.session.onFrame = (f) => {
+      // HEARTBEAT payload: type at byte 4, autopilot at byte 5 (6 is a ground station, 8 no autopilot).
+      const ap = f.msgid === 0 && f.payload[4] !== 6 && f.payload[5] !== 8;
+      recorder.incoming(f.raw, f.msgid, ap);
+    };
+  }
+
   private async writeBytes(bytes: Uint8Array) {
     if (!this.writer) throw new Error("The serial port is not open for writing.");
     await this.writer.write(bytes);
@@ -312,6 +328,7 @@ class LinkManager {
     if (!this.virtual) rememberParams();
     this.virtual = null;
     commandLink.detach();
+    void recorder.stop();
     try {
       await this.reader?.cancel();
     } catch {

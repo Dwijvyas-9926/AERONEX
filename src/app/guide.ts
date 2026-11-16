@@ -257,10 +257,23 @@ export const GUIDES: Record<string, Guide> = {
     ],
   },
   "/logs": {
-    purpose: "Will open the log the flight controller records and show what happened in a flight. This page is not built yet; it lists what is planned.",
+    purpose: "Opens a flight log and shows what happened in the flight: what the checks found and why, every reading on a chart, the flight replayed in 3D, and every event, message and parameter. Logs are read on this computer and never uploaded.",
     needs: [],
-    steps: ["Nothing to do here yet. For a live health check today, use Drone Doctor."],
-    terms: [["Flight log", "A recording the flight controller makes of every sensor reading during a flight."]],
+    steps: [
+      "Drop a .bin (the aircraft's on-board log) or a .tlog (a telemetry log) on the page, or open one from the library. With the aircraft connected and disarmed, Logs on the aircraft downloads one from its SD card.",
+      "Read the Report first: the verdict, then each finding with what was measured, the limit it broke and what to do. Show on chart and Replay from here go straight to the moment.",
+      "Use Charts to look closer: pick a chart set, or search for any field in the log. Drag to pan, scroll to zoom, double-click for the whole log.",
+      "Replay flies the logged flight in the 3D world with its instruments and the map; space plays and pauses, the arrow keys step.",
+      "Export saves a written report, the flight path for Google Earth, the parameters as a .param file, or the log itself.",
+    ],
+    terms: [
+      ["Flight log (.bin)", "The recording the flight controller makes on its SD card of every sensor reading during a flight, at full rate."],
+      ["Telemetry log (.tlog)", "What the ground station received over the link. AERONEX records one for every session; it has fewer samples than a .bin and nothing after the link dropped."],
+      ["Vibration", "How hard the flight controller is being shaken, in m/s². Under 30 is fine; over 60 nearly always causes problems."],
+      ["Clipping", "Moments when vibration went past what the accelerometer can measure. It should stay at zero."],
+      ["EKF test ratio", "How far a sensor disagrees with the position estimate. Under 0.5 is normal; at 1 the sensor is being rejected."],
+      ["Desired vs actual", "What the autopilot asked for and what the aircraft did. A sustained gap is a failing motor, a broken arm or poor tuning."],
+    ],
   },
   "/about": {
     purpose: "Explains what AERONEX is, who it is for and how the pieces fit together.",

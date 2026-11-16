@@ -40,6 +40,8 @@ export interface MavFrame {
   name: string;
   payload: Uint8Array; // as received (v2 may be zero-truncated)
   signed: boolean;
+  /** The whole packet as it came over the link, when the parser was made with keepRaw. */
+  raw?: Uint8Array;
 }
 
 export interface ParserStats {
@@ -55,6 +57,12 @@ export interface ParserStats {
 export class MavlinkParser {
   private buf = new Uint8Array(8192);
   private len = 0;
+  private keepRaw: boolean;
+
+  /** keepRaw: give each frame a copy of its packet bytes (for recording a .tlog). */
+  constructor(opts: { keepRaw?: boolean } = {}) {
+    this.keepRaw = !!opts.keepRaw;
+  }
   readonly stats: ParserStats = {
     bytes: 0,
     framesOk: 0,
@@ -141,6 +149,7 @@ export class MavlinkParser {
         name: def[1],
         payload: this.buf.slice(i + header, crcEnd),
         signed,
+        ...(this.keepRaw ? { raw: this.buf.slice(i, i + total) } : {}),
       });
       i += total;
     }

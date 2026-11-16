@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { HashRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AboutPage } from "../features/about/AboutPage";
 import { BrandLockup } from "../components/shell/BrandMark";
@@ -18,7 +18,6 @@ import { DigitalTwinPage } from "../features/digital-twin/DigitalTwinPage";
 import { DoctorPage } from "../features/doctor/DoctorPage";
 import { FlightDataPage } from "../features/flightdata/FlightDataPage";
 import { FrameStudioPage } from "../features/frame-studio/FrameStudioPage";
-import { LogsPage } from "../features/logs/LogsPage";
 import { MissionPlanningPage } from "../features/mission-planning/MissionPlanningPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
 import { FullParamsPage } from "../features/params/FullParamsPage";
@@ -35,6 +34,9 @@ import { useLink } from "../state/linkStore";
 import { commandLink } from "../services/link/commandLink";
 import { routeFor } from "./routes";
 import { useUi } from "../state/uiStore";
+
+// Flight Logs is large (charts, the reader, the replay) and only needed when opened.
+const LogsPage = lazy(() => import("../features/logs/LogsPage").then((m) => ({ default: m.LogsPage })));
 
 /* Stream a 1 Hz GCS heartbeat whenever a vehicle is connected, so ArduPilot's
    GCS failsafe is armed. It stops when the tab closes or the link drops, which
@@ -81,7 +83,7 @@ function AnimatedRoutes() {
           <Route path="/keyboard-flight" element={<KeyboardFlightPage />} />
           <Route path="/missions" element={<MissionPlanningPage />} />
           <Route path="/telemetry" element={<TelemetryPage />} />
-          <Route path="/logs" element={<LogsPage />} />
+          <Route path="/logs" element={<Suspense fallback={<div className="page-pad">Loading Flight Logs…</div>}><LogsPage /></Suspense>} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<OverviewPage />} />

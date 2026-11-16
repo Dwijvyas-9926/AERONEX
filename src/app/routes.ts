@@ -59,7 +59,7 @@ export const ROUTES: RouteDef[] = [
   // Review — diagnose and look back.
   { path: "/doctor", label: "Drone Doctor", icon: Stethoscope, group: "Review", status: { kind: "partial", note: "Live diagnosis" }, blurb: "A health scan that says what is wrong and how to fix it.", find: "diagnose fault problem vibration health fix ai" },
   { path: "/telemetry", label: "Telemetry", icon: Activity, group: "Review", status: { kind: "partial", note: "Live link data" }, blurb: "What is arriving over the link: message rates, events and raw data.", find: "mavlink messages rates events raw link diagnostics" },
-  { path: "/logs", label: "Flight Logs", icon: ScrollText, group: "Review", status: { kind: "planned", phase: 7 }, blurb: "Open a log after landing and see what the aircraft experienced.", find: "bin ulg log analysis replay" },
+  { path: "/logs", label: "Flight Logs", icon: ScrollText, group: "Review", status: { kind: "ready" }, blurb: "Open a log after a flight: what went wrong, every reading charted, the flight replayed in 3D.", find: "bin tlog dataflash log analysis analyzer replay download vibration crash review" },
 
   // System
   { path: "/about", label: "About", icon: Info, group: "System", status: { kind: "ready" }, blurb: "What AERONEX is, how to use it, and who made it.", find: "help info credits" },

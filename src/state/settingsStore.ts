@@ -20,6 +20,8 @@ interface SettingsState {
   aiWeb: boolean;
   /** The assistant is sent a snapshot of the linked aircraft with each question. */
   aiShare: boolean;
+  /** Keep a telemetry log (.tlog) of every link session in the log library. */
+  recordTlog: boolean;
   set: <K extends keyof Omit<SettingsState, "set">>(k: K, v: SettingsState[K]) => void;
 }
 
@@ -40,6 +42,7 @@ export const useSettings = create<SettingsState>()(
       aiModel: DEFAULT_AI_MODEL,
       aiWeb: true,
       aiShare: true,
+      recordTlog: true,
       set: (k, v) => set({ [k]: v } as Partial<SettingsState>),
     }),
     {

@@ -4,6 +4,8 @@
   moves to another page, and so any page can hand it a question (the Doctor's
   "help me fix this" does). It is kept only in memory: closing the tab ends it.
 */
+import { logBrief } from "../../logs/export";
+import { useLogs } from "../logs/store";
 import { create } from "zustand";
 import { useLink } from "../../state/linkStore";
 import { useParams } from "../../state/paramStore";
@@ -60,6 +62,7 @@ export function liveSnapshot(path = currentPath()): string {
   const sim = useSim.getState();
   const fence = useFence.getState();
   const sync = fenceSync(fence);
+  const openLog = useLogs.getState().open;
   return buildLiveContext({
     now: Date.now(),
     path,
@@ -73,6 +76,7 @@ export function liveSnapshot(path = currentPath()): string {
     paramCount: params.received,
     plan: { points: sim.points, ending: sim.ending, takeoffAlt: sim.takeoffAlt },
     fence: { zones: fence.zones, limits: fence.limits, sentAndSame: sync.known ? sync.same : null },
+    log: path === "/logs" && openLog ? logBrief(openLog.flight, openLog.analysis, openLog.name) : null,
   });
 }
 

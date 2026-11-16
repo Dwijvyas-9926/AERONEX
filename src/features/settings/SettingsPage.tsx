@@ -156,15 +156,30 @@ export function SettingsPage() {
           </div>
           <div className="setting">
             <div>
+              <strong>Record telemetry logs</strong>
+              <p>Keep a telemetry log (.tlog) of every session linked to an aircraft, real or virtual, in the Flight Logs library. It opens there and in Mission Planner, QGroundControl and MAVProxy. Kept in this browser only.</p>
+            </div>
+            <Segmented
+              label="Record telemetry logs"
+              value={s.recordTlog ? "on" : "off"}
+              onChange={(v) => s.set("recordTlog", v === "on")}
+              options={[
+                ["on", "On"],
+                ["off", "Off"],
+              ]}
+            />
+          </div>
+          <div className="setting">
+            <div>
               <strong>Reset app data</strong>
-              <p>Removes everything AERONEX keeps in this browser: aircraft profiles, settings, API keys, frame designs, the mission plan, imported 3D models and saved map areas. Nothing on any flight controller is changed.</p>
+              <p>Removes everything AERONEX keeps in this browser: aircraft profiles, settings, API keys, frame designs, the mission plan, imported 3D models, saved map areas and the flight-log library. Nothing on any flight controller is changed.</p>
             </div>
             <button
               className="btn btn-danger"
               onClick={async () => {
                 const ok = await confirmAction({
                   title: "Reset all app data?",
-                  body: "Aircraft profiles, settings, API keys, frame designs, the mission plan, imported 3D models and saved map areas stored in this browser will be deleted. This can't be undone.",
+                  body: "Aircraft profiles, settings, API keys, frame designs, the mission plan, imported 3D models, saved map areas and the flight-log library stored in this browser will be deleted. This can't be undone.",
                   confirmLabel: "Reset data",
                   tone: "danger",
                 });
