@@ -119,6 +119,11 @@ class LinkManager {
     }
   }
 
+  /** The USB ids of the port the link is on, or null for none (or the virtual aircraft). */
+  linkedPortInfo(): SerialPortInfo | null {
+    return this.port ? this.port.getInfo() : null;
+  }
+
   /** List ports this site already has permission for (no prompt). */
   async grantedPorts(): Promise<SerialPort[]> {
     if (!hasWebSerial()) return [];

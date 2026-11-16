@@ -5,6 +5,7 @@ export const PAGE_STARTERS: Record<string, string[]> = {
   "/digital-twin": ["My STEP model imports sideways. How do I fix it?", "Which file format should I export from my CAD tool?"],
   "/vehicle": ["How do I measure my aircraft's all-up mass and diagonal?"],
   "/connection": ["My Pixhawk connects but no data arrives. Why?", "How do I set up a SiK telemetry radio with a Pixhawk?"],
+  "/firmware": ["Which firmware does my Pixhawk 2.4.8 need?", "The board restarted but the bootloader never connected. What now?"],
   "/calibration": ["What order should I calibrate everything in?", "My compass calibration won't finish. What now?", "How do I check motor order and spin direction?"],
   "/pid": ["My quad wobbles fast when it hovers. What should I change?", "Should I use AutoTune instead of tuning by hand?"],
   "/params": ["Which failsafe settings should I set before the first flight?", "How do I restore my settings from a .param file?"],

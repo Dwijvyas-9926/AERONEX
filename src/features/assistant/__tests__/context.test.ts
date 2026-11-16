@@ -104,7 +104,8 @@ describe("the manual searched without the AI", () => {
     expect(top("baud rate radio no data")).toBe("page:/connection");
     expect(top("export dxf laser cut")).toBe("page:/frame-studio");
     expect(top("pid wobble")).toBe("page:/pid");
-    expect(top("flash firmware")).toBe("first-flight");
+    expect(top("flash firmware")).toBe("page:/firmware");
+    expect(top("pixhawk1-1M bootloader")).toBe("page:/firmware");
   });
 
   it("returns at most one passage per topic, and nothing for nothing", () => {

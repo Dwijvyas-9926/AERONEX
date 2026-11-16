@@ -39,9 +39,29 @@ const contentSecurityPolicy = (): Plugin => ({
   },
 });
 
+/*
+  ArduPilot's firmware server sends no CORS headers, so a web page cannot
+  download firmware from it directly. The dev and preview servers pass
+  /ardupilot-firmware/… on to https://firmware.ardupilot.org/… (only that
+  host, read-only GETs), which is how the Firmware page fetches the latest
+  stable release. Hosting AERONEX elsewhere needs the same rule; without it
+  the page offers the download link and a file picker instead.
+*/
+const firmwareProxy = {
+  "/ardupilot-firmware/": {
+    // AERONEX_FIRMWARE_SERVER points it elsewhere, for testing against a copy of the server.
+    target: process.env.AERONEX_FIRMWARE_SERVER ?? "https://firmware.ardupilot.org",
+    changeOrigin: true,
+    secure: true,
+    rewrite: (p: string) => p.replace(/^\/ardupilot-firmware/, ""),
+  },
+};
+
 // https://vite.dev/config/
 export default defineConfig({
   base: "./",
+  server: { proxy: firmwareProxy },
+  preview: { proxy: firmwareProxy },
   plugins: [react(), contentSecurityPolicy()],
   build: {
     chunkSizeWarningLimit: 1100,

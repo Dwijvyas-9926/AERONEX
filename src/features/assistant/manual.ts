@@ -181,6 +181,15 @@ ${fenceActions}
 - Sending the fence: asks first on a real aircraft, refused while armed ("Disarm before changing the fence"). Order: turn the fence off first if it is being turned off; send the zones and read them back after a short settle; write the other FENCE_ settings, each confirmed; turn the fence on last. Any failure stops there and says which step. Read replaces the plan's fence with the aircraft's (Undo brings yours back). The aircraft's fence is read automatically once per connection.
 - The prediction and the mission's send dialog use the fence on the Fence tab, and say so when it differs from the aircraft's.`,
 
+  "/firmware": `
+- Installs ArduPilot's ArduCopter firmware (Multicopter, or Helicopter: the -heli build) over the flight controller's own USB port, in Chrome or Edge on a computer (Web Serial). Only stable releases are offered, downloaded from firmware.ardupilot.org (Copter/stable/<board>/): the release must say FIRMWARE_VERSION_TYPE_OFFICIAL or it is refused. A .apj file can be installed under Advanced (checked the same way, but not known to be stable).
+- Getting to the bootloader: linked over USB and disarmed, "Restart into bootloader" sends MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN with param1 = 3, which keeps the bootloader waiting. Otherwise "Find the board": unplug USB, click, plug in, choose the board in Chrome's list; a board running ArduPilot is told to restart into its bootloader (ArduPilot refuses while armed). The bootloader is a separate USB device (often named with BL); the first time it must be chosen in the list too ("Choose the bootloader"), after that AERONEX opens it by itself. "Wait for a board I have used before" catches a previously chosen board as it is plugged in.
+- It reads the board id, board revision, flash size, external flash, processor id and revision and serial number from the bootloader (protocol 2-5), and picks the build ArduPilot makes for that board id (316 boards known), using the bootloader's USB id where several boards share an id (CubePilot, Holybro…). Pixhawk1 family (Pixhawk 2.4.8 and clones, board id 9): Pixhawk1 when the STM32F427 can use 2 MB, Pixhawk1-1M when it is an early revision with the 1 MB flaw (ST errata), when the bootloader offers 1 MB, or when the bootloader is too old to report the revision. Other builds for the board (-bdshot etc.) can be chosen; SimOnHardWare builds are never picked.
+- Before installing it refuses firmware for another board id (except ids ArduPilot marks compatible), firmware larger than the board's flash (suggesting -1M for the Pixhawk1 family), and firmware with an external-flash part on a board without one.
+- Install: identify again, external flash first if the firmware has one, erase (about 10 s), write in 252-byte blocks, verify by the board's CRC of its whole flash against the file's (a read-back on protocol 2), then start it. About half a minute. The bootloader is never touched, so a stopped or failed install leaves the board in its bootloader and it can be installed again. Parameters are kept (stored apart from the firmware).
+- The firmware server does not allow browsers to download directly; AERONEX downloads through its own dev/preview server (npm run dev / npm run preview). Hosted elsewhere it links to the file to download and install from a file.
+- No bootloader update, no DFU, no PX4 firmware, and not over a telemetry radio. The How to install tab is a full guide with troubleshooting (Linux dialout group and ModemManager, cables, hubs).`,
+
   "/doctor": `
 - Re-scans every 1.5 s and lists findings most serious first, each with the measured value, the likely cause, the fix and a link to the page that fixes it. Healthy checks are collapsed at the bottom.
 - Eight areas: vibration (under 30 m/s² healthy, 30-60 marginal, over 60 a problem; any rising clip count), state estimate (EKF variances; failsafe line FS_EKF_THRESH, default 0.8), compass (offsets over about 600 mGauss mean interference; COMPASS_USE 0), GPS (fix type, satellites, aim for 10+, HDOP), power (BATT_MONITOR 0, pack voltage per cell), sensors (present but unhealthy), configuration (arming checks off via ARMING_CHECK before 4.7 or ARMING_SKIPCHK from 4.7, FRAME_CLASS 0, hover throttle MOT_THST_HOVER very low or above about 0.55), and pre-arm messages with their usual cause.
@@ -240,7 +249,7 @@ ${pageList}`,
     id: "limits",
     title: "What AERONEX cannot do (yet)",
     body: `Say so plainly when asked for any of these, and point to what does it today.
-- Install or update firmware on a flight controller: use Mission Planner or QGroundControl.
+- Installing firmware: only ArduCopter (multicopter and helicopter) stable releases are offered; other vehicles, beta and daily builds only by installing a .apj file. No bootloader update and no DFU (boards without an ArduPilot-compatible bootloader need ArduPilot's DFU method once). Not over a telemetry radio.
 - Command PX4, ArduPlane, ArduRover or ArduSub: read-only. Missions, Keyboard Flight, calibration and motor tests are ArduCopter only.
 - Flight logs: PX4 .ulg logs are not read (Flight Logs reads ArduPilot .bin and MAVLink .tlog). No log-based PID tuning or step-response analysis, and no FFT of the IMU (set up the harmonic notch with ArduPilot's own Filter Review tool). Log download needs a MAVLink link; logs on the SD card can also be copied from its APM/LOGS folder.
 - Links other than serial: no UDP, TCP, Wi-Fi or WebSocket, so no direct companion-computer or MAVProxy connection. No MAVLink signing. One aircraft at a time.
@@ -265,7 +274,7 @@ Rules for any real aircraft: propellers off for anything on the bench (calibrati
   {
     id: "first-flight",
     title: "Workflow: a new ArduCopter quad from first power-up to first flight",
-    body: `1. Firmware: install ArduCopter with Mission Planner or QGroundControl (AERONEX cannot flash firmware). For a Pixhawk 2.4.8 or another FMUv3-class board use the Pixhawk1 target; if the installer reports only 1 MB of usable flash, use the Pixhawk1-1M build.
+    body: `1. Firmware: ${link("/firmware")} installs the latest stable ArduCopter over USB and picks the build for the board (for a Pixhawk 2.4.8, Pixhawk1 or Pixhawk1-1M from the processor revision).
 2. Link: ${link("/connection")} over USB (115200).
 3. Frame: in ${link("/params")} set FRAME_CLASS (1 = Quad) and FRAME_TYPE (1 = X for most quads), then reboot.
 4. Calibrate in ${link("/calibration")}, props off: Accel & Level, Compass, Radio, Flight Modes, ESC.

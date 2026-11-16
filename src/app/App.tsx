@@ -36,6 +36,7 @@ import { routeFor } from "./routes";
 import { useUi } from "../state/uiStore";
 
 // Flight Logs is large (charts, the reader, the replay) and only needed when opened.
+const FirmwarePage = lazy(() => import("../features/firmware/FirmwarePage").then((m) => ({ default: m.FirmwarePage })));
 const LogsPage = lazy(() => import("../features/logs/LogsPage").then((m) => ({ default: m.LogsPage })));
 
 /* Stream a 1 Hz GCS heartbeat whenever a vehicle is connected, so ArduPilot's
@@ -72,6 +73,7 @@ function AnimatedRoutes() {
           <Route path="/connection" element={<ConnectionPage />} />
           <Route path="/digital-twin" element={<DigitalTwinPage />} />
           <Route path="/frame-studio" element={<FrameStudioPage />} />
+          <Route path="/firmware" element={<Suspense fallback={<div className="page-pad">Loading Firmware…</div>}><FirmwarePage /></Suspense>} />
           <Route path="/calibration" element={<CalibrationPage />} />
           <Route path="/doctor" element={<DoctorPage />} />
           <Route path="/vehicle" element={<VehicleConfigPage />} />

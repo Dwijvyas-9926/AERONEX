@@ -185,6 +185,40 @@ npm test         # run the protocol and link unit tests (Vitest)
   `ASSISTANT_EVAL_KEY=sk-ant-… npx vitest run evals` (see the file's header
   for options; it writes a report with every answer).
 
+### Firmware — real
+- Installs **ArduCopter** (multicopter, or helicopter: the `-heli` build) on
+  the flight controller over its USB port, in Chrome or Edge (Web Serial).
+  Only **stable** releases are offered: the latest from
+  `firmware.ardupilot.org/Copter/stable/<board>/`, refused unless its
+  `firmware-version.txt` says `FIRMWARE_VERSION_TYPE_OFFICIAL`. Any `.apj` can
+  be installed from a file under Advanced, with the same checks.
+- Speaks the ArduPilot/PX4 bootloader protocol (revisions 2–5), as ArduPilot's
+  `uploader.py` does: identify, erase, write in 252-byte blocks, verify by the
+  board's CRC of its whole flash (read-back on protocol 2), boot. External
+  flash for the boards that have it. The bootloader is never touched, so a
+  failed or interrupted install leaves the board in its bootloader; AERONEX
+  reopens it (or catches it when it is plugged back in) to try again.
+- Gets the board into its bootloader by itself: "Restart into bootloader" over
+  an existing USB link (MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN, param1 = 3), or the
+  restart command sent to a board picked while running its firmware. Boards
+  chosen once are caught the moment they are plugged in.
+- Picks the build from the board id, flash size, processor and bootloader USB
+  id (316 boards, generated from ArduPilot's hwdef files by
+  `scripts/gen-boards.mjs`). Pixhawk 2.4.8 / Pixhawk1 clones: **Pixhawk1** or
+  **Pixhawk1-1M** from the STM32F427 revision (the 1 MB flash errata). Where
+  different boards share a board id and bootloader (board id 50: Pixhawk 4,
+  CUAV v5, PH4-mini…) it asks which board it is, as Mission Planner does.
+  Refuses firmware for another board or too big for its flash.
+- The firmware server sends no CORS headers, so AERONEX downloads through its
+  own dev/preview server (`/ardupilot-firmware/`, set
+  `AERONEX_FIRMWARE_SERVER` to point it elsewhere). Hosted as static files,
+  it links to the file to download and install by hand.
+- A **How to install** tab: what you need, the steps, which build, what
+  happens to parameters, and troubleshooting (cables, hubs, Linux `dialout`
+  and ModemManager, DFU for boards with no ArduPilot bootloader).
+- Not done: bootloader update, DFU, PX4 firmware, installing over a telemetry
+  radio.
+
 ### Flight Logs — real
 - Opens ArduPilot DataFlash logs (`.bin`, any version: the format is read from
   the log's own FMT/FMTU descriptions) and MAVLink telemetry logs (`.tlog`,
@@ -257,6 +291,13 @@ The log reader and checks are tested with DataFlash logs written in the test
 (every format character, torn messages, junk, FMTU units) and a synthetic
 flight with each fault switched on in turn (`src/logs/__tests__`).
 
+The firmware installer is tested against a simulated ArduPilot bootloader
+written from `AP_Bootloader/bl_protocol.cpp` (`src/firmware/__tests__`):
+full installs byte for byte, corrupted writes, failed erases, old bootloaders.
+`sitl/firmware.test.ts` checks that simulator against ArduPilot's own
+`uploader.py` through a pseudo-terminal (`ARDUPILOT_DIR=… npx vitest run
+sitl/firmware`).
+
 These tests validate the transport-independent code. They are **not** a
 substitute for testing against a real flight controller.
 
@@ -311,6 +352,7 @@ first STEP import.
 6. Integration, testing, refinement
 7. Mission planning — **done: real map, ground clearance, prediction, plan files**
 8. Flight logs — **done: .bin and .tlog analysis, recording, download from the aircraft, charts, replay**
+9. Firmware install — **done: latest stable ArduCopter over USB, build picked for the board, verified**
 
 ## Maps and ground heights
 

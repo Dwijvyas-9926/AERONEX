@@ -94,6 +94,24 @@ export const GUIDES: Record<string, Guide> = {
       ["Telemetry radio", "A pair of small radios that carry the link without a cable."],
     ],
   },
+  "/firmware": {
+    purpose: "Installs ArduPilot's flight software on the flight controller over USB: the latest stable ArduCopter release, in the build made for your board.",
+    needs: ["Chrome or Edge on a computer.", "A USB data cable into the flight controller's own USB port. Propellers off, battery unplugged."],
+    steps: [
+      "Choose Multicopter or Helicopter.",
+      "Linked over USB already? Click Restart into bootloader. Otherwise unplug the board, click Find the board, plug it in and choose it in the list.",
+      "If it restarts into its bootloader, choose the bootloader in the list too (the first time only).",
+      "Check the board and the build AERONEX picked, then click Install. Keep the cable in until it says done.",
+      "Connect to the board and calibrate if this was a new install.",
+    ],
+    terms: [
+      ["Firmware", "The program the flight controller runs. ArduCopter is ArduPilot's firmware for multicopters and helicopters."],
+      ["Bootloader", "A small program at the start of the flash that installs firmware. It is never erased, so an install can always be done again."],
+      ["Stable", "A release ArduPilot has tested and released for flying, as opposed to beta or daily builds."],
+      ["Pixhawk1-1M", "The build for Pixhawk 2.4.8-type boards whose processor can only use 1 MB of flash."],
+      [".apj", "ArduPilot's firmware file: the program, compressed, with the board id it is for."],
+    ],
+  },
   "/calibration": {
     purpose: "Teaches the flight controller's sensors what level, north and full throttle are. A new or rebuilt aircraft needs this once before it can fly safely.",
     needs: ["A linked flight controller.", "Propellers off for the ESC and motor tests."],

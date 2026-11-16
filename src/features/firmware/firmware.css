@@ -1,0 +1,598 @@
+/* Firmware. Prefix fw-. */
+
+.fw {
+  max-width: 980px;
+}
+
+.fw-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: var(--s5);
+}
+
+.fw-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px var(--s4);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: var(--t-sm);
+  cursor: pointer;
+}
+
+.fw-tabs button:hover {
+  color: var(--ink);
+}
+
+.fw-tabs button.on {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+.fw-panel {
+  margin-bottom: var(--s4);
+}
+
+.fw-panel .panel-head h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.fw-panel h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--t-lg);
+  margin-bottom: var(--s2);
+}
+
+.fw-panel p {
+  color: var(--ink-2);
+  line-height: 1.55;
+  max-width: 72ch;
+}
+
+.fw-error {
+  margin-bottom: var(--s4);
+  align-items: flex-start;
+}
+
+.fw-error > div {
+  flex: 1;
+  line-height: 1.5;
+}
+
+.fw-error-link {
+  margin-top: var(--s2);
+}
+
+.fw-error-link a,
+.fw-guide a,
+.fw-adv a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fw-dismiss {
+  flex: none;
+}
+
+/* ---------- start ---------- */
+
+.fw-vehicles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--s3);
+  border: 0;
+  padding: 0;
+  margin: 0 0 var(--s3);
+}
+
+.fw-vehicles legend {
+  font-size: var(--t-sm);
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: var(--s2);
+  padding: 0;
+}
+
+.fw-vehicle {
+  display: flex;
+  gap: var(--s3);
+  align-items: flex-start;
+  padding: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: var(--field);
+  cursor: pointer;
+}
+
+.fw-vehicle.on {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+.fw-vehicles:disabled .fw-vehicle {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.fw-vehicle input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+
+.fw-vehicle span {
+  display: grid;
+  gap: 2px;
+}
+
+.fw-vehicle small {
+  color: var(--muted);
+  font-size: var(--t-xs);
+  line-height: 1.4;
+}
+
+.fw-stable {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--t-sm);
+}
+
+.fw-stable svg {
+  color: var(--ok);
+  flex: none;
+}
+
+.fw-go .callout {
+  margin: var(--s3) 0;
+}
+
+.fw-steps {
+  margin: var(--s3) 0 var(--s4);
+  padding-left: 1.4em;
+  color: var(--ink-2);
+  line-height: 1.55;
+  max-width: 72ch;
+}
+
+.fw-steps li + li {
+  margin-top: 6px;
+}
+
+.fw-steps ul {
+  margin: 6px 0 0;
+  padding-left: 1.1em;
+}
+
+.fw-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  align-items: center;
+}
+
+.fw-hint {
+  font-size: var(--t-sm);
+  color: var(--muted) !important;
+  margin-top: var(--s3);
+}
+
+.fw-linkbtn {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fw-linkbtn:hover {
+  text-decoration: underline;
+}
+
+/* ---------- waiting ---------- */
+
+.fw-wait {
+  display: flex;
+  gap: var(--s4);
+  align-items: flex-start;
+}
+
+.fw-wait > svg {
+  color: var(--accent);
+  flex: none;
+  margin-top: 4px;
+}
+
+.fw-wait .fw-actions {
+  margin-top: var(--s4);
+}
+
+.fw-spin {
+  animation: fw-spin 1s linear infinite;
+}
+
+@keyframes fw-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fw-spin {
+    animation-duration: 3s;
+  }
+}
+
+/* ---------- the board ---------- */
+
+.fw-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--s3) var(--s5);
+  margin: 0 0 var(--s2);
+}
+
+.fw-facts dt {
+  font-size: var(--t-xs);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.fw-facts dd {
+  margin: 2px 0 0;
+  color: var(--ink);
+  font-size: var(--t-sm);
+}
+
+.fw-mono {
+  font-size: var(--t-xs) !important;
+  word-break: break-all;
+}
+
+.fw-tag {
+  display: inline-block;
+  margin-left: var(--s2);
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  border: 1px solid;
+}
+
+.fw-tag.warn {
+  color: var(--warn);
+  background: var(--warn-soft);
+  border-color: var(--warn-line);
+}
+
+.fw-tag.ok {
+  color: var(--ok);
+  background: var(--ok-soft);
+  border-color: var(--ok-line);
+}
+
+.fw-note {
+  font-size: var(--t-sm);
+  margin-top: var(--s3);
+  padding-left: var(--s3);
+  border-left: 2px solid var(--line);
+}
+
+.fw-note.warn {
+  border-left-color: var(--warn);
+}
+
+.fw-build {
+  display: grid;
+  gap: 4px;
+  max-width: 520px;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  margin-top: var(--s2);
+}
+
+.fw-build select {
+  height: 34px;
+  padding: 0 var(--s2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: var(--field);
+  font-weight: 500;
+}
+
+.fw-dl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s4);
+  font-size: var(--t-sm);
+  color: var(--ink-2);
+}
+
+.fw-bar {
+  display: block;
+  position: relative;
+  width: 220px;
+  max-width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--slate-hi);
+  overflow: hidden;
+}
+
+.fw-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width var(--dur-fast) linear;
+}
+
+.fw-release {
+  display: flex;
+  gap: var(--s3);
+  align-items: flex-start;
+  margin-top: var(--s4);
+  padding: var(--s3);
+  border: 1px solid var(--ok-line);
+  background: var(--ok-soft);
+  border-radius: var(--r-ctl);
+}
+
+.fw-release > svg {
+  color: var(--ok);
+  flex: none;
+  margin-top: 1px;
+}
+
+.fw-release.fw-file {
+  border-color: var(--warn-line);
+  background: var(--warn-soft);
+}
+
+.fw-release.fw-file > svg {
+  color: var(--warn);
+}
+
+.fw-release div {
+  display: grid;
+  gap: 2px;
+}
+
+.fw-release span {
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+}
+
+.fw-panel .callout.danger {
+  margin-top: var(--s4);
+}
+
+.fw-install-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s5);
+}
+
+.fw-install-row .fw-hint {
+  margin: 0;
+}
+
+.fw-adv {
+  margin-top: var(--s5);
+  border-top: 1px solid var(--line-soft);
+  padding-top: var(--s3);
+}
+
+.fw-adv summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--muted);
+  list-style: none;
+}
+
+.fw-adv summary::-webkit-details-marker {
+  display: none;
+}
+
+.fw-adv summary svg {
+  transition: transform var(--dur-fast);
+}
+
+.fw-adv[open] summary svg {
+  transform: rotate(90deg);
+}
+
+.fw-adv-body {
+  margin-top: var(--s3);
+}
+
+.fw-adv-body p {
+  font-size: var(--t-sm);
+  margin-bottom: var(--s3);
+}
+
+/* ---------- installing ---------- */
+
+.fw-warn-line {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  color: var(--warn) !important;
+  font-weight: 600;
+  font-size: var(--t-sm);
+}
+
+.fw-stages {
+  list-style: none;
+  padding: 0;
+  margin: var(--s4) 0;
+  display: grid;
+  gap: var(--s3);
+}
+
+.fw-stages li {
+  display: grid;
+  grid-template-columns: 150px minmax(120px, 320px) 48px;
+  align-items: center;
+  gap: var(--s3);
+  font-size: var(--t-sm);
+  color: var(--muted);
+}
+
+.fw-stages li .fw-bar {
+  width: 100%;
+}
+
+.fw-stages li.now {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.fw-stages li.done {
+  color: var(--ink-2);
+}
+
+.fw-stages li.done .fw-bar i {
+  background: var(--ok);
+}
+
+.fw-stage-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.fw-stage-name svg {
+  color: var(--ok);
+}
+
+.fw-dot {
+  width: 9px;
+  height: 9px;
+  margin: 0 3px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+}
+
+.fw-stages li.now .fw-dot {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+/* ---------- done ---------- */
+
+.fw-done {
+  display: flex;
+  gap: var(--s4);
+  align-items: flex-start;
+}
+
+.fw-done-icon {
+  color: var(--ok);
+  flex: none;
+}
+
+.fw-done h3 {
+  font-size: var(--t-md);
+  margin-top: var(--s4);
+}
+
+/* ---------- guide ---------- */
+
+.fw-guide {
+  max-width: 76ch;
+}
+
+.fw-guide section {
+  margin-bottom: var(--s8);
+}
+
+.fw-guide h2 {
+  font-size: var(--t-xl);
+  margin-bottom: var(--s3);
+}
+
+.fw-guide p {
+  color: var(--ink-2);
+  line-height: 1.65;
+}
+
+.fw-guide p + p {
+  margin-top: var(--s3);
+}
+
+.fw-check {
+  padding-left: 1.2em;
+  margin: 0;
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+
+.fw-check li + li {
+  margin-top: var(--s2);
+}
+
+.fw-steps-guide > li + li {
+  margin-top: var(--s3);
+}
+
+.fw-defs {
+  margin: var(--s3) 0;
+}
+
+.fw-defs dt {
+  font-weight: 700;
+  color: var(--ink);
+  margin-top: var(--s4);
+}
+
+.fw-defs dd {
+  margin: 4px 0 0;
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+
+.fw-guide code {
+  font-size: 0.92em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--slate-hi);
+}
+
+.fw-more ul {
+  padding-left: 1.2em;
+  line-height: 1.9;
+}
+
+@media (max-width: 640px) {
+  .fw-stages li {
+    grid-template-columns: 1fr 44px;
+  }
+  .fw-stages li .fw-bar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .fw-wait,
+  .fw-done {
+    flex-direction: column;
+  }
+}
