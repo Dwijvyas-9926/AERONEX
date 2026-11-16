@@ -189,8 +189,8 @@ npm test         # run the protocol and link unit tests (Vitest)
 - What every output pin does (SERVOn_FUNCTION), live from what the aircraft
   sends (SERVO_OUTPUT_RAW). On a Pixhawk 2.4.8 (recognised from the board id
   in AUTOPILOT_VERSION, or the aircraft profile) a drawing of the board and
-  its servo rail: RC IN, SB, MAIN OUT 1-8 and AUX OUT 1-6 with signal, + and −
-  pins, each output's function, its live pulse, and which outputs share a
+  its servo rail in the order printed on the case (RC IN, SB, MAIN OUT 8-1,
+  AUX OUT 6-1) with signal, + and − pins, each output's function, its live pulse, and which outputs share a
   rate. Other boards: their outputs and timer groups from ArduPilot's hwdef
   files (`scripts/gen-outputs.mjs`, 312 boards).
 - Set up by task: **payload release** (ArduPilot's gripper: closed, open and

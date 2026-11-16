@@ -7,8 +7,8 @@
   - RC pass-through follows the transmitter channel exactly (51-66, and 1 for
     the channel of the same number), or scaled to the output's own
     MIN/TRIM/MAX (140-155);
-  - DO_SET_SERVO moves only an output that nothing else drives (Disabled, a
-    sprayer, the gripper, an RC pass-through), and refuses any other with
+  - DO_SET_SERVO moves only an output that nothing else drives (Disabled,
+    RCPassThru, a sprayer, the gripper, an RC pass-through), and refuses any other with
     ArduPilot's own "Channel n is already in use"
     (AP_ServoRelayEvents::do_set_servo); on a pass-through it holds until the
     stick moves;
@@ -116,7 +116,15 @@ export const SERVO_TYPES: Record<string, number> = {
 
 /** Functions DO_SET_SERVO may move (AP_ServoRelayEvents::do_set_servo). */
 export function setServoAllowed(fn: number): boolean {
-  return fn === 0 || fn === 22 || fn === 23 || fn === 28 || (fn >= 51 && fn <= 66) || (fn >= 140 && fn <= 155);
+  return fn === 0 || fn === 1 || fn === 22 || fn === 23 || fn === 28 || (fn >= 51 && fn <= 66) || (fn >= 140 && fn <= 155);
+}
+
+/** The transmitter channel an output passes through (1 = the channel with its own number), or null. */
+function passChannel(fn: number, output: number): number | null {
+  if (fn === 1) return output;
+  if (fn >= 51 && fn <= 66) return fn - 50;
+  if (fn >= 140 && fn <= 155) return fn - 139;
+  return null;
 }
 
 type P = Record<string, number>;
@@ -142,7 +150,7 @@ export class SimServos {
     let v = pwm;
     // Scaled pass-through takes the command as an input position (1000-2000), as ArduPilot maps it.
     if (fn >= 140 && fn <= 155) v = this.scaled(p, output, Math.min(2000, Math.max(1000, pwm)));
-    const ch = fn >= 51 && fn <= 66 ? fn - 50 : fn >= 140 ? fn - 139 : null;
+    const ch = passChannel(fn, output);
     this.held.set(output, { pwm: Math.round(v), rcAt: ch ? (rc[ch - 1] ?? 0) : null });
     return null;
   }
@@ -185,7 +193,7 @@ export class SimServos {
       const fn = p[`SERVO${n}_FUNCTION`] ?? 0;
       const held = this.held.get(n);
       if (held && held.rcAt !== null) {
-        const ch = fn >= 51 && fn <= 66 ? fn - 50 : fn >= 140 && fn <= 155 ? fn - 139 : null;
+        const ch = passChannel(fn, n);
         // A moved stick takes a pass-through back from the command.
         if (ch === null || Math.abs((rc[ch - 1] ?? 0) - held.rcAt) > 10) this.held.delete(n);
       }

@@ -64,7 +64,9 @@ describe("functions, as ArduPilot numbers them", () => {
     // Same rule as the virtual aircraft, which follows AP_ServoRelayEvents::do_set_servo.
     for (let fn = -1; fn <= 180; fn++) expect(testable(fn)).toBe(setServoAllowed(fn));
     expect(testable(0) && testable(28) && testable(56) && testable(145)).toBe(true);
-    expect(testable(33) || testable(10) || testable(7) || testable(1)).toBe(false);
+    // RCPassThru (1) is k_manual, which do_set_servo allows.
+    expect(testable(1)).toBe(true);
+    expect(testable(33) || testable(10) || testable(7) || testable(29)).toBe(false);
   });
 
   it("names any function, from the firmware's list when it is not one of the common ones", () => {
@@ -123,6 +125,13 @@ describe("checks", () => {
     expect(ids(quad({ SERVO9_FUNCTION: 56 }))).not.toContain("rc-flying-9");
     expect(ids(quad({ SERVO9_FUNCTION: 60 }))).toEqual(expect.arrayContaining([]));
     expect(checkOutputs(quad({ SERVO9_FUNCTION: 60 }), PX, { rcChannels: 8 }).map((x) => x.id)).toContain("rc-none-9");
+  });
+
+  it("explains why a pass-through output sends nothing with no transmitter signal", () => {
+    const p = quad({ SERVO6_FUNCTION: 56, SERVO9_FUNCTION: 56 });
+    const i = checkOutputs(p, PX, { rcChannels: 0 }).find((x) => x.id === "rc-no-signal")!;
+    expect(i.detail).toMatch(/^MAIN 6, AUX 1 follow a transmitter channel/);
+    expect(checkOutputs(p, PX, { rcChannels: 16 }).map((x) => x.id)).not.toContain("rc-no-signal");
   });
 
   it("explains that an exact pass-through ignores the output's limits", () => {

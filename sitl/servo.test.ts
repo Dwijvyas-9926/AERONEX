@@ -143,6 +143,13 @@ describe.skipIf(!BIN)("servo outputs against real ArduCopter (SITL)", () => {
     say("Output 9 moved to 1700 µs then 1234 µs, as sent.");
   });
 
+  it("moves an RCPassThru (same-number channel) output too, as do_set_servo allows", async () => {
+    await app.actions.writeSettings({ SERVO13_FUNCTION: 1 });
+    await app.actions.testOutput(13, 1650);
+    expect(await settle(13, 1650)).toBe(1650);
+    say("Output 13 set to RCPassThru (1) moved to 1650 µs by DO_SET_SERVO.");
+  });
+
   it("refuses to move a motor's output, and the page gives ArduPilot's reason", async () => {
     const err = await app.actions.testOutput(1, 1600).then(() => null, (e: Error) => e.message);
     say(`DO_SET_SERVO on output 1 (Motor 1): ${err}`);

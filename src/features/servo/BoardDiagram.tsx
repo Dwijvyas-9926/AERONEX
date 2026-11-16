@@ -1,7 +1,8 @@
 /*
   The flight controller's servo rail, drawn: for a Pixhawk 2.4.8 (Pixhawk 1
   class), a top view of the board showing where the rail is, and the rail
-  itself end-on — RC IN, SB, MAIN OUT 1-8 and AUX OUT 1-6, each a column of
+  itself end-on, in the order printed on the case seen from the rear — RC IN,
+  SB, MAIN OUT 8 to 1 and AUX OUT 6 to 1, each a column of
   signal, + and − pins — with what every output does, live. Outputs that
   share a rate are bracketed together. Other boards get the rail alone, in
   ArduPilot's output order and timer groups.
@@ -140,16 +141,19 @@ function Groups({ groups, xOf, y, p }: { groups: number[][]; xOf: (servo: number
 
 function Pixhawk(p: Inner) {
   const byServo = new Map(p.outputs.map((o) => [o.servo, o]));
-  // The rail, left to right as printed on the case: RC IN, SB, MAIN OUT 1-8, AUX OUT 1-6.
+  // The rail, left to right as printed on a Pixhawk 2.4.8's case seen from the rear:
+  // RC IN, SB, then MAIN OUT 8 down to 1, then AUX OUT 6 down to 1.
   const X0 = 440;
   const railY = 210;
   const xRc = X0;
   const xSb = X0 + COL;
-  const xMain = (k: number) => X0 + COL * 2 + 14 + (k - 1) * COL;
-  const xAux = (k: number) => xMain(8) + 26 + k * COL;
+  const mainStart = X0 + COL * 2 + 14;
+  const xMain = (k: number) => mainStart + (8 - k) * COL;
+  const auxStart = xMain(1) + COL + 26;
+  const xAux = (k: number) => auxStart + (6 - k) * COL;
   const xOf = (servo: number) => (servo <= 8 ? xMain(servo) : servo <= 14 ? xAux(servo - 8) : null);
   const left = xRc - COL / 2 - 104;
-  const right = xAux(6) + COL / 2 + 14;
+  const right = xAux(1) + COL / 2 + 14;
   const sel = p.selected !== null ? byServo.get(p.selected) : undefined;
   const focus = p.hover !== null ? byServo.get(p.hover) : sel;
 
@@ -231,11 +235,11 @@ function Pixhawk(p: Inner) {
         <text x={(xMain(1) + xMain(8)) / 2} y={railY - 68} textAnchor="middle">
           MAIN OUT
         </text>
-        <path d={`M${xMain(1) - 14} ${railY - 62} H${xMain(8) + 14}`} />
+        <path d={`M${xMain(8) - 14} ${railY - 62} H${xMain(1) + 14}`} />
         <text x={(xAux(1) + xAux(6)) / 2} y={railY - 68} textAnchor="middle">
           AUX OUT
         </text>
-        <path d={`M${xAux(1) - 14} ${railY - 62} H${xAux(6) + 14}`} />
+        <path d={`M${xAux(6) - 14} ${railY - 62} H${xAux(1) + 14}`} />
       </g>
       {/* Row names, inside the header beside the pins */}
       <g className="sv-rows sv-rows-in">
@@ -251,13 +255,13 @@ function Pixhawk(p: Inner) {
       </g>
       <FixedColumn x={xRc} y={railY} label="RC" sub="Receiver input (PPM / S.Bus): not an output" />
       <FixedColumn x={xSb} y={railY} label="SB" sub="S.Bus out / RSSI: not a servo output" />
-      {Array.from({ length: 8 }, (_, i) => {
-        const o = byServo.get(i + 1);
-        return o ? <Column key={o.servo} o={o} x={xMain(i + 1)} y={railY} num={String(i + 1)} p={p} live={p.pwm[o.servo - 1]} /> : null;
+      {[8, 7, 6, 5, 4, 3, 2, 1].map((k) => {
+        const o = byServo.get(k);
+        return o ? <Column key={o.servo} o={o} x={xMain(k)} y={railY} num={String(k)} p={p} live={p.pwm[o.servo - 1]} /> : null;
       })}
-      {Array.from({ length: 6 }, (_, i) => {
-        const o = byServo.get(i + 9);
-        return o ? <Column key={o.servo} o={o} x={xAux(i + 1)} y={railY} num={String(i + 1)} p={p} live={p.pwm[o.servo - 1]} /> : null;
+      {[6, 5, 4, 3, 2, 1].map((k) => {
+        const o = byServo.get(k + 8);
+        return o ? <Column key={o.servo} o={o} x={xAux(k)} y={railY} num={String(k)} p={p} live={p.pwm[o.servo - 1]} /> : null;
       })}
       <Groups groups={p.outputs.length ? groupsOf(p.outputs) : []} xOf={xOf} y={railY + 140} p={p} />
 

@@ -11,7 +11,8 @@
     copies the channel with the output's own number.
   - DO_SET_SERVO, from a mission or a button, only moves an output set to
     Disabled (0), a sprayer, the gripper or an RC pass-through; any other
-    answers "Channel n is already in use" (AP_ServoRelayEvents).
+    answers "Channel n is already in use" (AP_ServoRelayEvents). RCPassThru (1)
+    counts as a pass-through.
   - The gripper: GRIP_ENABLE = 1 shows the other GRIP_ settings, GRIP_TYPE = 1
     makes it a servo, and both take effect at the next start-up
     (AP_Gripper::init runs once). A switch on a transmitter channel with
@@ -101,9 +102,9 @@ export function rcOf(fn: number, servo: number): { channel: number; scaled: bool
 
 export const passThroughFunction = (channel: number, scaled: boolean) => (scaled ? 139 + channel : 50 + channel);
 
-/** May DO_SET_SERVO move an output with this function? (AP_ServoRelayEvents::do_set_servo) */
+/** May DO_SET_SERVO move an output with this function? (AP_ServoRelayEvents::do_set_servo: none, manual, sprayer, gripper, RC pass-through) */
 export function testable(fn: number): boolean {
-  return fn === 0 || fn === 22 || fn === 23 || fn === 28 || (fn >= 51 && fn <= 66) || (fn >= 140 && fn <= 155);
+  return fn === 0 || fn === 1 || fn === 22 || fn === 23 || fn === 28 || (fn >= 51 && fn <= 66) || (fn >= 140 && fn <= 155);
 }
 
 /** Functions a servo (not an ESC) is plugged into: the ones a motor's output rate would harm. */
@@ -310,6 +311,12 @@ export function checkOutputs(params: Params, layout: OutputLayout | null, opts: 
     if (opt) issues.push({ id: `rc-option-${o.servo}`, level: "info", servo: o.servo, title: `Channel ${rc.channel} also has a switch option`, detail: `RC${rc.channel}_OPTION = ${opt}, so the same switch also does that. Make sure that is intended.` });
     if (opts.rcChannels !== undefined && opts.rcChannels > 0 && rc.channel > opts.rcChannels) issues.push({ id: `rc-none-${o.servo}`, level: "warn", servo: o.servo, title: `The receiver sends only ${opts.rcChannels} channels`, detail: `${o.port.long} follows channel ${rc.channel}, which the receiver does not send, so the output will not move. Assign a switch to channel ${rc.channel} on the transmitter, or pick a lower channel.` });
     if (!rc.scaled && (o.min !== 1100 || o.max !== 1900 || o.trim !== 1500 || o.reversed)) issues.push({ id: `rc-limits-${o.servo}`, level: "info", servo: o.servo, title: `${o.port.long}'s limits do nothing`, detail: "An exact pass-through copies the transmitter's pulse; its lowest, centre, highest and reverse settings are ignored. Choose “scaled” to have them apply." });
+  }
+
+  // Pass-through with no transmitter signal arriving: those outputs send nothing.
+  const following = outs.filter((o) => rcOf(o.fn, o.servo));
+  if (following.length && opts.rcChannels === 0) {
+    issues.push({ id: "rc-no-signal", level: "info", title: "No transmitter signal", detail: `${following.map((o) => o.port.short).join(", ")} ${following.length === 1 ? "follows" : "follow"} a transmitter channel, but the receiver is sending nothing, so ${following.length === 1 ? "it sends" : "they send"} no pulses. Turn the transmitter on and check the receiver is bound and plugged into RC IN.` });
   }
 
   // The gripper: its outputs and its settings must agree; it starts only at start-up.
