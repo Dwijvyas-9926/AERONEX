@@ -43,17 +43,17 @@
   text-align: left;
 }
 
-.brand:hover .brand-name span {
+.brand:hover .brand-name > span:last-child {
   color: var(--ink-2);
 }
 
 .brand-mark {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   flex: none;
-  /* The tile is the page colour; a hairline keeps its edge on the darker bar. */
-  border-radius: 7px;
-  box-shadow: 0 0 0 1px var(--line);
+  /* The tile carries its own orange rim; a soft lift sets it on the bar. */
+  filter: drop-shadow(0 1px 2px rgba(20, 33, 61, 0.18));
+  user-select: none;
 }
 
 .brand-name {
@@ -65,7 +65,17 @@
   letter-spacing: 0.09em;
 }
 
-.brand-name span {
+.brand-word {
+  color: var(--navy);
+}
+
+/* The logo's orange X. */
+.brand-word em {
+  font-style: normal;
+  color: var(--brand-orange);
+}
+
+.brand-name > span:last-child {
   color: var(--muted);
   font-weight: 500;
   font-size: 0.75rem;

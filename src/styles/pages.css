@@ -1761,8 +1761,10 @@ input[type="range"]::-moz-range-thumb {
 /* ======================= About ======================= */
 .about { max-width: 920px; }
 .about-hero { text-align: center; padding: var(--s8) 0 var(--s6); display: grid; justify-items: center; gap: var(--s3); }
-.about-mark { width: 76px; height: 76px; border-radius: 17px; box-shadow: var(--shadow-3); }
-.about-wordmark { font-family: var(--font-display); font-size: clamp(2.4rem, 6vw, 3.6rem); letter-spacing: 0.06em; margin: 0; color: var(--ink); }
+.about-logo { margin: 0 0 var(--s2); line-height: 0; }
+/* The logo carries its own soft shadows; it sits straight on the page. */
+.about-logo { width: min(440px, 100%); }
+.about-logo img { width: 100%; height: auto; user-select: none; }
 .about-tagline { color: var(--ink-2); font-size: var(--t-md); margin: 0; max-width: 56ch; }
 .about-lede { font-size: var(--t-md); line-height: 1.7; color: var(--ink-2); max-width: 72ch; margin: 0 auto var(--s6); text-align: center; }
 .about-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s4); margin-bottom: var(--s6); }

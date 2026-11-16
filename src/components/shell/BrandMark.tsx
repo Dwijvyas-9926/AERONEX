@@ -1,34 +1,27 @@
 /*
-  The AERONEX mark: a capital A crossed by a level line.
+  The AERONEX brand, as it appears inside the app.
 
-  The line is the horizon bar of an attitude indicator and the wings of an
-  aircraft seen head-on, and it runs on past both legs of the letter so the
-  mark reads as an aircraft sitting level before it reads as an initial. It is
-  drawn as three solid shapes with no fine detail, which is what keeps it
-  legible as a 16-pixel tab icon.
+  The masters are in brand/ (the primary logo and the app icon). Every file
+  made from them, here and in public/, comes from scripts/brand-assets.py, so
+  change a master and run that script rather than editing these images:
 
-  The same geometry is in public/favicon.svg and the PNG icons beside it;
-  change one and regenerate the others with scripts/brand-icons.cjs.
+    mark-tile.png  the app icon's orange-rimmed tile with the A mark alone,
+                   for small sizes where the icon's words can't be read
+    logo.webp      the primary logo with its paper background taken off
 */
-const LEGS = "M11.5 53 L28.2 10 H35.8 L52.5 53 H44 L32 21.5 L20 53 Z";
+import markTile from "../../assets/brand/mark-tile.png";
+import logo from "../../assets/brand/logo.webp";
 
-interface Props {
-  className?: string;
-  /** "tile" is the app icon on its navy square; "glyph" is the mark alone. */
-  variant?: "tile" | "glyph";
-  /** Colour behind the mark, for the gap the level line cuts through the A. */
-  ground?: string;
+/** Pixel size of logo.webp, so the page keeps its space while it loads. */
+const LOGO_SIZE = { width: 960, height: 621 } as const;
+
+export function BrandMark({ className = "brand-mark" }: { className?: string }) {
+  return <img className={className} src={markTile} alt="" width={192} height={192} draggable={false} />;
 }
 
-export function BrandMark({ className = "brand-mark", variant = "tile", ground = "#14213d" }: Props) {
-  return (
-    <svg className={className} viewBox="0 0 64 64" aria-hidden="true">
-      {variant === "tile" && <rect width="64" height="64" rx="14" fill={ground} />}
-      <path d={LEGS} fill="#f28c38" />
-      <path d="M4 40.5 H60" stroke={ground} strokeWidth="9.6" />
-      <path d="M6.5 40.5 H57.5" stroke="#f4f2ec" strokeWidth="4.2" />
-    </svg>
-  );
+/** The primary logo: mark, wordmark and "UAV Application". */
+export function BrandLogo({ className }: { className?: string }) {
+  return <img className={className} src={logo} alt="AERONEX UAV Application" {...LOGO_SIZE} draggable={false} />;
 }
 
 /** Mark and name together, as they sit in the top-left of the app. */
@@ -37,7 +30,11 @@ export function BrandLockup() {
     <>
       <BrandMark />
       <span className="brand-name">
-        AERONEX <span>Ground Station</span>
+        {/* The orange X, as in the logo's wordmark. */}
+        <span className="brand-word">
+          AERONE<em>X</em>
+        </span>
+        <span>Ground Station</span>
       </span>
     </>
   );

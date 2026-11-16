@@ -61,6 +61,8 @@
   /* Brand navy, for marks and the few solid navy fills */
   --navy: #14213d;
   --navy-2: #1d3461;
+  /* The logo's orange, deep enough (3.4:1) for the X of the bold wordmark */
+  --brand-orange: #d95f0a;
 
   /*
     Glass over imagery. Panels that float on a satellite picture or a 3D

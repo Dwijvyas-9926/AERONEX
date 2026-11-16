@@ -1,7 +1,7 @@
 import { Cable, Gamepad2, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ROUTES, STAGES, type BuildStatus } from "../../app/routes";
-import { BrandMark } from "../../components/shell/BrandMark";
+import { BrandLogo } from "../../components/shell/BrandMark";
 import { useUi } from "../../state/uiStore";
 
 /*
@@ -48,8 +48,9 @@ export function AboutPage() {
   return (
     <div className="page-pad about">
       <section className="about-hero">
-        <BrandMark className="about-mark" />
-        <h1 className="about-wordmark">AERONEX</h1>
+        <h1 className="about-logo">
+          <BrandLogo />
+        </h1>
         <p className="about-tagline">A ground station for ArduCopter drones that runs in your browser.</p>
         <p className="about-meta">
           <span className="pill accent plain">Development preview</span>
