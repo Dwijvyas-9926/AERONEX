@@ -1,18 +1,10 @@
 /*
-  Grounding material for the "Ask the Doctor" chat.
-
-  Two things keep answers correct and verifiable instead of generic:
-   1. KNOWLEDGE — a compact, sourced reference of ArduPilot facts (the same
-      thresholds the diagnostics engine uses). The model is told to rely on
-      these rather than guess.
-   2. The live drone snapshot (built in askDoctor.ts) — the vehicle's own
-      findings, parameters and telemetry, so answers are about THIS aircraft.
-
-  The system prompt forbids inventing parameter names or values and tells the
-  model to flag uncertainty, so a student can trust what it says.
+  ArduPilot facts the assistant may state as verified: the same thresholds the
+  Drone Doctor and Preflight Check apply, with their sources in ArduPilot's
+  documentation (see diagnostics.ts). Moved here from the Doctor's old chat.
 */
 
-export const KNOWLEDGE = `
+export const REFERENCE = `
 # AERONEX verified reference (ArduPilot / Copter)
 
 ## Vibration (VIBE, m/s²)
@@ -54,50 +46,21 @@ export const KNOWLEDGE = `
 - Props: match prop size/pitch to motor KV and cell count; over-propping overheats motors and ESCs.
 
 ## Arming / pre-arm
-- Never disable ARMING_CHECK for flight — it hides exactly the faults that cause crashes. Resolve the named condition instead.
+- Never disable arming checks for flight (ARMING_CHECK before ArduCopter 4.7, where 1 = all; ARMING_SKIPCHK from 4.7, where 0 = skip none) — they hide exactly the faults that cause crashes. Resolve the named condition instead.
 - Common pre-arm causes: compass not calibrated / inconsistent, needs accel calibration, no GPS/EKF-not-ready, RC not calibrated, battery below arming voltage, barometer not healthy.
+
+## ArduCopter 4.7 renames
+- 4.7 renamed many parameters and moved them from centimetres/centidegrees to metres/degrees: RTL_ALT (cm) → RTL_ALT_M (m), WPNAV_SPEED (cm/s) → WP_SPD (m/s), WPNAV_ACCEL → WP_ACC, LAND_SPEED → LAND_SPD_MS, ANGLE_MAX (cdeg) → ATC_ANGLE_MAX (deg), PSC_ACCZ_P/I → PSC_D_ACC_P/I at one tenth the value. Guides written for 4.6 or older use the old names and units; check which the aircraft has in the Parameters page.
+
+## Failsafes (ArduCopter)
+- FS_GCS_ENABLE: ground-station (link-loss) failsafe; 0 off, 5 = Land. Triggers when GCS heartbeats stop for FS_GCS_TIMEOUT seconds (default 5).
+- FS_THR_ENABLE: radio (RC) failsafe; 1 = RTL is the common choice.
+- BATT_FS_LOW_ACT / BATT_FS_CRT_ACT: battery failsafe actions (0 = warn only), with BATT_LOW_VOLT / BATT_CRT_VOLT or BATT_LOW_MAH / BATT_CRT_MAH as the triggers.
+- FENCE_ENABLE / FENCE_ACTION: geofence; the AERONEX Fence tab sets these.
+
+## Pixhawk 2.4.8 (FMUv3 class)
+- Runs ArduCopter with the Pixhawk1 target; boards with the STM32F427 1 MB flash limitation need the Pixhawk1-1M build.
+- Has a safety switch: motors will not spin until it is pressed (light solid) unless BRD_SAFETY_DEFLT = 0. Has a buzzer port; the I2C port is for an external compass or other I2C devices.
+- Ports: TELEM1 (SERIAL1, default MAVLink 57600 for a telemetry radio), TELEM2 (SERIAL2, often a companion computer), GPS (SERIAL3). A companion computer on TELEM2 normally uses SERIAL2_PROTOCOL = 2 (MAVLink2) and a higher baud such as 921600 (SERIAL2_BAUD = 921).
+- Powered from a power module on the POWER port; do not power servos from the servo rail without a separate BEC.
 `.trim();
-
-export interface DronePromptOptions {
-  /** A text snapshot of the live vehicle (findings + key params + telemetry). */
-  context: string | null;
-}
-
-export function buildSystemPrompt({ context }: DronePromptOptions): string {
-  return [
-    `You are the AERONEX Drone Doctor — an expert assistant for ArduPilot / Pixhawk multirotors, helping students build, test, tune and troubleshoot their drones. You are embedded in the AERONEX ground control station.`,
-    ``,
-    `HOW TO ANSWER`,
-    `- Be accurate and practical. Prefer concrete, step-by-step guidance a student can follow.`,
-    `- Ground every answer in two sources: (1) the LIVE DRONE DATA below when present, and (2) the VERIFIED REFERENCE. Use the user's own numbers when you have them ("your vibration is 48 m/s²…").`,
-    `- Keep it clear and student-friendly. Short paragraphs or tight bullet lists. Explain *why*, not just *what*.`,
-    ``,
-    `ACCURACY RULES (important — a student will trust you)`,
-    `- Never invent parameter names, values, or thresholds. If you are not certain a parameter exists or its exact effect, say so and tell them to confirm in the Parameters page or the official ArduPilot documentation.`,
-    `- Clearly separate what you can SEE from this drone's data versus general guidance.`,
-    `- If the live data contradicts a guess, trust the live data. If you don't have the data you'd need, say what to check rather than assuming.`,
-    `- Prefer ArduPilot's documented behaviour. You may name ArduPilot parameters and features, but do not fabricate URLs.`,
-    ``,
-    `SAFETY`,
-    `- For anything affecting flight safety (PID gains, failsafes, motor tests), advise small changes, testing with props removed or a short low hover, and re-checking afterwards.`,
-    `- Never advise disabling arming checks for actual flight.`,
-    `- A drone is a real machine that can injure people — when a question implies risk, note the precaution.`,
-    ``,
-    `SCOPE`,
-    `- Stay on drones, ArduPilot/Pixhawk, and this app. If asked something unrelated, gently steer back.`,
-    `- If the user asks "what's wrong with my drone?", use the live findings below first.`,
-    ``,
-    `# VERIFIED REFERENCE`,
-    KNOWLEDGE,
-    ``,
-    context ? `# LIVE DRONE DATA (this is the user's connected aircraft right now)\n${context}` : `# LIVE DRONE DATA\nNo vehicle is connected right now, so you have no live data — answer from general knowledge and tell the user to connect their Pixhawk for drone-specific diagnosis.`,
-  ].join("\n");
-}
-
-/** Suggested starter questions, biased toward whatever the vehicle is currently showing. */
-export const GENERIC_STARTERS = [
-  "How do I set up a new quadcopter from scratch?",
-  "What order should I calibrate everything in?",
-  "My drone won't arm — how do I find out why?",
-  "How do I know if my drone is ready for its first flight?",
-];

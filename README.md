@@ -162,6 +162,29 @@ npm test         # run the protocol and link unit tests (Vitest)
   ending (return, land, hover) are supported; other commands in a mission read
   from an aircraft are left out and named.
 
+### Assistant — real, with your own Anthropic key
+- The Ask button in the top bar (or Ctrl/⌘ J) opens it beside any page. It
+  answers how to do something in AERONEX, step by step with links to the
+  pages, and general drone questions: parts and compatibility, wiring,
+  ArduPilot setup, tuning, failsafes, companion computers, rules.
+- It answers about AERONEX from a manual built from the app itself
+  (`src/features/assistant/manual.ts`): every page's guide plus its exact
+  limits, refusals and messages, with the safety numbers (Keyboard Flight's
+  speed, ceiling and range, the fence defaults) read from the code that
+  enforces them. It is told that anything not in the manual does not exist.
+- With the person's consent it sees a read-only snapshot of the page and the
+  linked aircraft (mode, health, Preflight and Doctor results, key settings,
+  the mission and fence), never its position. It cannot command anything.
+- It may search the web and read pages (on by default, switchable in
+  Settings), and shows its sources. Without a key, or offline, it searches the
+  manual on the computer instead.
+- The key is the person's own and goes only to Anthropic; there is no
+  AERONEX server.
+- Graded against a question bank of about 90 real-world questions, many of
+  them traps (features AERONEX lacks, unsafe shortcuts, mismatched parts):
+  `ASSISTANT_EVAL_KEY=sk-ant-… npx vitest run evals` (see the file's header
+  for options; it writes a report with every answer).
+
 ### Logs — scaffolded
 - A finished screen that explains what it will do, with no dead ends.
 

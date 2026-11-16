@@ -1,4 +1,4 @@
-import { BatteryMedium, Bell, Cable, Check, ChevronDown, CircleHelp, Plus, Satellite, Search, Settings, ShieldAlert } from "lucide-react";
+import { BatteryMedium, Bell, Cable, Check, ChevronDown, CircleHelp, Plus, Satellite, Search, Settings, ShieldAlert, Sparkles } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { LINK_STATUS, TELEMETRY_STALE_MS } from "../../features/connection/linkStatus";
@@ -123,6 +123,7 @@ export function StatusBar() {
   const nav = useNavigate();
   const { pathname } = useLocation();
   const helpOpen = useUi((s) => s.overlay === "help");
+  const askOpen = useUi((s) => s.overlay === "assistant");
   const toggle = useUi((s) => s.toggle);
   const view = LINK_STATUS[status];
   const open = isPortOpen(status);
@@ -198,6 +199,14 @@ export function StatusBar() {
       <div className="sb-right">
         <button className="icon-btn sb-only-narrow" aria-label="Search pages and actions" onClick={() => toggle("search")}>
           <Search />
+        </button>
+        <button
+          className={`btn btn-ghost btn-sm sb-help sb-ask${askOpen ? " on" : ""}`}
+          onClick={() => toggle("assistant")}
+          aria-pressed={askOpen}
+          title="Ask the assistant about AERONEX or drones (Ctrl J)"
+        >
+          <Sparkles aria-hidden /> <span>Ask</span>
         </button>
         <button
           className={`btn btn-ghost btn-sm sb-help${helpOpen ? " on" : ""}`}

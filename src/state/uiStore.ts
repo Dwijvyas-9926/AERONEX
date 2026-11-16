@@ -1,10 +1,12 @@
 import { create } from "zustand";
 
 /* Which of the app-wide overlays is open. Only one at a time. */
+export type Overlay = "help" | "search" | "assistant";
+
 interface UiState {
-  overlay: "help" | "search" | null;
-  open: (o: "help" | "search") => void;
-  toggle: (o: "help" | "search") => void;
+  overlay: Overlay | null;
+  open: (o: Overlay) => void;
+  toggle: (o: Overlay) => void;
   close: () => void;
 }
 

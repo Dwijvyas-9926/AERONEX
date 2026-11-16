@@ -3,7 +3,7 @@ import type { StateStorage } from "zustand/middleware";
 /*
   Where API keys are kept.
 
-  The Anthropic key for Ask the Doctor and the map provider keys are the
+  The Anthropic key for the assistant and the map provider keys are the
   user's own credentials. Kept in localStorage they stay on the disk after
   the browser closes, readable by any script that ever runs on this origin.
   So by default they live in sessionStorage: for this tab, until it closes.

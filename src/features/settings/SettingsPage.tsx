@@ -79,12 +79,12 @@ export function SettingsPage() {
 
         <section className="panel">
           <div className="panel-head">
-            <h3>Ask the Doctor (AI assistant)</h3>
+            <h3>Assistant</h3>
           </div>
           <div className="setting">
             <div>
               <strong>Anthropic API key</strong>
-              <p>Powers the Ask the Doctor chat on the Drone Doctor page. Sent only to Anthropic — AERONEX has no server. Kept for this session unless you choose to remember keys below. Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">console.anthropic.com</a>.</p>
+              <p>Powers the assistant (the Ask button in the top bar, or Ctrl J). Sent only to Anthropic, which bills the key's account per question; AERONEX has no server. Kept for this session unless you choose to remember keys below. Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">console.anthropic.com</a>.</p>
             </div>
             <div className="set-ai-key">
               <input className="input" type="password" placeholder="sk-ant-…" value={s.aiKey} onChange={(e) => s.set("aiKey", e.target.value)} />
@@ -103,6 +103,36 @@ export function SettingsPage() {
               options={[
                 ["off", "This session"],
                 ["on", "Remember"],
+              ]}
+            />
+          </div>
+          <div className="setting">
+            <div>
+              <strong>Search the web</strong>
+              <p>Lets the assistant look things up and read the pages it finds, for answers that depend on a firmware version, a part's specification or a local rule, with the sources shown. Anthropic bills each search on top of the answer (at most four per question). Off: it answers from what it knows and the AERONEX manual.</p>
+            </div>
+            <Segmented
+              label="Search the web"
+              value={s.aiWeb ? "on" : "off"}
+              onChange={(v) => s.set("aiWeb", v === "on")}
+              options={[
+                ["on", "On"],
+                ["off", "Off"],
+              ]}
+            />
+          </div>
+          <div className="setting">
+            <div>
+              <strong>Share aircraft data</strong>
+              <p>Sends a snapshot of the linked aircraft with each question: firmware family, mode, arming state, health readings, a few settings, the Preflight and Doctor results, and a summary of the mission and fence. Never its position.</p>
+            </div>
+            <Segmented
+              label="Share aircraft data"
+              value={s.aiShare ? "on" : "off"}
+              onChange={(v) => s.set("aiShare", v === "on")}
+              options={[
+                ["on", "On"],
+                ["off", "Off"],
               ]}
             />
           </div>

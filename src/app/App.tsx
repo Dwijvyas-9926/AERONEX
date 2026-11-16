@@ -6,6 +6,7 @@ import { BrandLockup } from "../components/shell/BrandMark";
 import { startHomeFollow } from "../services/link/homeFollow";
 import { ErrorBoundary } from "../components/shell/ErrorBoundary";
 import { HelpPanel } from "../components/shell/HelpPanel";
+import { AssistantPanel } from "../features/assistant/AssistantPanel";
 import { SearchPalette } from "../components/shell/SearchPalette";
 import { ConfirmDialog, Toasts } from "../components/shell/Overlays";
 import { Sidebar } from "../components/shell/Sidebar";
@@ -101,8 +102,10 @@ function usePageTitle() {
 }
 
 /*
-  App-wide keys: Ctrl or ⌘ K to search, ? for the guide. The ? is ignored
-  while typing in a field, where it is just a question mark.
+  App-wide keys: Ctrl or ⌘ K to search, Ctrl or ⌘ J for the assistant, ? for
+  the guide. The ? is ignored while typing in a field, where it is just a
+  question mark. None of them is a Keyboard Flight key, and that page ignores
+  any key pressed with Ctrl or ⌘.
 */
 function useGlobalKeys() {
   useEffect(() => {
@@ -112,6 +115,9 @@ function useGlobalKeys() {
       if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "k") {
         e.preventDefault();
         useUi.getState().toggle("search");
+      } else if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "j") {
+        e.preventDefault();
+        useUi.getState().toggle("assistant");
       } else if (e.key === "?" && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
         useUi.getState().toggle("help");
@@ -124,14 +130,15 @@ function useGlobalKeys() {
 
 function Frame() {
   const collapsed = useSettings((s) => s.sidebarCollapsed);
-  const help = useUi((s) => s.overlay === "help");
+  const help = useUi((s) => s.overlay === "help" || s.overlay === "assistant");
+  const wide = useUi((s) => s.overlay === "assistant");
   const nav = useNavigate();
   useLinkNotifications();
   useGcsHeartbeat();
   usePageTitle();
   useGlobalKeys();
   return (
-    <div className="app" data-collapsed={collapsed} data-help={help}>
+    <div className="app" data-collapsed={collapsed} data-help={help} data-assistant={wide}>
       <a className="skip-link" href="#main">
         Skip to the page
       </a>
@@ -145,6 +152,7 @@ function Frame() {
         <AnimatedRoutes />
       </main>
       <HelpPanel />
+      <AssistantPanel />
       <SearchPalette />
       <Toasts />
       <ConfirmDialog />

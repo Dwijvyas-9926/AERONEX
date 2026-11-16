@@ -231,11 +231,11 @@ export const GUIDES: Record<string, Guide> = {
   },
   "/doctor": {
     purpose: "Scans the aircraft's health and explains, in plain words, what is wrong and how to fix it.",
-    needs: ["A linked flight controller.", "For Ask the Doctor only: an Anthropic API key, entered in Settings."],
+    needs: ["A linked flight controller."],
     steps: [
       "Connect and let the scan run. It updates as data arrives.",
       "Read the findings from the top. The most serious come first.",
-      "Each finding lists a cause and a fix. Use Ask the Doctor to ask a follow-up question.",
+      "Each finding lists a cause and a fix. Press Ask about these findings to put a follow-up question to the assistant, which sees the same findings.",
     ],
     terms: [
       ["Vibration", "Shaking from the motors and propellers that confuses the sensors."],
@@ -274,7 +274,7 @@ export const GUIDES: Record<string, Guide> = {
     steps: [
       "Lower Graphics quality if the 3D views feel slow.",
       "Choose Metric or Imperial for heights and speeds.",
-      "Paste an Anthropic API key to turn on Ask the Doctor.",
+      "Paste an Anthropic API key to turn on the assistant, and choose whether it may search the web and see the linked aircraft.",
     ],
     terms: [["API key", "A password that lets the app use an online service on your behalf. It stays in this browser."]],
   },

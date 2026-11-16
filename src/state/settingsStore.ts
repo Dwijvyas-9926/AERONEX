@@ -13,9 +13,13 @@ interface SettingsState {
   sidebarCollapsed: boolean;
   /** Which section of the side menu is open: one at a time, or none. */
   navOpen: string | null;
-  /** BYOK: the user's own Anthropic API key for the Ask the Doctor chat. Kept for this session unless the user chooses to have keys remembered (secretStorage). */
+  /** BYOK: the user's own Anthropic API key for the assistant. Kept for this session unless the user chooses to have keys remembered (secretStorage). */
   aiKey: string;
   aiModel: string;
+  /** The assistant may search the web (billed by Anthropic per search) and read pages found or pasted. */
+  aiWeb: boolean;
+  /** The assistant is sent a snapshot of the linked aircraft with each question. */
+  aiShare: boolean;
   set: <K extends keyof Omit<SettingsState, "set">>(k: K, v: SettingsState[K]) => void;
 }
 
@@ -34,6 +38,8 @@ export const useSettings = create<SettingsState>()(
       navOpen: null,
       aiKey: "",
       aiModel: DEFAULT_AI_MODEL,
+      aiWeb: true,
+      aiShare: true,
       set: (k, v) => set({ [k]: v } as Partial<SettingsState>),
     }),
     {
