@@ -1,4 +1,5 @@
 import { derive, type Airframe } from "./airframe";
+import { SERVO_PARAM_DEFS, SERVO_RANGES, SERVO_TYPES } from "./servos";
 
 /*
   The parameters the virtual flight controller understands, with ArduCopter's
@@ -90,6 +91,8 @@ export const PARAM_DEFS: ParamDef[] = [
   { name: "ARMING_CHECK", def: 1, help: "Pre-arm checks on" },
   { name: "AUTO_OPTIONS", def: 0, help: "Bitmask: 1 allow arming in Auto, 2 allow take-off without raising throttle" },
   { name: "SYSID_THISMAV", def: 1, help: "MAVLink system id" },
+  // Servo outputs, transmitter switches and the gripper (see servos.ts).
+  ...SERVO_PARAM_DEFS,
 ];
 
 /*
@@ -131,6 +134,7 @@ const RANGE: Record<string, [number, number]> = {
   FENCE_ALT_MIN: [-100, 100],
   FENCE_RADIUS: [30, 10000],
   FENCE_MARGIN: [1, 10],
+  ...SERVO_RANGES,
 };
 
 const DEF = new Map(PARAM_DEFS.map((d) => [d.name, d.def]));
@@ -147,6 +151,7 @@ export const PARAM_TYPES: Record<string, number> = {
   DISARM_DELAY: 2, PILOT_SPEED_UP: 4, BATT_CAPACITY: 6, BATT_LOW_TIMER: 2, BATT_FS_LOW_ACT: 2, BATT_FS_CRT_ACT: 2,
   FS_THR_ENABLE: 2, FS_GCS_ENABLE: 2, FS_OPTIONS: 6, FS_EKF_ACTION: 2, FS_CRASH_CHECK: 2, FENCE_ENABLE: 2,
   FENCE_TYPE: 2, FENCE_ACTION: 2, FENCE_OPTIONS: 4, FENCE_AUTOENABLE: 2, ARMING_CHECK: 6, AUTO_OPTIONS: 6, SYSID_THISMAV: 4,
+  ...SERVO_TYPES,
 };
 const INT_RANGE: Record<number, [number, number]> = { 2: [-128, 127], 4: [-32768, 32767], 6: [-2147483648, 2147483647] };
 

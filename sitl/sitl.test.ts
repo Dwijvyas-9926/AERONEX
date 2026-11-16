@@ -129,7 +129,9 @@ describe.skipIf(!BIN)("the planner against real ArduCopter (SITL)", () => {
     const raw = app.useParams.getState().values;
     const named = app.fw.withOlderNames(raw);
     const missingRaw = app.params.PARAM_DEFS.filter((d) => !Number.isFinite(raw[d.name])).map((d) => d.name);
-    const missing = app.params.PARAM_DEFS.filter((d) => !Number.isFinite(named[d.name])).map((d) => d.name);
+    // The gripper's settings appear only once GRIP_ENABLE is on, in ArduCopter and the virtual aircraft alike.
+    const { hiddenByEnable } = await import("../src/sim/servos");
+    const missing = app.params.PARAM_DEFS.filter((d) => !Number.isFinite(named[d.name]) && !hiddenByEnable(d.name, raw)).map((d) => d.name);
     say(`Parameters: ${Object.keys(raw).length} read. Newer names in use: ${app.fw.usesNewerNames(raw)}.`);
     say(`Modelled names this firmware does not report as such: ${missingRaw.length ? missingRaw.join(", ") : "none"}`);
     say(`Still missing after translation: ${missing.length ? missing.join(", ") : "none"}`);

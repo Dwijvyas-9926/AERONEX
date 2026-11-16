@@ -36,6 +36,7 @@ import { routeFor } from "./routes";
 import { useUi } from "../state/uiStore";
 
 // Flight Logs is large (charts, the reader, the replay) and only needed when opened.
+const ServoPage = lazy(() => import("../features/servo/ServoPage").then((m) => ({ default: m.ServoPage })));
 const FirmwarePage = lazy(() => import("../features/firmware/FirmwarePage").then((m) => ({ default: m.FirmwarePage })));
 const LogsPage = lazy(() => import("../features/logs/LogsPage").then((m) => ({ default: m.LogsPage })));
 
@@ -77,6 +78,7 @@ function AnimatedRoutes() {
           <Route path="/calibration" element={<CalibrationPage />} />
           <Route path="/doctor" element={<DoctorPage />} />
           <Route path="/vehicle" element={<VehicleConfigPage />} />
+          <Route path="/servo" element={<Suspense fallback={<div className="page-pad">Loading Servo Outputs…</div>}><ServoPage /></Suspense>} />
           <Route path="/pid" element={<PidTuningPage />} />
           <Route path="/params" element={<FullParamsPage />} />
           <Route path="/preflight" element={<PreflightPage />} />

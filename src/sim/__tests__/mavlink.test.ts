@@ -54,8 +54,10 @@ describe("the virtual aircraft over MAVLink", () => {
     r.send("PARAM_REQUEST_LIST", {});
     r.pump(2);
     const values = r.got.filter((g) => g.name === "PARAM_VALUE");
-    expect(new Set(values.map((g) => g.d.param_id)).size).toBe(PARAM_DEFS.length);
-    expect(values[0].d.param_count).toBe(PARAM_DEFS.length);
+    // Everything but the gripper's settings, which appear once GRIP_ENABLE is on (as in ArduPilot).
+    const listed = PARAM_DEFS.filter((d) => !d.name.startsWith("GRIP_") || d.name === "GRIP_ENABLE").length;
+    expect(new Set(values.map((g) => g.d.param_id)).size).toBe(listed);
+    expect(values[0].d.param_count).toBe(listed);
     r.send("PARAM_SET", { param_id: "RTL_ALT", param_value: 2500, param_type: 9 });
     r.pump(0.2);
     expect(r.last("PARAM_VALUE")?.param_id).toBe("RTL_ALT");

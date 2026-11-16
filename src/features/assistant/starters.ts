@@ -7,6 +7,7 @@ export const PAGE_STARTERS: Record<string, string[]> = {
   "/connection": ["My Pixhawk connects but no data arrives. Why?", "How do I set up a SiK telemetry radio with a Pixhawk?"],
   "/firmware": ["Which firmware does my Pixhawk 2.4.8 need?", "The board restarted but the bootloader never connected. What now?"],
   "/calibration": ["What order should I calibrate everything in?", "My compass calibration won't finish. What now?", "How do I check motor order and spin direction?"],
+  "/servo": ["How do I set up a payload drop servo on my Pixhawk 2.4.8?", "How do I make a servo follow a switch on my transmitter?"],
   "/pid": ["My quad wobbles fast when it hovers. What should I change?", "Should I use AutoTune instead of tuning by hand?"],
   "/params": ["Which failsafe settings should I set before the first flight?", "How do I restore my settings from a .param file?"],
   "/preflight": ["Why won't my drone arm?", "Explain what Preflight Check is telling me right now."],

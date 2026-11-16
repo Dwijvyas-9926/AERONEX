@@ -219,6 +219,22 @@ export class VehicleSession {
           },
         };
         break;
+      case "SERVO_OUTPUT_RAW": {
+        // Port 0 carries SERVO1-16; outputs 17-32 come on port 1.
+        if ((d.port as number) !== 0) break;
+        const pwm: number[] = [];
+        for (let i = 1; i <= 16; i++) pwm.push((d[`servo${i}_raw`] as number) ?? 0);
+        this.telemetry = { ...this.telemetry, servo: { at: t, value: { pwm } } };
+        break;
+      }
+      case "AUTOPILOT_VERSION": {
+        const bv = d.board_version as number;
+        const sw = d.flight_sw_version as number;
+        const boardId = bv ? (bv >>> 16) & 0xffff : null;
+        const version = sw ? `${(sw >>> 24) & 0xff}.${(sw >>> 16) & 0xff}.${(sw >>> 8) & 0xff}` : null;
+        this.telemetry = { ...this.telemetry, autopilot: { at: t, value: { boardId: boardId || null, version } } };
+        break;
+      }
       case "VIBRATION":
         this.telemetry = {
           ...this.telemetry,

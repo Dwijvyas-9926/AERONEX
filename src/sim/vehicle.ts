@@ -2,6 +2,7 @@ import { encode, type FieldValue } from "../mavlink/encode";
 import { decode, MavlinkParser, type Decoded } from "../mavlink/parser";
 import type { Airframe } from "./airframe";
 import { Autopilot, MODE, type Home, type Inputs, type MissionItem, type SimEvent } from "./autopilot";
+import { hiddenByEnable, SimServos } from "./servos";
 import { defaultParams, PARAM_DEFS, PARAM_TYPES, sanitizeParam, sanitizeParams, storedValue, type Params } from "./params";
 import { euler, Physics } from "./physics";
 import { FENCE_CMD, PIXHAWK_FENCE_BYTES, wireProblem, type FenceWire } from "../geo/fence";
@@ -65,6 +66,9 @@ export class VirtualVehicle {
   private magCal: { start: number; last: number } | null = null;
   private paramNames: string[];
   private rcOverrideAt = -1;
+  /** Transmitter channels 5-16 from RC_CHANNELS_OVERRIDE (0 = not overridden: the switch rests at 1500). */
+  private aux: number[] = Array(12).fill(0);
+  private servos = new SimServos();
 
   constructor(o: VehicleOptions) {
     this.home = o.home;
@@ -80,6 +84,7 @@ export class VirtualVehicle {
     this.ap.mode = MODE.STABILIZE;
     this.ap.onReached = (seq) => this.send("MISSION_ITEM_REACHED", { seq });
     this.paramNames = PARAM_DEFS.map((d) => d.name);
+    this.servos.boot(this.ap.params);
   }
 
   /* ----------------------------------------------------------- stepping */
@@ -301,12 +306,16 @@ export class VirtualVehicle {
       this.send("VIBRATION", { time_usec: ms * 1000, vibration_x: level, vibration_y: level * 1.05, vibration_z: level * 1.4, clipping_0: 0, clipping_1: 0, clipping_2: 0 });
     }
     if (this.every("rc", 2)) {
-      const st = this.sticks;
-      const pwm = (v: number) => Math.round(1500 + 500 * v);
-      const f: Record<string, FieldValue> = { time_boot_ms: ms, chancount: this.rcOk ? 8 : 0, rssi: this.rcOk ? 200 : 0 };
-      const ch = [pwm(st?.roll ?? 0), pwm(st?.pitch ?? 0), Math.round(1000 + 1000 * (st?.throttle ?? 0)), pwm(st?.yaw ?? 0), 1500, 1500, 1500, 1500];
-      for (let i = 1; i <= 18; i++) f[`chan${i}_raw`] = this.rcOk && i <= 8 ? ch[i - 1] : 0;
+      const ch = this.rcRaw();
+      const f: Record<string, FieldValue> = { time_boot_ms: ms, chancount: this.rcOk ? 16 : 0, rssi: this.rcOk ? 200 : 0 };
+      for (let i = 1; i <= 18; i++) f[`chan${i}_raw`] = this.rcOk && i <= 16 ? ch[i - 1] : 0;
       this.send("RC_CHANNELS", f);
+    }
+    if (this.every("servo", 5)) {
+      const pwm = this.servos.outputs(ap.params, ap.out, ap.armed, this.rcOk ? this.rcRaw() : [], this.clock);
+      const f: Record<string, FieldValue> = { time_usec: (ms * 1000) >>> 0, port: 0 };
+      for (let i = 1; i <= 16; i++) f[`servo${i}_raw`] = pwm[i - 1];
+      this.send("SERVO_OUTPUT_RAW", f);
     }
     if (this.every("mis", 1)) this.send("MISSION_CURRENT", { seq: ap.missionSeq });
     if (this.every("home", 0.2)) this.sendHome();
@@ -327,14 +336,27 @@ export class VirtualVehicle {
     }
   }
 
+  /** What the transmitter sends on channels 1-16: the sticks, and switches resting at 1500 unless overridden. */
+  private rcRaw(): number[] {
+    const st = this.sticks;
+    const pwm = (v: number) => Math.round(1500 + 500 * v);
+    return [pwm(st?.roll ?? 0), pwm(st?.pitch ?? 0), Math.round(1000 + 1000 * (st?.throttle ?? 0)), pwm(st?.yaw ?? 0), ...this.aux.map((v) => v || 1500)];
+  }
+
   private sendHome() {
     this.send("HOME_POSITION", { latitude: Math.round(this.home.lat * 1e7), longitude: Math.round(this.home.lon * 1e7), altitude: Math.round(this.home.altMsl * 1000), x: 0, y: 0, z: 0, q: [1, 0, 0, 0], approach_x: 0, approach_y: 0, approach_z: 0 });
   }
 
+  /** The parameters listed now: some appear only while their enable flag is on, as in ArduPilot. */
+  private listed(): string[] {
+    return this.paramNames.filter((n) => !hiddenByEnable(n, this.ap.params));
+  }
+
   private sendParam(index: number, listed = true) {
-    const name = this.paramNames[index];
+    const names = this.listed();
+    const name = names[index];
     if (!name) return;
-    this.send("PARAM_VALUE", { param_id: name, param_value: this.ap.params[name], param_type: PARAM_TYPES[name] ?? 9, param_count: this.paramNames.length, param_index: listed ? index : 65535 });
+    this.send("PARAM_VALUE", { param_id: name, param_value: this.ap.params[name], param_type: PARAM_TYPES[name] ?? 9, param_count: names.length, param_index: listed ? index : 65535 });
   }
 
   private ack(command: number, result: number) {
@@ -363,25 +385,25 @@ export class VirtualVehicle {
     const num = (k: string) => (d[k] as number) ?? 0;
     switch (name) {
       case "PARAM_REQUEST_LIST":
-        this.paramQueue = this.paramNames.map((_, i) => i);
+        this.paramQueue = this.listed().map((_, i) => i);
         break;
       case "PARAM_REQUEST_READ": {
         const idx = num("param_index");
-        const i = idx >= 0 && idx < 65535 ? idx : this.paramNames.indexOf(String(d.param_id ?? ""));
+        const i = idx >= 0 && idx < 65535 ? idx : this.listed().indexOf(String(d.param_id ?? ""));
         if (i >= 0) this.sendParam(i, idx >= 0 && idx < 65535);
         break;
       }
       case "PARAM_SET": {
         const id = String(d.param_id ?? "");
-        const i = this.paramNames.indexOf(id);
-        if (i < 0) break;
+        // A hidden setting cannot be written, and is not answered, as in ArduPilot.
+        if (this.listed().indexOf(id) < 0) break;
         const v = num("param_value");
         if (Number.isFinite(v)) {
           const stored = storedValue(id, v);
           ap.params[id] = sanitizeParam(id, stored);
           if (ap.params[id] !== stored) ap.log("warn", `${id} is outside its range: using ${ap.params[id]}`);
         }
-        this.sendParam(i, false);
+        this.sendParam(this.listed().indexOf(id), false);
         break;
       }
       case "SET_MODE":
@@ -409,10 +431,19 @@ export class VirtualVehicle {
         const c = (i: number) => num(`chan${i}_raw`);
         if (c(1) === 0 && c(3) === 0) {
           this.sticks = null;
+          for (let i = 5; i <= 16; i++) {
+            const v = c(i);
+            if (v && v !== 65535 && v !== 65534) this.aux[i - 5] = Math.max(800, Math.min(2200, v));
+          }
           break;
         }
         const n = (v: number) => Math.max(-1, Math.min(1, (v - 1500) / 500));
         this.sticks = { roll: n(c(1)), pitch: n(c(2)), throttle: Math.max(0, Math.min(1, (c(3) - 1000) / 1000)), yaw: n(c(4)) };
+        // Channels 5 and up: 0 or 65535 means "not overridden" (MAVLink), and 9-16 only exist in MAVLink 2.
+        for (let i = 5; i <= 16; i++) {
+          const v = c(i);
+          if (v && v !== 65535 && v !== 65534) this.aux[i - 5] = Math.max(800, Math.min(2200, v));
+        }
         this.rcOverrideAt = this.clock;
         break;
       }
@@ -637,15 +668,30 @@ export class VirtualVehicle {
         this.ack(cmd, 0);
         break;
       case 246:
-        ap.log("info", "Reboot requested: the virtual aircraft stays up");
+        // It stays up, but takes what is read only at start-up afresh (the gripper).
+        this.servos.boot(ap.params);
+        ap.log("info", "Reboot requested: the virtual aircraft stays up, and re-reads its start-up settings");
         this.ack(cmd, 0);
+        break;
+      case 183: {
+        const why = this.servos.setServo(ap.params, Math.round(p[0]), p[1], this.rcRaw());
+        if (why) this.text(6, why);
+        this.ack(cmd, why ? 4 : 0);
+        break;
+      }
+      case 211:
+        this.ack(cmd, this.servos.grip(ap.params, Math.round(p[1]) === 1, this.clock) ? 0 : 4);
         break;
       case 410:
         this.sendHome();
         this.ack(cmd, 0);
         break;
-      case 511:
       case 512:
+        this.ack(cmd, 0);
+        // Board id 9 (Pixhawk1 class) in the top 16 bits, as ArduPilot reports it: the virtual aircraft's outputs are laid out like a Pixhawk 2.4.8.
+        if (Math.round(p[0]) === 148) this.send("AUTOPILOT_VERSION", { capabilities: 0, flight_sw_version: (4 << 24) | (6 << 16) | (3 << 8), middleware_sw_version: 0, os_sw_version: 0, board_version: (9 << 16) >>> 0, flight_custom_version: Array(8).fill(0), middleware_custom_version: Array(8).fill(0), os_custom_version: Array(8).fill(0), vendor_id: 0, product_id: 0, uid: 0 });
+        break;
+      case 511:
       case 520:
         this.ack(cmd, 0);
         break;

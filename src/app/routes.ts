@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Activity, Box, Cable, Crosshair, Cpu, Drone, Gamepad2, Gauge, Info, Keyboard, ListTree, PencilRuler, Plane, Route, ScrollText, Settings, ShieldCheck, SlidersVertical, Stethoscope } from "lucide-react";
+import { Activity, Box, Cable, CircuitBoard, Crosshair, Cpu, Drone, Gamepad2, Gauge, Info, Keyboard, ListTree, PencilRuler, Plane, Route, ScrollText, Settings, ShieldCheck, SlidersVertical, Stethoscope } from "lucide-react";
 
 /**
  * Build status per module, shown in the navigation so nothing pretends to exist.
@@ -47,6 +47,7 @@ export const ROUTES: RouteDef[] = [
   { path: "/connection", label: "Connection", icon: Cable, group: "Set up", status: { kind: "partial", note: "USB / radio link" }, blurb: "Link a Pixhawk over a USB cable or a telemetry radio.", find: "connect usb serial radio baud port link pixhawk" },
   { path: "/firmware", label: "Firmware", icon: Cpu, group: "Set up", status: { kind: "ready" }, blurb: "Install the latest stable ArduPilot on the flight controller over USB, with the right build picked for the board.", find: "firmware install flash upload update ardupilot arducopter bootloader apj pixhawk version upgrade" },
   { path: "/calibration", label: "Calibration", icon: Crosshair, group: "Set up", status: { kind: "partial", note: "Live on hardware" }, blurb: "Teach the sensors which way is level and north, and test the motors.", find: "accelerometer compass radio esc motor test level gyro modes" },
+  { path: "/servo", label: "Servo Outputs", icon: CircuitBoard, group: "Set up", status: { kind: "ready" }, blurb: "Choose what each output pin does: motors, a payload release, a transmitter channel or a mission servo. Test each one.", find: "servo output pwm aux main gripper payload drop release delivery rc passthrough channel switch relay gimbal camera landing gear parachute pin rail" },
   { path: "/pid", label: "PID Tuning", icon: SlidersVertical, group: "Set up", status: { kind: "partial", note: "Live gains" }, blurb: "Stop wobble and sluggishness, with an advisor that says what to change.", find: "gains wobble oscillation rate tune" },
   { path: "/params", label: "Parameters", icon: ListTree, group: "Set up", status: { kind: "ready" }, blurb: "Every setting on the flight controller, with what it does and its safe range, checked before it is written.", find: "settings config param file advanced description range bitmask load compare restore" },
 

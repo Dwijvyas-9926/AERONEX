@@ -127,6 +127,25 @@ export const GUIDES: Record<string, Guide> = {
       ["Flight mode", "How much the autopilot helps, from fully manual to fully automatic."],
     ],
   },
+  "/servo": {
+    purpose: "Sets what each output pin on the flight controller does: drive a motor, release a payload, follow a switch on the transmitter, or move when a mission says. Each one can be tested from here.",
+    needs: ["A linked ArduCopter flight controller (or the virtual aircraft).", "For servos on a Pixhawk: 5-6 V fed into the servo rail from a BEC. The Pixhawk does not power it."],
+    steps: [
+      "Choose an output on the drawing of the board or in the list. On a Pixhawk 2.4.8, put servos on AUX OUT: MAIN OUT 1-4 drive the motors and their neighbours run at the motors' fast rate.",
+      "Say what is plugged in: a payload release, a transmitter channel, a mission or button servo, or something else.",
+      "For a payload release, set the closed, open and resting positions, and pick a switch on the transmitter to drop it.",
+      "Save to the flight controller, and restart it when asked: the gripper starts only at start-up.",
+      "Test: move the output from here, or release and close the gripper. AERONEX checks the output really moved.",
+    ],
+    terms: [
+      ["Servo rail", "The rows of three-pin sockets where servos and ESCs plug in: signal, + and ground."],
+      ["MAIN OUT / AUX OUT", "On a Pixhawk, outputs 1-8 (from its IO processor) and 9-14 (from its main processor)."],
+      ["PWM pulse", "The signal to a servo: a pulse every few milliseconds, 1000-2000 µs long, where its length sets the position."],
+      ["Pass-through", "An output that copies a transmitter channel, so a switch or knob moves the servo directly."],
+      ["Gripper", "ArduPilot's payload release: a servo that opens to drop and closes to hold, from a switch, a mission or a button."],
+      ["Rate group", "Outputs driven by one timer, which all run at the same rate. Next to a motor, that is the motors' fast rate."],
+    ],
+  },
   "/pid": {
     purpose: "Adjusts how strongly the aircraft corrects itself. Use it when the drone wobbles, drifts, or feels slow to respond.",
     needs: ["A linked flight controller.", "Somewhere open to test each change with a short, low hover."],

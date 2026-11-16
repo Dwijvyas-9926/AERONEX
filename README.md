@@ -185,6 +185,36 @@ npm test         # run the protocol and link unit tests (Vitest)
   `ASSISTANT_EVAL_KEY=sk-ant-… npx vitest run evals` (see the file's header
   for options; it writes a report with every answer).
 
+### Servo Outputs — real
+- What every output pin does (SERVOn_FUNCTION), live from what the aircraft
+  sends (SERVO_OUTPUT_RAW). On a Pixhawk 2.4.8 (recognised from the board id
+  in AUTOPILOT_VERSION, or the aircraft profile) a drawing of the board and
+  its servo rail: RC IN, SB, MAIN OUT 1-8 and AUX OUT 1-6 with signal, + and −
+  pins, each output's function, its live pulse, and which outputs share a
+  rate. Other boards: their outputs and timer groups from ArduPilot's hwdef
+  files (`scripts/gen-outputs.mjs`, 312 boards).
+- Set up by task: **payload release** (ArduPilot's gripper: closed, open and
+  resting positions, auto-close, a transmitter switch, Release / Close
+  buttons); **a transmitter channel** (exact pass-through, or scaled into the
+  output's range; "flip the switch" finds the channel); **mission or button**
+  (Disabled, moved by DO_SET_SERVO); or any other function (camera shutter,
+  gimbal, landing gear, parachute, sprayer, winch, motors, GPIO, scripting).
+  Range (min/centre/max, reversed) and a test that moves the output.
+- Transmitter switches (RCn_OPTION): payload release, landing gear, camera
+  shutter, parachute.
+- Checks before saving: missing or doubled motors; a servo sharing a timer
+  with motors (490 Hz, or OneShot/DShot where a servo cannot work);
+  pass-through or switch options on a stick or the flight-mode channel;
+  gripper settings that disagree; outputs that are also relay pins; ranges;
+  the safety switch.
+- As ArduPilot does it, checked on ArduCopter 4.7.2 and 4.6.3 (SITL): the
+  gripper's settings appear only after GRIP_ENABLE, so they are written in a
+  second step; the gripper starts only after a restart, and before it the
+  firmware accepts DO_GRIPPER and does nothing, so Release and Close confirm
+  the output actually moved; DO_SET_SERVO on a motor's output is refused with
+  ArduPilot's own reason. Not done: relay setup, the EPM gripper, servo or
+  gripper steps in AERONEX missions.
+
 ### Firmware — real
 - Installs **ArduCopter** (multicopter, or helicopter: the `-heli` build) on
   the flight controller over its USB port, in Chrome or Edge (Web Serial).
@@ -353,6 +383,7 @@ first STEP import.
 7. Mission planning — **done: real map, ground clearance, prediction, plan files**
 8. Flight logs — **done: .bin and .tlog analysis, recording, download from the aircraft, charts, replay**
 9. Firmware install — **done: latest stable ArduCopter over USB, build picked for the board, verified**
+10. Servo outputs — **done: payload release, transmitter channels, tests, Pixhawk 2.4.8 rail drawing, checked on firmware**
 
 ## Maps and ground heights
 

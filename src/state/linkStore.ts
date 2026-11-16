@@ -58,6 +58,10 @@ export interface Telemetry {
   /** Which mission item the autopilot is working on. */
   mission?: Stamped<{ seq: number }>;
   home?: Stamped<{ lat: number; lon: number; altMsl: number }>;
+  /** Pulse widths on outputs SERVO1-16 in µs, as SERVO_OUTPUT_RAW reports them (0 = no pulses). */
+  servo?: Stamped<{ pwm: number[] }>;
+  /** From AUTOPILOT_VERSION: the board id (ArduPilot puts its APJ id in the top 16 bits of board_version) and firmware version. */
+  autopilot?: Stamped<{ boardId: number | null; version: string | null }>;
 }
 
 export interface LinkEvent {

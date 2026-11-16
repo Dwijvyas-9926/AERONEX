@@ -157,6 +157,9 @@ export const CMD = {
   DO_SET_MODE: 176,
   NAV_TAKEOFF: 22,
   MISSION_START: 300,
+  DO_SET_SERVO: 183,
+  DO_GRIPPER: 211,
+  REQUEST_MESSAGE: 512,
 } as const;
 
 // ArduCopter flight-mode numbers (custom_mode).
@@ -590,6 +593,28 @@ class CommandLink {
     for (const [id, hz] of streams) {
       await this.write("REQUEST_DATA_STREAM", { target_system: t.sysid, target_component: t.compid, req_stream_id: id, req_message_rate: hz, start_stop: 1 }).catch(() => {});
     }
+    // Which board this is and its firmware version (AUTOPILOT_VERSION, message 148), once.
+    if (!useLink.getState().telemetry.autopilot) await this.sendCommandNoAck(CMD.REQUEST_MESSAGE, { p1: 148 });
+  }
+
+  /**
+   * Move one output to a pulse width (MAV_CMD_DO_SET_SERVO), as a mission's
+   * "set servo" does. ArduPilot only moves an output that nothing else drives:
+   * one set to Disabled, a sprayer, the gripper or an RC pass-through; for
+   * any other it answers "Channel n is already in use". Resolves to the
+   * MAV_RESULT. Allowed armed (a payload is released in flight), on ArduCopter.
+   */
+  setServo(output: number, pwm: number): Promise<number> {
+    this.requireCopter();
+    if (!Number.isInteger(output) || output < 1 || output > 32) return Promise.reject(new Error(`There is no output ${output}.`));
+    if (!Number.isFinite(pwm) || pwm < 500 || pwm > 2500) return Promise.reject(new Error(`${pwm} µs is not a pulse width a servo takes (500-2500).`));
+    return this.sendCommand(CMD.DO_SET_SERVO, { p1: output, p2: Math.round(pwm) });
+  }
+
+  /** Open (release) or close (grab) the gripper (MAV_CMD_DO_GRIPPER). Fails unless the gripper is enabled and the board was restarted since. */
+  gripper(action: "release" | "grab"): Promise<number> {
+    this.requireCopter();
+    return this.sendCommand(CMD.DO_GRIPPER, { p1: 1, p2: action === "grab" ? 1 : 0 });
   }
 
   /** Fire-and-forget COMMAND_LONG (no ACK wait) — for commands resent at a rate. */
