@@ -174,7 +174,7 @@ export function predict(airframe: Airframe, params: Params, home: Home, mission:
     v.advance(STEP, STEP, false);
     const s = v.phys.s;
     const e = euler(s.q);
-    const alt = -s.pos[2];
+    const alt = v.ap.alt;
     stats.distanceM += Math.hypot(s.pos[0] - lastN, s.pos[1] - lastE);
     lastN = s.pos[0];
     lastE = s.pos[1];
@@ -182,7 +182,7 @@ export function predict(airframe: Airframe, params: Params, home: Home, mission:
     stats.maxSpeed = Math.max(stats.maxSpeed, Math.hypot(s.vel[0], s.vel[1]));
     // Travelling under control: a landing, wherever it happens, is not a near miss.
     if (!s.onGround && v.ap.goal !== null && v.ap.mode !== MODE.LAND && Math.hypot(s.vel[0], s.vel[1]) > 2) {
-      const agl = alt - v.phys.ground(s.pos[0], s.pos[1]);
+      const agl = v.ap.height - v.phys.ground(s.pos[0], s.pos[1]);
       stats.minClearanceM = Math.min(stats.minClearanceM ?? Infinity, agl);
     }
     if (!s.onGround) {

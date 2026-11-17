@@ -50,6 +50,8 @@ export interface DeliveryRecord {
 /** ArduCopter's PayloadPlace, one state at a time (mode_auto.cpp). */
 interface PlaceState {
   state: "fly" | "start" | "descend" | "release" | "delay" | "ascent";
+  /** The aircraft has settled into the descent. ArduCopter's controller follows its demanded speed closely; this model's lags, so the thrust is not watched until it has caught up. */
+  steady: boolean;
   startAlt: number;
   speed: number;
   established: number;
@@ -190,7 +192,7 @@ export class Autopilot {
   private velCmd = { n: 0, e: 0 };
   private guided: { kind: "hold" | "vel" | "pos" | "takeoff"; vx: number; vy: number; vz: number; yawRate: number; until: number } = { kind: "hold", vx: 0, vy: 0, vz: 0, yawRate: 0, until: 0 };
   private rtl: { stage: "climb" | "return" | "loiter" | "land"; since: number } = { stage: "climb", since: 0 };
-  private auto: { started: boolean; legFrom: { n: number; e: number } | null; holdUntil: number | null; speed: number | null; done: boolean; liftAt?: number; rate?: number | null } = { started: false, legFrom: null, holdUntil: null, speed: null, done: false };
+  private auto: { started: boolean; legFrom: { n: number; e: number } | null; holdUntil: number | null; speed: number | null; done: boolean; liftAt?: number; rate?: number | null; stopFor?: number } = { started: false, legFrom: null, holdUntil: null, speed: null, done: false };
   private battLowSince: number | null = null;
   private battCrtSince: number | null = null;
   private rcLostSince: number | null = null;
@@ -212,8 +214,28 @@ export class Autopilot {
     this.events.push({ t: this.phys.s.t, sev, text, kind });
   }
 
+  /**
+   * Where home is now, in metres from where the aircraft started (the origin
+   * of the simulation) and in height above it. ArduCopter moves home to where
+   * it arms, unless home is locked (AP_Arming_Copter::arm_checks), and every
+   * height above home, the return and the circle fence go from there.
+   */
+  homeAt = { n: 0, e: 0, z: 0 };
+
+  /** Height above home, m. */
   get alt() {
+    return -this.phys.s.pos[2] - this.homeAt.z;
+  }
+
+  /** Height above where the aircraft started, the ground's reference, m. */
+  get height() {
     return -this.phys.s.pos[2];
+  }
+
+  /** Home, as the aircraft reports it. */
+  homeNow(): Home {
+    const g = this.toGlobal(this.homeAt.n, this.homeAt.e);
+    return { lat: g.lat, lon: g.lon, altMsl: this.home.altMsl + this.homeAt.z };
   }
 
   /** Store fence items; they have already passed the loader's checks. */
@@ -275,7 +297,7 @@ export class Autopilot {
     if (this.p("FENCE_ALT_MIN") < -100) return ["Invalid FENCE_ALT_MIN value"];
     const s = this.phys.s;
     if (this.p("FENCE_ENABLE") >= 1 && type & FENCE_TYPE.POLYGON && breachAt(this.fenceZones, { n: s.pos[0], e: s.pos[1] }, (this.p("FENCE_OPTIONS") & OPTION_UNION) !== 0)) return ["Vehicle breaching Polygon fence"];
-    if (this.p("FENCE_ENABLE") >= 1 && type & FENCE_TYPE.CIRCLE && Math.hypot(s.pos[0], s.pos[1]) >= this.p("FENCE_RADIUS")) return ["Vehicle breaching Circle fence"];
+    if (this.p("FENCE_ENABLE") >= 1 && type & FENCE_TYPE.CIRCLE && Math.hypot(s.pos[0] - this.homeAt.n, s.pos[1] - this.homeAt.e) >= this.p("FENCE_RADIUS")) return ["Vehicle breaching Circle fence"];
     if (this.p("FENCE_ALT_MAX") < this.p("FENCE_ALT_MIN")) return ["FENCE_ALT_MAX < FENCE_ALT_MIN"];
     if (this.p("FENCE_ALT_MAX") - this.p("FENCE_ALT_MIN") <= 2 * this.p("FENCE_MARGIN")) return ["FENCE_MARGIN too big"];
     return [];
@@ -290,6 +312,8 @@ export class Autopilot {
     }
     this.armed = true;
     this.landed = true;
+    const at = this.phys.s.pos;
+    this.homeAt = { n: at[0], e: at[1], z: -at[2] };
     this.failsafes.clear();
     this.battLowSince = this.battCrtSince = this.rcLostSince = this.gpsLostSince = null;
     this.groundArmedSince = this.phys.s.t;
@@ -653,7 +677,7 @@ export class Autopilot {
     let rtlAlt = Math.max(this.alt, this.p("RTL_ALT") / 100);
     // Copter keeps the return below the fence ceiling, less its margin (mode_rtl.cpp).
     if (this.fenceOn() && this.p("FENCE_TYPE") & FENCE_TYPE.ALT_MAX) rtlAlt = Math.min(rtlAlt, this.p("FENCE_ALT_MAX") - this.p("FENCE_MARGIN"));
-    this.goal = r.stage === "climb" ? { n: s.pos[0], e: s.pos[1], alt: Math.max(this.target.alt, rtlAlt) } : r.stage === "return" ? { n: 0, e: 0, alt: this.target.alt } : null;
+    this.goal = r.stage === "climb" ? { n: s.pos[0], e: s.pos[1], alt: Math.max(this.target.alt, rtlAlt) } : r.stage === "return" ? { n: this.homeAt.n, e: this.homeAt.e, alt: this.target.alt } : null;
     const speed = this.p("RTL_SPEED") > 0 ? this.p("RTL_SPEED") / 100 : wpSpeed;
     if (r.stage === "climb") {
       if (this.target.alt < rtlAlt) this.target.alt = rtlAlt;
@@ -664,12 +688,12 @@ export class Autopilot {
         this.auto.legFrom = null;
       }
     } else if (r.stage === "return") {
-      const left = this.flyToward(0, 0, speed, dt);
+      const left = this.flyToward(this.homeAt.n, this.homeAt.e, speed, dt);
       if (left < Math.max(1, this.p("WPNAV_RADIUS") / 100) && this.navSpeed < 0.3) this.rtl = { stage: "loiter", since: s.t };
     } else if (r.stage === "loiter") {
       this.velCmd = { n: 0, e: 0 };
-      this.target.n = 0;
-      this.target.e = 0;
+      this.target.n = this.homeAt.n;
+      this.target.e = this.homeAt.e;
       if (s.t - r.since > this.p("RTL_LOIT_TIME") / 1000) {
         this.rtl = { stage: "land", since: s.t };
         this.log("info", "RTL: landing at home", "rtl-land");
@@ -694,13 +718,14 @@ export class Autopilot {
       this.log("info", "Mission complete: holding position", "mission-done");
       return false;
     }
-    const relAlt = item.frame === 0 ? item.z - this.home.altMsl : item.z;
+    const relAlt = item.frame === 0 ? item.z - this.home.altMsl - this.homeAt.z : item.z;
     const next = () => {
       this.onReached?.(item.seq);
       this.missionSeq++;
       this.auto.legFrom = null;
       this.auto.holdUntil = null;
       this.auto.rate = null;
+      this.auto.stopFor = 0;
       this.place = null;
     };
     const speed = this.auto.speed ?? wpSpeed;
@@ -742,14 +767,17 @@ export class Autopilot {
         if (relAlt > 0) this.target.alt = relAlt;
         if (this.auto.holdUntil === null) this.goal = { n: dest.n, e: dest.e, alt: this.target.alt };
         const left = this.flyToward(dest.n, dest.e, speed, dt);
-        const arrived = left < this.p("WPNAV_RADIUS") / 100 && Math.abs(this.alt - this.target.alt) < 1.5;
+        // A waypoint with a wait is a stop, and is reached only once the aircraft has come to it (AC_WPNav: the
+        // track's target has finished, and the aircraft is within the radius). One without is passed through.
+        const arrived = item.p1 > 0 || item.command === CMD.LOITER_TIME ? this.stoppedAt(left, this.target.alt, dt) : left < this.p("WPNAV_RADIUS") / 100 && Math.abs(this.alt - this.target.alt) < 1.5;
         if (arrived && item.command !== CMD.LOITER_UNLIM) {
-          if (this.auto.holdUntil === null) {
-            this.auto.holdUntil = s.t + Math.max(0, item.p1);
+          if (this.auto.holdUntil === null) this.auto.holdUntil = s.t + Math.max(0, item.p1);
+          if (s.t >= this.auto.holdUntil) {
+            // ArduCopter says so when the wait is over (ModeAuto::verify_nav_wp).
             this.log("info", `Reached command #${item.seq}`, "waypoint");
+            next();
           }
-          if (s.t >= this.auto.holdUntil) next();
-        }
+        } else this.auto.stopFor = 0;
         return false;
       }
       case CMD.DELAY: {
@@ -776,7 +804,7 @@ export class Autopilot {
         return wasLanded;
       }
       case CMD.PAYLOAD_PLACE:
-        return this.runPlace(item, dt, relAlt, speed, next);
+        return this.runPlace(item, dt, speed, next);
       case CMD.RTL: {
         this.onReached?.(item.seq);
         this.auto.done = true;
@@ -803,14 +831,35 @@ export class Autopilot {
     }
   }
 
+  /**
+   * At a stop: ArduCopter counts a waypoint with a wait as reached when the
+   * track's target has arrived and the aircraft is within WPNAV_RADIUS of it.
+   * The target arrives with the aircraft close behind, so here: within half a
+   * metre of the point and nearly still, or, in wind that will not let it
+   * settle, within the radius for three seconds.
+   */
+  private stoppedAt(left: number, alt: number, dt: number): boolean {
+    const s = this.phys.s;
+    const off = Math.hypot(left, this.alt - alt);
+    const radius = Math.max(0.5, this.p("WPNAV_RADIUS") / 100);
+    if (off > radius) {
+      this.auto.stopFor = 0;
+      return false;
+    }
+    this.auto.stopFor = (this.auto.stopFor ?? 0) + dt;
+    const still = Math.hypot(s.vel[0], s.vel[1], s.vel[2]) < 0.3;
+    return (off < 0.5 && still) || this.auto.stopFor > 3;
+  }
+
   private recordDelivery(seq: number, kind: DeliveryRecord["kind"], outcome: DeliveryRecord["outcome"], kg: number) {
     const s = this.phys.s;
-    this.deliveries.push({ seq, kind, t: s.t, n: s.pos[0], e: s.pos[1], alt: this.alt, agl: this.alt - this.phys.ground(s.pos[0], s.pos[1]), speed: Math.hypot(s.vel[0], s.vel[1]), kg, outcome });
+    this.deliveries.push({ seq, kind, t: s.t, n: s.pos[0], e: s.pos[1], alt: this.alt, agl: this.height - this.phys.ground(s.pos[0], s.pos[1]), speed: Math.hypot(s.vel[0], s.vel[1]), kg, outcome });
   }
 
   /**
    * NAV_PAYLOAD_PLACE, as ArduCopter's PayloadPlace runs it (mode_auto.cpp):
-   * fly to the place if it has one, then descend at PLDP_SPEED_DN (else the
+   * fly to the place if it has one, at the height it is already at (4.6:
+   * shift_alt_to_current_alt; 4.7 would take the command's height), then descend at PLDP_SPEED_DN (else the
    * landing speed, never faster than WPNAV_SPEED_DN); once the descent is
    * steady, take the least throttle over two seconds as the reference; when
    * the throttle stays under PLDP_THRESH of it for half a second, or the
@@ -818,7 +867,7 @@ export class Autopilot {
    * PLDP_DELAY, and climb back to where the descent began. Having descended
    * param 1 metres without that, it gives up and climbs back.
    */
-  private runPlace(item: MissionItem, dt: number, relAlt: number, speed: number, next: () => void): boolean {
+  private runPlace(item: MissionItem, dt: number, speed: number, next: () => void): boolean {
     const s = this.phys.s;
     if (this.landed) {
       this.log("warn", "Mission: a take-off command is needed before the first waypoint", "mission-error");
@@ -828,18 +877,17 @@ export class Autopilot {
     const now = s.t;
     const prefix = "PayloadPlace:";
     if (!this.place) {
-      const placed = item.x !== 0 || item.y !== 0 || item.z !== 0;
-      this.place = { state: placed ? "fly" : "start", startAlt: this.alt, speed: 0, established: now, thrustMin: 1, placeStart: now, releasedAt: 0, released: false, landed: false };
+      const placed = item.x !== 0 || item.y !== 0;
+      this.place = { state: placed ? "fly" : "start", steady: false, startAlt: this.alt, speed: 0, established: now, thrustMin: 1, placeStart: now, releasedAt: 0, released: false, landed: false };
     }
     const pl = this.place;
     const hold = () => this.slewVel(0, 0, this.p("WPNAV_ACCEL") / 100, dt);
     if (pl.state === "fly") {
-      const here = item.x === 0 && item.y === 0;
-      const dest = here ? { n: this.auto.legFrom?.n ?? s.pos[0], e: this.auto.legFrom?.e ?? s.pos[1] } : this.toLocal(item.x, item.y);
-      if (relAlt > 0) this.target.alt = relAlt;
+      const dest = this.toLocal(item.x, item.y);
       this.goal = { n: dest.n, e: dest.e, alt: this.target.alt };
       const left = this.flyToward(dest.n, dest.e, speed, dt);
-      if (left < Math.max(0.5, this.p("WPNAV_RADIUS") / 100) && Math.abs(this.alt - this.target.alt) < 0.5 && Math.abs(s.vel[2]) < 0.3) pl.state = "start";
+      // FlyToLocation ends when the waypoint is reached, the aircraft stopped there (reached_wp_destination).
+      if (this.stoppedAt(left, this.target.alt, dt)) pl.state = "start";
       return false;
     }
     if (pl.state === "start") {
@@ -855,7 +903,7 @@ export class Autopilot {
       hold();
       this.auto.rate = -pl.speed;
       const giveUp = item.p1;
-      this.goal = { n: this.target.n, e: this.target.e, alt: giveUp > 0 ? pl.startAlt - giveUp : this.phys.ground(s.pos[0], s.pos[1]) };
+      this.goal = { n: this.target.n, e: this.target.e, alt: giveUp > 0 ? pl.startAlt - giveUp : this.phys.ground(s.pos[0], s.pos[1]) - this.homeAt.z };
       if (giveUp > 0 && pl.startAlt - this.alt > giveUp) {
         this.log("warn", `${prefix} Reached maximum descent`, "place-gave-up");
         this.recordDelivery(item.seq, "lower", "gave-up", 0);
@@ -867,7 +915,8 @@ export class Autopilot {
       } else {
         const thresh = this.params.PLDP_THRESH ?? 0.9;
         let check = true;
-        if (this.climbCmd > -0.95 * pl.speed) {
+        if (!pl.steady && Math.abs(-s.vel[2] + pl.speed) < 0.05 * pl.speed) pl.steady = true;
+        if (this.climbCmd > -0.95 * pl.speed || !pl.steady) {
           pl.established = now;
           check = false;
         } else if (now - pl.established < 2) {
@@ -1125,7 +1174,7 @@ export class Autopilot {
         outBy = Math.max(outBy, this.p("FENCE_ALT_MIN") - this.alt);
       }
     }
-    const fromHome = Math.hypot(here.n, here.e);
+    const fromHome = Math.hypot(here.n - this.homeAt.n, here.e - this.homeAt.e);
     if (type & FENCE_TYPE.CIRCLE && fromHome >= this.p("FENCE_RADIUS")) {
       now |= FENCE_TYPE.CIRCLE;
       outBy = Math.max(outBy, fromHome - this.p("FENCE_RADIUS"));

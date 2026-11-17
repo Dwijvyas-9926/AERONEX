@@ -10,13 +10,14 @@ import { euler } from "../../sim/physics";
 import { commandLink, COPTER_MODE } from "../../services/link/commandLink";
 import { linkManager, rememberedParams } from "../../services/link/linkManager";
 import { isPortOpen, useLink } from "../../state/linkStore";
-import { notify } from "../../state/notifyStore";
+import { confirmAction, notify } from "../../state/notifyStore";
 import { NumInput } from "../../components/ui/NumInput";
 import { modelledParams } from "../../sim/firmwareParams";
 import { useActiveProfile } from "../../state/profileStore";
 import { planSteps, planToMission, useSim } from "../../state/simStore";
 import { inPlanWords, useSentMission } from "../../state/sentMission";
-import { releaseKey } from "../../mission/payload";
+import { releaseKey, type DeliveryAt } from "../../mission/payload";
+import { armAwayFindings } from "../../mission/armHome";
 import { clockTime } from "../../utils/format";
 import { fromFrameStudio, fromProfile } from "./airframeSources";
 import { FlightMap, type MapPoint } from "./FlightMap";
@@ -330,7 +331,12 @@ function Setup({ running = false, onDone }: { running?: boolean; onDone?: () => 
 interface Snap {
   n: number;
   e: number;
+  /** Above home, as the aircraft counts it: home moves to where it arms. */
   alt: number;
+  /** Above where it started, the ground's reference. */
+  height: number;
+  /** How far home is now from where it started. */
+  home: { n: number; e: number };
   yawDeg: number;
   speed: number;
   climb: number;
@@ -376,7 +382,9 @@ function useSnap(): { snap: Snap | null; track: MapPoint[]; clearTrack: () => vo
       setSnap({
         n: s.pos[0],
         e: s.pos[1],
-        alt: -s.pos[2],
+        alt: v.ap.alt,
+        height: v.ap.height,
+        home: { n: v.ap.homeAt.n, e: v.ap.homeAt.e },
         yawDeg: (euler(s.q).yaw * 180) / Math.PI,
         speed: Math.hypot(s.vel[0], s.vel[1]),
         climb: -s.vel[2],
@@ -397,7 +405,7 @@ function useSnap(): { snap: Snap | null; track: MapPoint[]; clearTrack: () => vo
         failsafes: [...v.ap.failsafes],
         missionSeq: v.ap.missionSeq,
         missionLen: v.ap.mission.length,
-        toGo: v.ap.goal ? Math.hypot(v.ap.goal.n - s.pos[0], v.ap.goal.e - s.pos[1], v.ap.goal.alt + s.pos[2]) : null,
+        toGo: v.ap.goal ? Math.hypot(v.ap.goal.n - s.pos[0], v.ap.goal.e - s.pos[1], v.ap.goal.alt - v.ap.alt) : null,
       });
     }, 150);
     return () => clearInterval(id);
@@ -475,6 +483,17 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
   const flyMission = () =>
     order("Fly the mission", async () => {
       if (sim.points.length === 0) throw new Error("There is no mission yet. Plan one in Mission Planning.");
+      // It sets home where it arms: from anywhere but the plan's home, the plan's heights move with the ground.
+      const v = linkManager.sim;
+      if (!flying && v) {
+        const at = { n: v.phys.s.pos[0], e: v.phys.s.pos[1] };
+        const deliveries: DeliveryAt[] = sim.points.flatMap((p, i) => (p.delivery ? [{ wp: i + 1, delivery: p.delivery, cruise: p.alt, ground: terrain.surface(p.n, p.e) }] : []));
+        const found = armAwayFindings({ armed: false, at, groundThere: terrain.surface(at.n, at.e), reported: null, deliveries, putBack: "Put it back at home first to fly the plan as drawn." }).filter((f) => f.sev !== "note");
+        if (found.length) {
+          const ok = await confirmAction({ title: "Fly from where it is?", body: found[0].text, confirmLabel: "Fly from here", tone: found[0].sev === "bad" ? "danger" : "default" });
+          if (!ok) return 0;
+        }
+      }
       await commandLink.uploadMission(planToMission(sim.home, sim.takeoffAlt, sim.points, sim.ending, terrain.surface));
       useSentMission.getState().set(planSteps(sim.points, sim.ending));
       // The plan's payloads hang below, as loaded on the ground; the virtual aircraft's own release settings decide whether they let go.
@@ -605,7 +624,7 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
                 ))}
               </div>
               <dl className="world-hud strip">
-                <div><dt>Above ground</dt><dd>{Math.max(0, snap.alt - terrain.surface(snap.n, snap.e)).toFixed(1)} m</dd></div>
+                <div><dt>Above ground</dt><dd>{Math.max(0, snap.height - terrain.surface(snap.n, snap.e)).toFixed(1)} m</dd></div>
                 <div><dt>Heading</dt><dd>{String(Math.round((snap.yawDeg + 360) % 360)).padStart(3, "0")}°</dd></div>
                 <div><dt>Wind</dt><dd>{wind.windSpeed} m/s</dd></div>
               </dl>
@@ -660,7 +679,7 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
               <div><dt>Height</dt><dd>{snap.alt.toFixed(1)}<small>m</small></dd></div>
               <div><dt>Speed</dt><dd>{snap.speed.toFixed(1)}<small>m/s</small></dd></div>
               <div><dt>Climb</dt><dd>{snap.climb.toFixed(1)}<small>m/s</small></dd></div>
-              <div><dt>From home</dt><dd>{Math.hypot(snap.n, snap.e).toFixed(0)}<small>m</small></dd></div>
+              <div><dt>From home</dt><dd>{Math.hypot(snap.n - snap.home.n, snap.e - snap.home.e).toFixed(0)}<small>m</small></dd></div>
               <div><dt>Battery</dt><dd className={snap.soc < 0.2 ? "bad" : undefined}>{Math.max(0, Math.round(snap.soc * 100))}<small>%</small></dd></div>
               <div><dt>Voltage</dt><dd>{snap.volts.toFixed(1)}<small>V</small></dd></div>
               <div><dt>Current</dt><dd>{snap.amps.toFixed(0)}<small>A</small></dd></div>

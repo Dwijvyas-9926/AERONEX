@@ -140,7 +140,14 @@ export function deliveryCommands(d: Delivery, at: Pos, cruise: number, ground: n
   const leave = item(PAYLOAD_CMD.WAYPOINT, FRAME_REL, 1, 0, at, tenth(cruise));
   const low = tenth(ground + d.heightM);
   if (d.method === "lower") {
-    return [arrive, item(PAYLOAD_CMD.PAYLOAD_PLACE, FRAME_REL, Math.round(d.giveUpM), 0, at, low), leave];
+    /*
+      Down to the starting height first, on a waypoint of its own. ArduCopter
+      4.6 flies a PAYLOAD_PLACE to its place at the height it is already at
+      and lowers from there (shift_alt_to_current_alt); 4.7 flies to the
+      command's own height. Already there, both start lowering at once, from
+      the height asked.
+    */
+    return [arrive, item(PAYLOAD_CMD.WAYPOINT, FRAME_REL, 1, 0, at, low), item(PAYLOAD_CMD.PAYLOAD_PLACE, FRAME_REL, Math.round(d.giveUpM), 0, at, low), leave];
   }
   return [
     arrive,
@@ -198,14 +205,23 @@ export function findDelivery(items: MissionItem[], i: number, closedFor: Map<num
   const d = items[i + 3];
   const e = items[i + 4];
   const hold = (p1: number) => (p1 <= 1 ? 0 : Math.round(p1));
-  // Lower: arrive, place, leave.
+  // Lower, as written here: arrive, come down to the start, place, leave.
+  if (b && b.command === PAYLOAD_CMD.WAYPOINT && near(a, b) && c && c.command === PAYLOAD_CMD.PAYLOAD_PLACE && (!placed(c) || near(a, c)) && d && d.command === PAYLOAD_CMD.WAYPOINT && near(a, d) && Math.abs(d.z - a.z) < 0.5) {
+    return {
+      length: 4,
+      delivery: { method: "lower", release: { kind: "gripper" }, settleS: DROP_DEFAULTS.settleS, afterS: DROP_DEFAULTS.afterS, giveUpM: Math.max(1, c.p1), lowAlt: b.z },
+      holdS: hold(a.p1),
+      rebuilt: false,
+    };
+  }
+  // Lower straight from a waypoint: ArduCopter 4.6 starts lowering from that waypoint's height, 4.7 from the command's.
   if (b && b.command === PAYLOAD_CMD.PAYLOAD_PLACE && (!placed(b) || near(a, b))) {
     const leaves = c && c.command === PAYLOAD_CMD.WAYPOINT && near(a, c) && Math.abs(c.z - a.z) < 0.5;
     return {
       length: leaves ? 3 : 2,
       delivery: { method: "lower", release: { kind: "gripper" }, settleS: DROP_DEFAULTS.settleS, afterS: DROP_DEFAULTS.afterS, giveUpM: Math.max(1, b.p1), lowAlt: b.z > 0 ? b.z : a.z },
       holdS: hold(a.p1),
-      rebuilt: !leaves,
+      rebuilt: true,
     };
   }
   // Drop, as written here: arrive, come down and settle, release, wait, leave.
@@ -264,12 +280,13 @@ export function deliverySpeeds(p: Record<string, number | undefined>): Speeds {
 export function deliverySeconds(d: Delivery, cruise: number, ground: number, p: Record<string, number | undefined>): number {
   const s = deliverySpeeds(p);
   const low = ground + d.heightM;
-  const drop = Math.max(0, cruise - low);
-  // Each stop costs a second or so to settle; the climb back is as long as the way down.
-  if (d.method === "drop") return 1 + drop / s.down + d.settleS + d.afterS + drop / s.up + 1 + 3;
-  // Lowering: down to the start, two seconds to measure the thrust, then the slow part to the ground and back up.
+  // Down from the waypoint to it and back up; or, when it is above the waypoint, up to it and back down.
+  const there = cruise >= low ? (cruise - low) / s.down + (cruise - low) / s.up : (low - cruise) / s.up + (low - cruise) / s.down;
+  // Each stop costs a second or so to settle.
+  if (d.method === "drop") return 1 + there + d.settleS + d.afterS + 1 + 3;
+  // Lowering: to the start and a second there, steady the descent and measure the thrust (about 3 s), the slow part to the ground and back up.
   const feel = Math.max(0, Math.min(d.heightM, d.giveUpM) - d.hangM);
-  return 1 + drop / s.down + 2 + feel / s.slow + 0.5 + s.delayS + feel / s.up + drop / s.up + 1 + 3;
+  return 1 + there + 1 + 3 + feel / s.slow + 0.5 + s.delayS + feel / s.up + 1 + 3;
 }
 
 /* ------------------------------------------------------------------ */

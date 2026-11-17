@@ -31,6 +31,7 @@ import { distanceM } from "../../geo/geo";
 import { fenceSync, useFence } from "../../state/fenceStore";
 import { readFence, sendFence } from "../../services/link/fenceLink";
 import { checkDeliveries, newDelivery, releaseKey, type DeliveryAt } from "../../mission/payload";
+import { armAwayFindings, AWAY_M } from "../../mission/armHome";
 import type { Payload } from "../../sim/vehicle";
 import { DeliveryRow } from "./DeliveryRow";
 import { usePayloadSetup } from "./usePayloadSetup";
@@ -81,6 +82,29 @@ function useFlightParams(): { params: Params; source: string; fromAircraft: bool
   }, [sim.airframe, sim.useAircraftParams, status, virtual, live, count, received]);
 }
 
+interface Sitting {
+  lat: number;
+  lon: number;
+  relAlt: number;
+  armed: boolean;
+  home: LatLon | null;
+}
+
+/** Where the linked aircraft is, when it has a position. */
+function whereItSits(): Sitting | null {
+  const l = useLink.getState();
+  const p = l.telemetry.position?.value;
+  if (l.status !== "connected" || !p || (p.lat === 0 && p.lon === 0)) return null;
+  const h = l.telemetry.home?.value;
+  return { lat: p.lat, lon: p.lon, relAlt: p.relAlt, armed: !!l.vehicle?.armed, home: h ? { lat: h.lat, lon: h.lon } : null };
+}
+
+function sameSitting(a: Sitting | null, b: Sitting | null): boolean {
+  if (!a || !b) return a === b;
+  const near = (x: LatLon | null, y: LatLon | null) => (!x || !y ? x === y : distanceM(x, y) < 1);
+  return a.armed === b.armed && near(a, b) && near(a.home, b.home) && Math.abs(a.relAlt - b.relAlt) < 0.3;
+}
+
 export function MissionPlanningPage() {
   const sim = useSim();
   const nav = useNavigate();
@@ -116,10 +140,14 @@ export function MissionPlanningPage() {
   const homeSource = useHomeSource((h) => h.source);
   // Looked at a couple of times a second, not at telemetry rate.
   const [gpsBlock, setGpsBlock] = useState(() => vehicleBlock() ?? missionBlock() ?? armedBlock());
+  // Where a linked aircraft sits, to the metre: it will set home there when it arms.
+  const [sitting, setSitting] = useState<Sitting | null>(null);
   useEffect(() => {
     const t = window.setInterval(() => {
       const b = vehicleBlock() ?? missionBlock() ?? armedBlock();
       setGpsBlock((was) => (was?.body === b?.body ? was : b));
+      const now = whereItSits();
+      setSitting((was) => (sameSitting(was, now) ? was : now));
     }, 700);
     return () => window.clearInterval(t);
   }, []);
@@ -217,6 +245,27 @@ export function MissionPlanningPage() {
   const payloads = useMemo<Payload[]>(() => deliveries.map((x) => ({ kg: x.delivery.kg, hangM: x.delivery.hangM, release: releaseKey(x.delivery.release), open: x.delivery.release.kind === "servo" ? x.delivery.release.open : undefined })), [deliveries]);
   const defaultRelease = () => (payload.options.find((o) => !o.problem) ?? payload.options[0]).release;
 
+  /*
+    The aircraft arms where it sits, and ArduCopter sets home there. Drawn
+    from one home and flown from another, every height moves with the ground
+    between them: after landing at the last waypoint, say, a second flight
+    would let a payload go at the wrong height.
+  */
+  const away = useMemo(() => {
+    if (!linked || !sitting) return [];
+    const at = toLocal(sim.home, sitting.lat, sitting.lon);
+    // The aircraft's own height above its home is the step, on the ground, when its home is the plan's.
+    const homeSame = sitting.home !== null && distanceM(sitting.home, sim.home) <= AWAY_M;
+    return armAwayFindings({
+      armed: sitting.armed,
+      at,
+      groundThere: loaded && !(terrain.reach !== undefined && Math.max(Math.abs(at.n), Math.abs(at.e)) > terrain.reach) ? terrain.surface(at.n, at.e) : null,
+      reported: homeSame ? sitting.relAlt : null,
+      deliveries,
+      putBack: virtual ? "Put it back at home on the Simulator page before flying, or fly from where it is knowing this." : "Carry it back to home before arming. Or arm it here, let home move to it, then set the heights again and send the mission before starting it.",
+    });
+  }, [linked, sitting, sim.home, deliveries, virtual, terrain, loaded]);
+
   const checks = useMemo(() => {
     const own = checkPlan({ points: sim.points, takeoffAlt: sim.takeoffAlt, ending: sim.ending, params, airframe: sim.airframe, profile, groundKnown, real, groundReach: beyond ? (terrain.reach ?? null) : null, ground: terrain.surface });
     // The route against the fence, from the fence's own check, with the fence as drawn here.
@@ -225,8 +274,8 @@ export function MissionPlanningPage() {
     // The release is the aircraft's own; say which settings it was checked against when they are not live.
     const against = deliveries.length && payload.aircraft && !payload.live ? [{ sev: "note" as const, text: `The payload release is checked against ${payload.source}. Link the aircraft to check it as it is now.` }] : [];
     const order = { bad: 0, warn: 1, note: 2 };
-    return [...own, ...route, ...notSent, ...payloadFindings, ...against].sort((a, b) => order[a.sev] - order[b.sev]);
-  }, [sim.points, sim.takeoffAlt, sim.ending, params, sim.airframe, profile, groundKnown, real, beyond, terrain, fenceFindings, linked, sync.known, sync.same, payloadFindings, deliveries.length, payload]);
+    return [...away, ...own, ...route, ...notSent, ...payloadFindings, ...against].sort((a, b) => order[a.sev] - order[b.sev]);
+  }, [sim.points, sim.takeoffAlt, sim.ending, params, sim.airframe, profile, groundKnown, real, beyond, terrain, fenceFindings, linked, sync.known, sync.same, payloadFindings, deliveries.length, payload, away]);
   const [allAlt, setAllAlt] = useState(30);
   const [tab, setTab] = useState<"plan" | "fence" | "predict">("plan");
   const [drawing, setDrawing] = useState<FenceDrawing | null>(null);

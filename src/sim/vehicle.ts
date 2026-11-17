@@ -247,6 +247,7 @@ export class VirtualVehicle {
     this.ap.landed = true;
     this.ap.failsafes.clear();
     this.ap.mode = MODE.STABILIZE;
+    this.ap.homeAt = { n: 0, e: 0, z: 0 };
     this.ap.log("info", "Aircraft reset to home");
   }
 
@@ -273,7 +274,9 @@ export class VirtualVehicle {
     const e = euler(s.q);
     const ms = Math.round(s.t * 1000) >>> 0;
     const g = ap.toGlobal(s.pos[0], s.pos[1]);
-    const alt = -s.pos[2];
+    // Above sea level from where it is; above home from where home is now.
+    const msl = this.home.altMsl - s.pos[2];
+    const alt = ap.alt;
     const inp = this.inputs();
 
     // The autopilot's own log, as status text.
@@ -306,7 +309,7 @@ export class VirtualVehicle {
         time_boot_ms: ms,
         lat: Math.round(g.lat * 1e7),
         lon: Math.round(g.lon * 1e7),
-        alt: Math.round((this.home.altMsl + alt) * 1000),
+        alt: Math.round(msl * 1000),
         relative_alt: Math.round(alt * 1000),
         vx: Math.round(s.vel[0] * 100),
         vy: Math.round(s.vel[1] * 100),
@@ -322,7 +325,7 @@ export class VirtualVehicle {
         groundspeed: gs,
         heading: Math.round(hdg),
         throttle: Math.round(ap.throttleOut * 100),
-        alt: this.home.altMsl + alt,
+        alt: msl,
         climb: -s.vel[2],
       });
     }
@@ -332,7 +335,7 @@ export class VirtualVehicle {
         fix_type: this.gpsOk ? 3 : 1,
         lat: this.gpsOk ? Math.round(g.lat * 1e7) : 0,
         lon: this.gpsOk ? Math.round(g.lon * 1e7) : 0,
-        alt: Math.round((this.home.altMsl + alt) * 1000),
+        alt: Math.round(msl * 1000),
         eph: this.gpsOk ? 80 : 9999,
         epv: this.gpsOk ? 120 : 9999,
         vel: Math.round(Math.hypot(s.vel[0], s.vel[1]) * 100),
@@ -400,6 +403,13 @@ export class VirtualVehicle {
       this.send("SERVO_OUTPUT_RAW", f);
     }
     if (this.every("mis", 1)) this.send("MISSION_CURRENT", { seq: ap.missionSeq });
+    // Home moves when it arms: say so at once, as ArduPilot does, and every 5 s besides.
+    const h = ap.homeAt;
+    const key = `${h.n.toFixed(2)},${h.e.toFixed(2)},${h.z.toFixed(2)}`;
+    if (key !== this.homeKey) {
+      this.homeKey = key;
+      this.due.home = 0;
+    }
     if (this.every("home", 0.2)) this.sendHome();
 
     // A parameter download is paced, as a real one is.
@@ -425,8 +435,12 @@ export class VirtualVehicle {
     return [pwm(st?.roll ?? 0), pwm(st?.pitch ?? 0), Math.round(1000 + 1000 * (st?.throttle ?? 0)), pwm(st?.yaw ?? 0), ...this.aux.map((v) => v || 1500)];
   }
 
+  private homeKey = "";
+
   private sendHome() {
-    this.send("HOME_POSITION", { latitude: Math.round(this.home.lat * 1e7), longitude: Math.round(this.home.lon * 1e7), altitude: Math.round(this.home.altMsl * 1000), x: 0, y: 0, z: 0, q: [1, 0, 0, 0], approach_x: 0, approach_y: 0, approach_z: 0 });
+    const h = this.ap.homeNow();
+    const at = this.ap.homeAt;
+    this.send("HOME_POSITION", { latitude: Math.round(h.lat * 1e7), longitude: Math.round(h.lon * 1e7), altitude: Math.round(h.altMsl * 1000), x: at.n, y: at.e, z: -at.z, q: [1, 0, 0, 0], approach_x: 0, approach_y: 0, approach_z: 0 });
   }
 
   /** The parameters listed now: some appear only while their enable flag is on, as in ArduPilot. */

@@ -235,7 +235,7 @@ export function planSteps(points: PlanPoint[], ending: Ending): string[] {
     const w = `waypoint ${i + 1}`;
     if (!p.delivery) steps.push(w);
     else if (p.delivery.method === "drop") steps.push(w, `${w}, down to the release height`, `${w}, the release`, `${w}, after the drop`, `${w}, back up`);
-    else steps.push(w, `${w}, lowered and released`, `${w}, back up`);
+    else steps.push(w, `${w}, down to where lowering starts`, `${w}, lowered and released`, `${w}, back up`);
   });
   if (ending === "rtl") steps.push("the return home");
   if (ending === "land") steps.push("the landing");
@@ -379,7 +379,7 @@ export function missionToPlan(
     notes.push(`${total} ${total === 1 ? "command was" : "commands were"} left out because this planner cannot show ${total === 1 ? "it" : "them"}: ${[...dropped].map(([k, c]) => (c > 1 ? `${k} (${c})` : k)).join(", ")}. Sending this plan back will remove ${total === 1 ? "it" : "them"} from the mission.`);
   }
   if (afterEnd) notes.push(`${afterEnd} ${afterEnd === 1 ? "command" : "commands"} after the landing or return ${afterEnd === 1 ? "was" : "were"} left out.`);
-  if (rebuilt) notes.push(`${rebuilt === 1 ? "A payload release was" : `${rebuilt} payload releases were`} written another way. ${rebuilt === 1 ? "It is" : "They are"} shown as AERONEX flies a delivery (stop, come down, settle, let go, wait, climb back); check each before sending, as sending will write ${rebuilt === 1 ? "it" : "them"} that way.`);
+  if (rebuilt) notes.push(`${rebuilt === 1 ? "A payload release was" : `${rebuilt} payload releases were`} written another way. ${rebuilt === 1 ? "It is" : "They are"} shown as AERONEX flies a delivery (stop over the point, come down to the height asked, let go or lower, climb back); check each before sending, as sending will write ${rebuilt === 1 ? "it" : "them"} that way.`);
   if (unweighed) notes.push(`A mission does not carry a payload's weight: ${unweighed === 1 ? "its delivery is" : `${unweighed} deliveries are`} shown at 0.5 kg. Set the real ${unweighed === 1 ? "weight" : "weights"}.`);
   for (const f of frames) {
     notes.push(

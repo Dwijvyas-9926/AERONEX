@@ -76,6 +76,7 @@ describe.skipIf(!BIN)("payload delivery against real ArduCopter (SITL)", () => {
     predict: typeof import("../src/sim/predict");
     params: typeof import("../src/sim/params");
     fw: typeof import("../src/sim/firmwareParams");
+    armHome: typeof import("../src/mission/armHome");
   };
   const tele = () => app.useLink.getState().telemetry;
   const armed = () => !!app.useLink.getState().vehicle?.armed;
@@ -185,6 +186,7 @@ describe.skipIf(!BIN)("payload delivery against real ArduCopter (SITL)", () => {
       predict: await import("../src/sim/predict"),
       params: await import("../src/sim/params"),
       fw: await import("../src/sim/firmwareParams"),
+      armHome: await import("../src/mission/armHome"),
     };
     const seenIds = new Set<number>();
     app.useLink.subscribe((s) => {
@@ -330,5 +332,63 @@ describe.skipIf(!BIN)("payload delivery against real ArduCopter (SITL)", () => {
     expect(Math.abs(r.alt - 6)).toBeLessThan(1);
     expect(r.speed).toBeLessThan(0.5);
     expect(predicted(mission, [{ kg: 0.5, hangM: 0.3, release: `servo:${SERVO_OUT}`, open: 1850 }]).deliveries[0].outcome).toBe("released");
+  }, 600000);
+  it("lets go at the height asked with a one-second settle, as the app predicts", async () => {
+    const d = { ...gripperDrop(), heightM: 10, settleS: 1, afterS: 1 };
+    const mission = await send([{ id: "a", n: 40, e: 60, alt: 20, holdS: 0, delivery: d }]);
+    const f = await fly({ out: GRIP_OUT, pwm: RELEASE });
+    expect(f.release, "the gripper opened").not.toBeNull();
+    const r = f.release!;
+    const g = predicted(mission, [{ kg: 1, hangM: 2, release: "gripper" }]).deliveries[0];
+    say(`Drop, 1 s settle: opened at ${r.alt.toFixed(2)} m (asked 10 m), ${Math.hypot(r.n - 40, r.e - 60).toFixed(2)} m from the point, ground speed ${r.speed.toFixed(2)} m/s; the app predicted ${g.agl.toFixed(2)} m at ${g.speed.toFixed(2)} m/s.`);
+    expect(Math.abs(r.alt - 10)).toBeLessThan(1);
+    expect(r.speed).toBeLessThan(0.5);
+    expect(Math.abs(g.agl - r.alt)).toBeLessThan(1);
+  }, 600000);
+
+  it("lowers from above the waypoint's height and lets go at touchdown, as the app predicts", async () => {
+    const d = { ...app.payload.newDelivery("lower", { kind: "gripper" }, 1), heightM: 18, giveUpM: 30, hangM: 2 };
+    const mission = await send([{ id: "a", n: -50, e: -40, alt: 12, holdS: 0, delivery: d }]);
+    const f = await fly({ out: GRIP_OUT, pwm: RELEASE });
+    const said = f.said.filter((x) => /PayloadPlace/.test(x.text)).map((x) => x.text);
+    expect(f.release, "the gripper opened").not.toBeNull();
+    const r = f.release!;
+    const g = predicted(mission, [{ kg: 1, hangM: 2, release: "gripper" }]).deliveries[0];
+    say(`Lower from above the waypoint (12 m, starts at 18 m): opened at ${r.alt.toFixed(2)} m; the firmware said ${said.map((t) => `“${t}”`).join(", ")}; the app predicted ${g.outcome} at ${g.agl.toFixed(2)} m.`);
+    expect(f.track.some((k) => k.alt > 17)).toBe(true);
+    expect(r.alt).toBeGreaterThan(0.5);
+    expect(r.alt).toBeLessThan(2.5);
+    expect(g.outcome).toBe("released");
+    expect(Math.abs(g.agl - r.alt)).toBeLessThan(1.2);
+  }, 600000);
+
+  // Last: it moves the aircraft's home away from where the others start.
+  it("sets home again where it arms, after landing at the last waypoint", async () => {
+    const mission = app.sim.planToMission(HOME, 10, [{ id: "a", n: 60, e: 0, alt: 15, holdS: 0 }], "land");
+    await app.commandLink.uploadMission(mission);
+    await app.commandLink.requestMessageInterval(242, 1);
+    await fly({ out: GRIP_OUT, pwm: -1 });
+    const here = tele().position!.value;
+    const away = app.geo.distanceM(here, HOME);
+    const before = tele().home?.value;
+    // The planner, with the aircraft sitting there, says what arming would do.
+    const at = app.geo.toLocal(HOME, here.lat, here.lon);
+    const f = app.armHome.armAwayFindings({ armed: false, at, groundThere: null, reported: here.relAlt, deliveries: [{ wp: 1, delivery: gripperDrop(), cruise: 20, ground: 0 }], putBack: "" });
+    expect(f.length).toBe(1);
+    await app.commandLink.setMode(4);
+    let result = -1;
+    for (let i = 0; i < 60 && result !== 0; i++) {
+      result = await app.commandLink.arm(true).catch(() => -1);
+      if (result !== 0) await sleep(1000);
+    }
+    expect(result).toBe(0);
+    await until("home to move", () => {
+      const h = tele().home?.value;
+      return !!h && app.geo.distanceM(h, HOME) > away - 3;
+    }, 30000, 200);
+    const after = tele().home!.value;
+    say(`Re-armed ${away.toFixed(1)} m from home after landing there: home was ${before ? `${app.geo.distanceM(before, HOME).toFixed(1)} m` : "unreported"} from the start and is now ${app.geo.distanceM(after, HOME).toFixed(1)} m (${app.geo.distanceM(after, here).toFixed(1)} m from the aircraft). The planner said: “${f[0].text}”`);
+    expect(app.geo.distanceM(after, here)).toBeLessThan(3);
+    expect(await app.commandLink.arm(false)).toBe(0);
   }, 600000);
 });

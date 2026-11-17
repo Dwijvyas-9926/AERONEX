@@ -57,10 +57,23 @@ describe("the commands a delivery is written as", () => {
     expect(deliveryCommands(drop(), at, 30, 0, 12)[0].p1).toBe(12);
   });
 
-  it("lowering is one payload-place command between arriving and leaving, with its give-up depth", () => {
+  it("lowering comes down to its start on a waypoint first, then one payload-place command with its give-up depth", () => {
     const c = deliveryCommands(lower({ heightM: 15, giveUpM: 22 }), at, 40, 2.5, 0);
-    expect(c.map((x) => x.command)).toEqual([PAYLOAD_CMD.WAYPOINT, PAYLOAD_CMD.PAYLOAD_PLACE, PAYLOAD_CMD.WAYPOINT]);
-    expect(c[1]).toMatchObject({ x: at.x, y: at.y, z: 17.5, p1: 22, frame: 3 });
+    expect(c.map((x) => x.command)).toEqual([PAYLOAD_CMD.WAYPOINT, PAYLOAD_CMD.WAYPOINT, PAYLOAD_CMD.PAYLOAD_PLACE, PAYLOAD_CMD.WAYPOINT]);
+    // ArduCopter 4.6 lowers from the height it is at when the command starts: the waypoint before puts it there.
+    expect(c[1]).toMatchObject({ x: at.x, y: at.y, z: 17.5, p1: 1, frame: 3 });
+    expect(c[2]).toMatchObject({ x: at.x, y: at.y, z: 17.5, p1: 22, frame: 3 });
+    expect(c[3]).toMatchObject({ z: 40 });
+  });
+
+  it("reads lowering written straight after a waypoint as rebuilt, starting where it was asked", () => {
+    const a = deliveryCommands(lower({ heightM: 15, giveUpM: 22 }), at, 40, 0, 0);
+    const old = [a[0], a[2], a[3]].map((x, i) => ({ ...x, seq: i + 2 }));
+    const items: MissionItem[] = [{ seq: 0, frame: 0, command: CMD.WAYPOINT, p1: 0, p2: 0, p3: 0, p4: 0, x: 0, y: 0, z: 0 }, { seq: 1, frame: 3, command: CMD.TAKEOFF, p1: 0, p2: 0, p3: 0, p4: 0, x: 0, y: 0, z: 20 }, ...old];
+    const got = missionToPlan(items, HOME);
+    expect(got.points).toHaveLength(1);
+    expect(got.points[0].delivery).toMatchObject({ method: "lower", heightM: 15, giveUpM: 22 });
+    expect(got.notes.join(" ")).toContain("written another way");
   });
 });
 
