@@ -1,9 +1,9 @@
 import { type FenceWire } from "../geo/fence";
 import { derive, type Airframe } from "./airframe";
-import { CMD, MODE, MODE_NAME, type Home, type MissionItem, type SimEvent } from "./autopilot";
+import { CMD, MODE, MODE_NAME, type DeliveryRecord, type Home, type MissionItem, type SimEvent } from "./autopilot";
 import type { Params } from "./params";
 import { euler, type Environment } from "./physics";
-import { VirtualVehicle } from "./vehicle";
+import { VirtualVehicle, type Payload } from "./vehicle";
 import type { Terrain } from "./terrain";
 
 /*
@@ -37,6 +37,12 @@ export interface Scenario extends Environment {
   faults: FaultPlan[];
   /** Fence zones the aircraft holds, as sent to it. */
   fence?: FenceWire[];
+  /** Payloads loaded before take-off, each with what lets it go. */
+  payloads?: Payload[];
+  /** No aircraft's settings are known: take each release as working, as planned. */
+  assumeRelease?: boolean;
+  /** What to call each delivery in the findings, in mission order ("Waypoint 3"). */
+  deliveryNames?: string[];
 }
 
 export interface TrackPoint {
@@ -85,6 +91,8 @@ export interface Prediction {
     reached: number[];
     commands: number;
   };
+  /** Each payload let go, or the attempt, in order. */
+  deliveries: DeliveryRecord[];
 }
 
 const LIMIT_S = 45 * 60;
@@ -92,6 +100,10 @@ const LIMIT_S = 45 * 60;
 export function predict(airframe: Airframe, params: Params, home: Home, mission: MissionItem[], sc: Scenario, seed = 7, terrain?: Terrain): Prediction {
   const v = new VirtualVehicle({ airframe, home, params, soc: sc.soc, seed, terrain });
   v.setScriptedGcs(true);
+  if (sc.payloads?.length) v.loadPayloads(sc.payloads, !!sc.assumeRelease);
+  const carried = (sc.payloads ?? []).reduce((a, x) => a + x.kg, 0);
+  // Lift is the aircraft's with everything it carries at take-off.
+  const loaded: Airframe = carried > 0 ? { ...airframe, massKg: airframe.massKg + carried } : airframe;
   v.phys.env = { windSpeed: sc.windSpeed, windFromDeg: sc.windFromDeg, gust: sc.gust };
   v.ap.mission = mission.map((m) => ({ ...m }));
   if (sc.fence?.length) v.ap.setFence(sc.fence);
@@ -135,7 +147,7 @@ export function predict(airframe: Airframe, params: Params, home: Home, mission:
     stats.impact = s.lastImpact;
     stats.endGroundM = v.phys.ground(s.pos[0], s.pos[1]);
     if (!Number.isFinite(stats.minVolts)) stats.minVolts = s.volts;
-    return { verdict, headline, findings: findings(v, airframe, verdict, stats, sc, mission), track, events: v.events.slice(), stats };
+    return { verdict, headline, findings: [...deliveryFindings(v, verdict, sc, mission, home), ...findings(v, loaded, verdict, stats, sc, mission)].sort((a, b) => ORDER[a.sev] - ORDER[b.sev]), track, events: v.events.slice(), stats, deliveries: v.ap.deliveries.slice() };
   };
 
   // The same sequence a pilot would use: Guided, arm, Auto, start.
@@ -203,7 +215,7 @@ export function predict(airframe: Airframe, params: Params, home: Home, mission:
                   ? "it lost control of its attitude"
                   : groundM > 1.5 && v.ap.mode !== MODE.LAND
                     ? `it flew into rising ground, ${groundM.toFixed(0)} m above home`
-                    : stats.maxThrottle > 0.985 && derive(airframe).thrustToWeight < 1.5
+                    : stats.maxThrottle > 0.985 && derive(loaded).thrustToWeight < 1.5
                       ? "it did not have the thrust to hold its height and sank into the ground"
                       : s.crashWhy === "sliding"
                         ? `it touched down drifting sideways at ${s.lastSlide.toFixed(0)} m/s and went over`
@@ -231,13 +243,13 @@ export function predict(airframe: Airframe, params: Params, home: Home, mission:
       if (stats.maxAltM > 1) {
         return finish("stuck", `It got to ${Math.round(stats.maxAltM)} m, could not hold its height, and sank back to the ground ${Math.round(off)} m from home, where it sits at full throttle.`);
       }
-      const d = derive(airframe);
+      const d = derive(loaded);
       const sag = s.volts < airframe.cells * 3.1;
       return finish(
         "grounded",
         sag
           ? `It cannot take off: at full throttle the battery sags to ${s.volts.toFixed(1)} V and the motors have nothing left. The pack is too small for this aircraft.`
-          : `It cannot take off: four motors make ${((4 * airframe.motorMaxThrustN) / 9.80665).toFixed(1)} kg of thrust and the aircraft weighs ${airframe.massKg.toFixed(1)} kg${d.thrustToWeight >= 1 ? ", which leaves nothing once the battery sags under load" : ""}.`,
+          : `It cannot take off: four motors make ${((4 * airframe.motorMaxThrustN) / 9.80665).toFixed(1)} kg of thrust and the aircraft weighs ${loaded.massKg.toFixed(1)} kg${carried > 0 ? ` with its ${carried.toFixed(1)} kg of payload` : ""}${d.thrustToWeight >= 1 ? ", which leaves nothing once the battery sags under load" : ""}.`,
       );
     }
 
@@ -285,6 +297,84 @@ export function predict(airframe: Airframe, params: Params, home: Home, mission:
 }
 
 const clock = (s: number) => `${Math.floor(s / 60)} min ${String(Math.round(s % 60)).padStart(2, "0")} s`;
+const ORDER = { bad: 0, warn: 1, ok: 2 };
+const kgText = (kg: number) => (kg < 1 ? `${Math.round(kg * 1000)} g` : `${kg.toFixed(1)} kg`);
+
+/** The deliveries a mission makes, in order: the release commands in flight, and each lowering. */
+function plannedDeliveries(mission: MissionItem[]): MissionItem[] {
+  const out: MissionItem[] = [];
+  let flying = false;
+  for (const it of mission.slice(1)) {
+    if (it.command === CMD.TAKEOFF) flying = true;
+    else if (it.command === CMD.PAYLOAD_PLACE) out.push(it);
+    else if (flying && ((it.command === CMD.GRIPPER && Math.round(it.p2) === 0) || it.command === CMD.SET_SERVO)) out.push(it);
+  }
+  return out;
+}
+
+/** Where a delivery was meant to happen: its own place, or the waypoint before it. */
+function meantAt(mission: MissionItem[], it: MissionItem, home: Home): { n: number; e: number } | null {
+  for (let i = it.seq; i >= 1; i--) {
+    const m = mission[i];
+    if (m && (m.x !== 0 || m.y !== 0)) {
+      const M = 111319.5;
+      return { n: (m.x / 1e7 - home.lat) * M, e: (m.y / 1e7 - home.lon) * M * Math.cos((home.lat * Math.PI) / 180) };
+    }
+  }
+  return null;
+}
+
+/** What happened to each payload, worst first. */
+function deliveryFindings(v: VirtualVehicle, verdict: Verdict, sc: Scenario, mission: MissionItem[], home: Home): Finding[] {
+  const planned = plannedDeliveries(mission);
+  if (!planned.length) return [];
+  const out: Finding[] = [];
+  const records = v.ap.deliveries;
+  planned.forEach((it, i) => {
+    const name = sc.deliveryNames?.[i] ?? `Delivery ${i + 1}`;
+    const r = records.find((x) => x.seq === it.seq);
+    if (!r) {
+      if (verdict !== "refused" && verdict !== "grounded") out.push({ sev: "bad", text: `${name}: never reached; the payload was still on board when the flight ended.` });
+      return;
+    }
+    const at = meantAt(mission, it, home);
+    const miss = at ? Math.hypot(r.n - at.n, r.e - at.e) : 0;
+    const where = `${miss < 1 ? "on the point" : `${miss.toFixed(1)} m from the point`}, ${Math.max(0, r.agl).toFixed(1)} m above the ground`;
+    if (r.outcome === "released") {
+      const moving = r.speed > 1;
+      out.push({ sev: miss > 3 || moving ? "warn" : "ok", text: `${name}: let go of ${kgText(r.kg)} ${where}${moving ? `, still moving at ${r.speed.toFixed(1)} m/s` : ", holding still"}.` });
+    } else if (r.outcome === "landed") {
+      out.push({ sev: "warn", text: `${name}: the touchdown was not felt, so it came down until the aircraft itself landed, ${miss.toFixed(1)} m from the point, then let go of ${kgText(r.kg)} and climbed away. The payload is too light to be felt (PLDP_THRESH).` });
+    } else if (r.outcome === "gave-up") {
+      out.push({ sev: "bad", text: `${name}: came down as far as it was allowed without feeling the touchdown, then climbed back still holding the payload. Let it descend further, or check the ground height there.` });
+    } else if (r.outcome === "aborted") {
+      out.push({ sev: "bad", text: `${name}: lowering was abandoned at touchdown because PLDP_RNG_MAX needs a rangefinder that is not set up; it climbed back with the payload.` });
+    } else {
+      const gripper = it.command === CMD.GRIPPER || it.command === CMD.PAYLOAD_PLACE;
+      const refused = v.events.some((e) => e.kind === "servo-refused" && e.t >= r.t - 0.5 && e.t <= r.t + 0.5);
+      // Lowering opens only the gripper: a payload on a servo stays where it is.
+      if (it.command === CMD.PAYLOAD_PLACE && v.payloadKg > 0 && sc.payloads?.some((x) => x.release !== "gripper")) {
+        out.push({ sev: "bad", text: `${name}: it lowered the payload to the ground and opened the gripper, but the payload hangs on a servo, which lowering never opens. It climbed back still carrying it.` });
+        return;
+      }
+      out.push({
+        sev: "bad",
+        text: `${name}: the release ran ${where}, but nothing let go: ${
+          gripper
+            ? sc.assumeRelease
+              ? "no payload was on the gripper"
+              : "the aircraft's gripper is not set up and started (GRIP_ENABLE, GRIP_TYPE, an output set to Payload release, and a restart). It still reported “Gripper Released”"
+            : refused
+              ? `ArduPilot refused to move output ${Math.round(it.p1)}: it is in use as something else`
+              : "no payload hangs on that release"
+        }.`,
+      });
+    }
+  });
+  const left = v.payloadKg;
+  if (left > 0 && records.length) out.push({ sev: "warn", text: `${kgText(left)} of payload was still on board at the end.` });
+  return out;
+}
 
 /** What the run says about the plan, in plain words, worst first. */
 function findings(v: VirtualVehicle, af: Airframe, verdict: Verdict, st: Prediction["stats"], sc: Scenario, mission: MissionItem[]): Finding[] {
@@ -346,6 +436,5 @@ function findings(v: VirtualVehicle, af: Airframe, verdict: Verdict, st: Predict
   if (last && last.command !== CMD.RTL && last.command !== CMD.LAND) out.push({ sev: "warn", text: "The mission does not end with a return or a landing. It will hover at the last waypoint until someone takes over." });
   out.push({ sev: "ok", text: `A return home flies at ${(p.RTL_ALT / 100).toFixed(0)} m (RTL_ALT), or at its own height if it is already higher. Trees, buildings and wires are not modelled: check that clears everything on the way.` });
 
-  const order = { bad: 0, warn: 1, ok: 2 };
-  return out.sort((a, b) => order[a.sev] - order[b.sev]);
+  return out.sort((a, b) => ORDER[a.sev] - ORDER[b.sev]);
 }

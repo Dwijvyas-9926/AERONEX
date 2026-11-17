@@ -15,6 +15,7 @@ import { NumInput } from "../../components/ui/NumInput";
 import { modelledParams } from "../../sim/firmwareParams";
 import { useActiveProfile } from "../../state/profileStore";
 import { planToMission, useSim } from "../../state/simStore";
+import { releaseKey } from "../../mission/payload";
 import { clockTime } from "../../utils/format";
 import { fromFrameStudio, fromProfile } from "./airframeSources";
 import { FlightMap, type MapPoint } from "./FlightMap";
@@ -472,7 +473,9 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
   const flyMission = () =>
     order("Fly the mission", async () => {
       if (sim.points.length === 0) throw new Error("There is no mission yet. Plan one in Mission Planning.");
-      await commandLink.uploadMission(planToMission(sim.home, sim.takeoffAlt, sim.points, sim.ending));
+      await commandLink.uploadMission(planToMission(sim.home, sim.takeoffAlt, sim.points, sim.ending, terrain.surface));
+      // The plan's payloads hang below, as loaded on the ground; the virtual aircraft's own release settings decide whether they let go.
+      if (!flying) linkManager.sim?.loadPayloads(sim.points.flatMap((p) => (p.delivery ? [{ kg: p.delivery.kg, hangM: p.delivery.hangM, release: releaseKey(p.delivery.release), open: p.delivery.release.kind === "servo" ? p.delivery.release.open : undefined }] : [])), false);
       if (!flying) {
         const g = await commandLink.setMode(COPTER_MODE.GUIDED);
         if (g !== 0) return g;

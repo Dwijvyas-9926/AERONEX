@@ -1,6 +1,7 @@
 import { derive, G, type Airframe } from "../sim/airframe";
 import type { Params } from "../sim/params";
 import type { RouteProfile } from "./profile";
+import { deliverySeconds, type Delivery } from "../mission/payload";
 
 /*
   A look over the plan before anything flies: the mistakes that can be seen
@@ -15,7 +16,7 @@ export interface CheckItem {
 }
 
 export interface CheckInput {
-  points: { n: number; e: number; alt: number; holdS: number }[];
+  points: { n: number; e: number; alt: number; holdS: number; delivery?: Delivery }[];
   takeoffAlt: number;
   ending: "rtl" | "land" | "hold";
   params: Params;
@@ -27,19 +28,21 @@ export interface CheckInput {
   real: boolean;
   /** How far from home the loaded ground reaches, m. Null when there is no such limit. */
   groundReach: number | null;
+  /** Height of the ground above home at a point, for the deliveries' heights. Level when left out. */
+  ground?: (n: number, e: number) => number;
 }
 
 const far = (m: number) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`);
 
-/** Minutes the aircraft can hover on 80% of its battery, from momentum theory. */
-export function hoverMinutes(af: Airframe): number {
+/** Minutes the aircraft can hover on 80% of its battery, from momentum theory, carrying `payloadKg`. */
+export function hoverMinutes(af: Airframe, payloadKg = 0): number {
   const d = derive(af);
-  const watts = (4 * ((af.massKg * G) / 4) ** 1.5) / Math.sqrt(2 * 1.225 * (d.discArea / 4)) / 0.5;
+  const watts = (4 * (((af.massKg + payloadKg) * G) / 4) ** 1.5) / Math.sqrt(2 * 1.225 * (d.discArea / 4)) / 0.5;
   return (((af.capacityMah / 1000) * af.cells * 3.7 * 0.8) / watts) * 60;
 }
 
 /** A rough time for the whole flight, s: legs at cruise, climbs, waits, and the landing. */
-export function flightSeconds(inp: Pick<CheckInput, "points" | "takeoffAlt" | "ending" | "params" | "profile">): number {
+export function flightSeconds(inp: Pick<CheckInput, "points" | "takeoffAlt" | "ending" | "params" | "profile" | "ground">): number {
   const p = inp.params;
   const cruise = Math.max(0.5, (p.WPNAV_SPEED ?? 1000) / 100);
   const up = Math.max(0.3, (p.WPNAV_SPEED_UP ?? 250) / 100);
@@ -49,6 +52,7 @@ export function flightSeconds(inp: Pick<CheckInput, "points" | "takeoffAlt" | "e
   for (const w of inp.points) {
     // Climbs slower than the cruise can carry it add to the leg.
     t += Math.max(0, Math.abs(w.alt - alt) / (w.alt > alt ? up : down) * 0.5) + w.holdS + 3;
+    if (w.delivery) t += deliverySeconds(w.delivery, w.alt, inp.ground?.(w.n, w.e) ?? 0, p);
     alt = w.alt;
   }
   if (inp.ending !== "hold") t += Math.max(alt, inp.ending === "rtl" ? (p.RTL_ALT ?? 1500) / 100 : 0) / Math.max(0.3, (p.LAND_SPEED ?? 50) / 100) * 0.6 + 10;
@@ -79,9 +83,12 @@ export function checkPlan(inp: CheckInput): CheckItem[] {
 
   // Time against the battery.
   const secs = flightSeconds(inp);
-  const endurance = hoverMinutes(inp.airframe) * 60;
-  if (secs > endurance) out.push({ sev: "bad", text: `The flight needs about ${Math.round(secs / 60)} minutes, and this aircraft hovers for about ${Math.round(endurance / 60)} on a full battery. It cannot finish.` });
-  else if (secs > 0.7 * endurance) out.push({ sev: "warn", text: `The flight needs about ${Math.round(secs / 60)} minutes of the ${Math.round(endurance / 60)} this aircraft can hover for. That leaves little for wind or a return against it.` });
+  // Carrying a payload costs power; counted as if carried the whole way, to be on the safe side.
+  const carried = points.reduce((a, w) => a + (w.delivery?.kg ?? 0), 0);
+  const endurance = hoverMinutes(inp.airframe, carried) * 60;
+  const laden = carried > 0 ? ` carrying ${carried < 1 ? `${Math.round(carried * 1000)} g` : `${carried.toFixed(1)} kg`}` : "";
+  if (secs > endurance) out.push({ sev: "bad", text: `The flight needs about ${Math.round(secs / 60)} minutes, and this aircraft hovers for about ${Math.round(endurance / 60)}${laden} on a full battery. It cannot finish.` });
+  else if (secs > 0.7 * endurance) out.push({ sev: "warn", text: `The flight needs about ${Math.round(secs / 60)} minutes of the ${Math.round(endurance / 60)} this aircraft can hover for${laden}. That leaves little for wind or a return against it.` });
 
   // Battery failsafe.
   if (!(p.BATT_FS_LOW_ACT > 0) || !(p.BATT_LOW_VOLT > 0 || p.BATT_LOW_MAH > 0)) out.push({ sev: "warn", text: "No low-battery failsafe is set (BATT_FS_LOW_ACT with BATT_LOW_VOLT or BATT_LOW_MAH). If the battery runs low away from home, nothing brings the aircraft back." });

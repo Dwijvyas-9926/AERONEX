@@ -405,7 +405,11 @@ function Editor(props: EditorProps) {
             {kind === "payload" && <PayloadSetup {...props} />}
             {kind === "rc" && rc && <RcSetup {...props} rc={rc} />}
             {kind === "other" && <OtherSetup {...props} />}
-            {kind === "none" && <p className="sv-what">{functionInfo(0).what} AERONEX's mission planner does not add servo steps yet; missions made in Mission Planner or QGroundControl can (DO_SET_SERVO).</p>}
+            {kind === "none" && (
+              <p className="sv-what">
+                {functionInfo(0).what} To drop a payload with it in a mission, add a delivery to a waypoint in <Link to="/missions">Mission Planning</Link> and choose this output as the release.
+              </p>
+            )}
 
             {motor === null && !(rc && !rc.scaled) && kind !== "payload" && o.fn !== -1 && <Range {...props} />}
             {rc && !rc.scaled && <p className="sv-what">An exact pass-through copies the transmitter's pulse; this output's lowest, centre, highest and reverse settings do nothing. Choose “scaled” to use them.</p>}
@@ -627,7 +631,9 @@ function PayloadSetup({ o, merged, saved, edits, set, ready, armed }: EditorProp
       </div>
       <div className="sv-sub">
         <h5>In a mission</h5>
-        <p className="sv-hint">A DO_GRIPPER step releases (0) or grabs (1) in AUTO. AERONEX's mission planner does not add payload steps yet; Mission Planner and QGroundControl can.</p>
+        <p className="sv-hint">
+          Add a delivery to a waypoint in <Link to="/missions">Mission Planning</Link>: it drops the payload from a height you choose, or lowers it to the ground and lets go when it feels it touch. The mission closes the gripper before take-off and checks this setup before it is sent.
+        </p>
       </div>
     </div>
   );

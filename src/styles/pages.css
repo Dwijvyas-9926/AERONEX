@@ -3322,7 +3322,7 @@ input[type="range"]::-moz-range-thumb {
 
 .mp-table th:last-child,
 .mp-table td:last-child {
-  width: 92px;
+  width: 122px;
 }
 
 .mp-source {
@@ -3526,6 +3526,73 @@ input[type="range"]::-moz-range-thumb {
 
 .mp-table tr.mp-cmd.end.hold svg {
   color: var(--warn);
+}
+
+/* A payload delivery, under the waypoint it happens at. */
+.mp-table tr.mp-cmd.deliver td {
+  padding-top: 0;
+  padding-bottom: var(--s3);
+  vertical-align: top;
+}
+
+.mp-table tr.mp-cmd.deliver td.c-n {
+  padding-top: var(--s3);
+}
+
+.mp-dl {
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s3) var(--s3) var(--s3) calc(var(--s3) + 3px);
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: var(--field);
+  /* The accent edge ties it to the waypoint above. */
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.mp-dl-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.mp-dl-head small {
+  max-width: 62ch;
+}
+
+.mp-dl-head .icon-btn {
+  flex: none;
+  width: 28px;
+  height: 28px;
+}
+
+.mp-dl-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s3);
+  align-items: end;
+}
+
+.mp-dl-grid .input,
+.mp-dl-grid .select {
+  width: 100%;
+  min-width: 0;
+}
+
+.mp-dl-method {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.mp-dl-release {
+  grid-column: span 2;
+}
+
+.mp-table td.c-act .icon-btn.mp-deliver-btn.on {
+  color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
 }
 
 .fmap-tag {
@@ -4205,6 +4272,13 @@ input[type="range"]::-moz-range-thumb {
   vector-effect: non-scaling-stroke;
 }
 
+.hprof-drop {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+
 .hprof.warn .hprof-low {
   stroke: var(--warn);
 }
@@ -4267,6 +4341,13 @@ input[type="range"]::-moz-range-thumb {
   height: 9px;
   background: #ddd3bf;
   border-top: 1px solid #a8916a;
+}
+
+.hprof-key.drop {
+  width: 3px;
+  height: 12px;
+  border-radius: 0;
+  background: repeating-linear-gradient(var(--accent) 0 3px, transparent 3px 5px);
 }
 
 .hprof-loading {
@@ -4473,6 +4554,31 @@ input[type="range"]::-moz-range-thumb {
 
   .mp-table tr.mp-cmd.end td.c-what {
     grid-column: 2 / 5;
+  }
+
+  .mp-table tr.mp-wp.has-delivery {
+    border-bottom: 0;
+  }
+
+  /* A delivery takes the card's whole width; its accent edge stands for the icon. */
+  .mp-table tr.mp-cmd.deliver {
+    padding-top: 0;
+  }
+
+  .mp-table tr.mp-cmd.deliver td.c-n {
+    display: none;
+  }
+
+  .mp-table tr.mp-cmd.deliver td.c-what {
+    grid-column: 1 / 5;
+  }
+
+  .mp-dl-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mp-dl-release {
+    grid-column: 1 / -1;
   }
 
   .mp-table td.c-act {

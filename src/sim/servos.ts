@@ -168,6 +168,11 @@ export class SimServos {
     return true;
   }
 
+  /** The gripper started at boot and can move (AP::gripper().valid()). */
+  get gripperReady(): boolean {
+    return this.gripperOn && !!this.gripper;
+  }
+
   /** A transmitter channel scaled into an output's own range, as SRV_Channel does for RCINnScaled. */
   private scaled(p: P, output: number, input: number): number {
     const min = p[`SERVO${output}_MIN`];

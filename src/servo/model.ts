@@ -50,7 +50,7 @@ const F = (value: number, label: string, category: Category, what: string): Func
 /** The functions an ArduCopter builder uses, in plain words. Others are named from the firmware's own list. */
 export const FUNCTIONS: FunctionInfo[] = [
   F(0, "Mission or button (Disabled)", "command", "Sends no pulses until a mission's Set servo step or a button in AERONEX moves it. ArduPilot calls this Disabled."),
-  F(28, "Payload release (gripper)", "payload", "Opens and closes a gripper or drop mechanism: from a transmitter switch, a mission's Release payload step, or AERONEX."),
+  F(28, "Payload release (gripper)", "payload", "Opens and closes a gripper or drop mechanism: from a transmitter switch, a delivery in a mission, or AERONEX."),
   F(27, "Parachute release", "payload", "Fires the parachute release servo when the parachute is deployed (needs CHUTE_ENABLED and CHUTE_TYPE = Servo)."),
   F(29, "Landing gear", "payload", "Raises and lowers retractable landing gear (needs LGR_ENABLE = 1, and a transmitter switch set to Landing gear)."),
   F(22, "Sprayer pump", "payload", "Runs a crop-sprayer pump (needs SPRAY_ENABLE)."),

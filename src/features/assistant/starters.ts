@@ -14,7 +14,7 @@ export const PAGE_STARTERS: Record<string, string[]> = {
   "/flight-data": ["What should I watch on Flight Data during a first hover?"],
   "/keyboard-flight": ["Give me a step-by-step guide to fly my Pixhawk 2.4.8 with Keyboard Flight.", "Why does pressing T not take off?"],
   "/simulator": ["How do I rehearse a motor failure in the simulator?", "How close is the simulator to real ArduCopter?"],
-  "/missions": ["How do I plan, check and send my first mission?", "How should I set up a geofence for a small field?"],
+  "/missions": ["How do I plan, check and send my first mission?", "How do I plan a payload drop with my gripper?", "How should I set up a geofence for a small field?"],
   "/doctor": ["Explain my Drone Doctor findings and how to fix each one.", "What causes high vibration and how do I reduce it?"],
   "/telemetry": ["What message rates are normal on a telemetry radio?"],
   "/logs": ["How can I analyse an ArduPilot flight log today?"],

@@ -1,5 +1,5 @@
-import { ArrowDown, ArrowUp, CirclePause, Shield, Home as HomeIcon, PlaneLanding, PlaneTakeoff, CircleCheck, CircleX, Download, FlaskConical, FolderOpen, SatelliteDish, Globe, Info, LandPlot, ListChecks, Play, Redo2, Save, Trash2, TriangleAlert, Undo2, Upload, X } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, CirclePause, Shield, Home as HomeIcon, Package, PlaneLanding, PlaneTakeoff, CircleCheck, CircleX, Download, FlaskConical, FolderOpen, SatelliteDish, Globe, Info, LandPlot, ListChecks, Play, Redo2, Save, Trash2, TriangleAlert, Undo2, Upload, X } from "lucide-react";
+import { Fragment, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { MODE_NAME } from "../../sim/autopilot";
 import { NumInput } from "../../components/ui/NumInput";
@@ -10,7 +10,7 @@ import { linkManager, rememberedParams } from "../../services/link/linkManager";
 import { useLink } from "../../state/linkStore";
 import { confirmAction, notify } from "../../state/notifyStore";
 import { useParams } from "../../state/paramStore";
-import { missionToPlan, planToMission, routeLength, useSim, type Ending, type ReadPlan } from "../../state/simStore";
+import { missionToPlan, planSteps, planToMission, routeLength, useSim, type Ending, type ReadPlan } from "../../state/simStore";
 import { FlightMap } from "../simulator/FlightMap";
 import { makeTerrain, type TerrainKind } from "../../sim/terrain";
 import { modelledParams, order } from "../simulator/SimulatorPage";
@@ -29,6 +29,10 @@ import { checkFence, marginXY } from "../../geo/fenceCheck";
 import { distanceM } from "../../geo/geo";
 import { fenceSync, useFence } from "../../state/fenceStore";
 import { readFence, sendFence } from "../../services/link/fenceLink";
+import { checkDeliveries, newDelivery, releaseKey, type DeliveryAt } from "../../mission/payload";
+import type { Payload } from "../../sim/vehicle";
+import { DeliveryRow } from "./DeliveryRow";
+import { usePayloadSetup } from "./usePayloadSetup";
 
 // The map library is large and only this page needs it.
 const RealMap = lazy(() => import("./RealMap"));
@@ -56,7 +60,7 @@ function NumCell({ value, onChange, min, max, label }: { value: number; onChange
 }
 
 /** Which parameters a prediction should fly on, and where they came from. */
-function useFlightParams(): { params: Params; source: string; unread: { received: number; count: number | null } | null } {
+function useFlightParams(): { params: Params; source: string; fromAircraft: boolean; unread: { received: number; count: number | null } | null } {
   const sim = useSim();
   const virtual = useLink((s) => s.virtual);
   const status = useLink((s) => s.status);
@@ -65,14 +69,14 @@ function useFlightParams(): { params: Params; source: string; unread: { received
   const received = useParams((s) => s.received);
   return useMemo(() => {
     const base = defaultParams(sim.airframe);
-    if (status === "connected" && virtual && linkManager.sim) return { params: { ...linkManager.sim.ap.params }, source: "the virtual aircraft's current settings", unread: null };
-    if (status === "connected" && !virtual && count && received >= count) return { params: { ...base, ...modelledParams(live) }, source: "the settings just read from your aircraft", unread: null };
+    if (status === "connected" && virtual && linkManager.sim) return { params: { ...linkManager.sim.ap.params }, source: "the virtual aircraft's current settings", fromAircraft: true, unread: null };
+    if (status === "connected" && !virtual && count && received >= count) return { params: { ...base, ...modelledParams(live) }, source: "the settings just read from your aircraft", fromAircraft: true, unread: null };
     // A real aircraft is linked and its settings are not all here yet: nothing below is its own.
     const unread = status === "connected" && !virtual ? { received, count } : null;
     const saved = sim.useAircraftParams ? rememberedParams() : null;
     const got = modelledParams(saved?.values);
-    if (saved && Object.keys(got).length) return { params: { ...base, ...got }, source: `the settings read from your aircraft on ${new Date(saved.at).toLocaleDateString()}`, unread };
-    return { params: base, source: "ArduCopter's default settings, tuned for this airframe", unread };
+    if (saved && Object.keys(got).length) return { params: { ...base, ...got }, source: `the settings read from your aircraft on ${new Date(saved.at).toLocaleDateString()}`, fromAircraft: true, unread };
+    return { params: base, source: "ArduCopter's default settings, tuned for this airframe", fromAircraft: false, unread };
   }, [sim.airframe, sim.useAircraftParams, status, virtual, live, count, received]);
 }
 
@@ -82,7 +86,8 @@ export function MissionPlanningPage() {
   const status = useLink((s) => s.status);
   const virtual = useLink((s) => s.virtual);
   const linked = status === "connected";
-  const { params, source, unread } = useFlightParams();
+  const { params, source, fromAircraft, unread } = useFlightParams();
+  const payload = usePayloadSetup();
   /*
     The return-home height, the speeds, the fence and the battery failsafe are
     the aircraft's own settings. With a real aircraft linked they are read
@@ -141,11 +146,20 @@ export function MissionPlanningPage() {
 
   // The landscape the aircraft will meet: the running simulator's, or the one chosen for it.
   const terrain = useMemo(() => simWorld ?? (sim.terrain === "real" ? (measured ?? FIELD) : makeTerrain(sim.terrain)), [simWorld, sim.terrain, measured]);
-  const mission = useMemo(() => planToMission(sim.home, sim.takeoffAlt, sim.points, sim.ending), [sim.home, sim.takeoffAlt, sim.points, sim.ending]);
+  const mission = useMemo(() => planToMission(sim.home, sim.takeoffAlt, sim.points, sim.ending, terrain.surface), [sim.home, sim.takeoffAlt, sim.points, sim.ending, terrain]);
   const length = routeLength(sim.points, sim.ending);
+  // The mission's items in the plan's words, for the prediction's timeline.
+  const steps = useMemo(() => planSteps(sim.points, sim.ending), [sim.points, sim.ending]);
   // The last waypoint carries its command on the map as well as in the list.
   const lastTag = sim.ending === "land" ? " Land" : sim.ending === "hold" ? " Hover" : "";
-  const route = useMemo(() => sim.points.map((p, i) => ({ id: p.id, n: p.n, e: p.e, label: String(i + 1), tag: i === sim.points.length - 1 ? lastTag.trim() : "" })), [sim.points, lastTag]);
+  const route = useMemo(
+    () =>
+      sim.points.map((p, i) => {
+        const tags = [p.delivery ? (p.delivery.method === "drop" ? "Drop" : "Lower") : "", i === sim.points.length - 1 ? lastTag.trim() : ""].filter(Boolean);
+        return { id: p.id, n: p.n, e: p.e, label: String(i + 1), tag: tags.join(" · ") };
+      }),
+    [sim.points, lastTag],
+  );
   const empty = sim.points.length === 0;
   // Measured ground stops somewhere. Past it the heights are not known, and must not be shown as if they were.
   const beyond = terrain.reach !== undefined && farthest > terrain.reach && (!!simWorld || dem.status !== "loading");
@@ -174,14 +188,44 @@ export function MissionPlanningPage() {
   );
   const sync = fenceSync(fence);
 
+  /* --------------------------------------------------------- deliveries */
+  // Where the ground under a point is known: loaded, and within what was loaded.
+  const groundAt = (n: number, e: number): number | null => (loaded && !(terrain.reach !== undefined && Math.max(Math.abs(n), Math.abs(e)) > terrain.reach) ? terrain.surface(n, e) : null);
+  const deliveries = useMemo<DeliveryAt[]>(
+    () => sim.points.flatMap((p, i) => (p.delivery ? [{ wp: i + 1, delivery: p.delivery, cruise: p.alt, ground: loaded && !(terrain.reach !== undefined && Math.max(Math.abs(p.n), Math.abs(p.e)) > terrain.reach) ? terrain.surface(p.n, p.e) : null }] : [])),
+    [sim.points, loaded, terrain],
+  );
+  const carriedKg = deliveries.reduce((a, x) => a + x.delivery.kg, 0);
+  const payloadFindings = useMemo(
+    () =>
+      checkDeliveries({
+        deliveries,
+        aircraft: payload.aircraft,
+        aircraftSource: payload.source,
+        restartPending: payload.restartPending,
+        port: payload.port,
+        airframe: sim.airframe,
+        real,
+        outputIssues: payload.outputIssues,
+        // The floor as the Fence tab sets it: in force when the fence is on (or comes on at arming) and its type includes the floor.
+        fenceFloor: isFlag(fence.limits.FENCE_TYPE, FENCE_TYPE.ALT_MIN) && (fence.limits.FENCE_ENABLE >= 1 || (fenceOther.FENCE_AUTOENABLE ?? 0) > 0) ? fence.limits.FENCE_ALT_MIN : null,
+      }),
+    [deliveries, payload, sim.airframe, real, fence.limits, fenceOther.FENCE_AUTOENABLE],
+  );
+  /** The payloads hanging below at take-off, each with what lets it go. */
+  const payloads = useMemo<Payload[]>(() => deliveries.map((x) => ({ kg: x.delivery.kg, hangM: x.delivery.hangM, release: releaseKey(x.delivery.release), open: x.delivery.release.kind === "servo" ? x.delivery.release.open : undefined })), [deliveries]);
+  const defaultRelease = () => (payload.options.find((o) => !o.problem) ?? payload.options[0]).release;
+
   const checks = useMemo(() => {
-    const own = checkPlan({ points: sim.points, takeoffAlt: sim.takeoffAlt, ending: sim.ending, params, airframe: sim.airframe, profile, groundKnown, real, groundReach: beyond ? (terrain.reach ?? null) : null });
+    const own = checkPlan({ points: sim.points, takeoffAlt: sim.takeoffAlt, ending: sim.ending, params, airframe: sim.airframe, profile, groundKnown, real, groundReach: beyond ? (terrain.reach ?? null) : null, ground: terrain.surface });
     // The route against the fence, from the fence's own check, with the fence as drawn here.
     const route = fenceFindings.filter((x) => x.scope === "route").map((x) => ({ sev: x.sev, text: x.text }));
     const notSent = linked && sync.known && !sync.same ? [{ sev: "warn" as const, text: "The fence on the Fence tab is not the one on the aircraft. These checks use the one here; send it, or the aircraft flies with its own." }] : [];
+    // The release is the aircraft's own; say which settings it was checked against when they are not live.
+    const against = deliveries.length && payload.aircraft && !payload.live ? [{ sev: "note" as const, text: `The payload release is checked against ${payload.source}. Link the aircraft to check it as it is now.` }] : [];
     const order = { bad: 0, warn: 1, note: 2 };
-    return [...own, ...route, ...notSent].sort((a, b) => order[a.sev] - order[b.sev]);
-  }, [sim.points, sim.takeoffAlt, sim.ending, params, sim.airframe, profile, groundKnown, real, beyond, terrain, fenceFindings, linked, sync.known, sync.same]);
+    return [...own, ...route, ...notSent, ...payloadFindings, ...against].sort((a, b) => order[a.sev] - order[b.sev]);
+  }, [sim.points, sim.takeoffAlt, sim.ending, params, sim.airframe, profile, groundKnown, real, beyond, terrain, fenceFindings, linked, sync.known, sync.same, payloadFindings, deliveries.length, payload]);
   const [allAlt, setAllAlt] = useState(30);
   const [tab, setTab] = useState<"plan" | "fence" | "predict">("plan");
   const [drawing, setDrawing] = useState<FenceDrawing | null>(null);
@@ -377,6 +421,12 @@ export function MissionPlanningPage() {
     return () => window.removeEventListener("keydown", key);
   }, []);
 
+  /** The weight and hang of a delivery already planned at a place, which a mission read back does not carry. */
+  const knownPayload = (n: number, e: number) => {
+    const p = sim.points.find((x) => x.delivery && Math.hypot(x.n - n, x.e - e) < 2);
+    return p?.delivery ? { kg: p.delivery.kg, hangM: p.delivery.hangM } : null;
+  };
+
   /** Puts a mission, from the aircraft or a file, into the planner, and says what did not fit. */
   const adopt = (got: ReadPlan, from: string) => {
     if (!got.points.length && got.takeoffAlt === null) {
@@ -395,7 +445,7 @@ export function MissionPlanningPage() {
     try {
       // With the virtual aircraft flying, home stays where it is and the waypoints keep their places on the ground.
       const items = fromWaypointFile(await file.text());
-      const got = missionToPlan(items, sim.home);
+      const got = missionToPlan(items, sim.home, terrain.surface, knownPayload);
       if (got.home && simWorld) {
         const ref = got.home;
         got.points = got.points.map((w) => {
@@ -417,13 +467,19 @@ export function MissionPlanningPage() {
   };
 
   const send = async () => {
+    // A delivery's heights are measured from the ground under it. Not knowing it is not a warning: the aircraft could be sent into a hillside.
+    const blind = deliveries.find((x) => x.ground === null);
+    if (blind) {
+      notify("error", "The mission was not sent", `The ground's height under waypoint ${blind.wp} is not known, and its delivery's heights are measured from it. Wait for the ground heights to load, or move the waypoint within them.`);
+      return;
+    }
     if (!virtual) {
       // The last look before a real aircraft is told where to go.
       const highest = Math.max(sim.takeoffAlt, ...sim.points.map((w) => w.alt));
       const bad = checks.filter((c) => c.sev === "bad");
       const ok = await confirmAction({
         title: `Send this mission to your aircraft?`,
-        body: `${sim.points.length} ${sim.points.length === 1 ? "waypoint" : "waypoints"}, ${far(farthest)} from home at the farthest, up to ${Math.round(highest)} m above home, ending with ${sim.ending === "rtl" ? "a return home" : sim.ending === "land" ? "a landing at the last waypoint" : "a hover at the last waypoint"}. It replaces the mission the aircraft holds now.${bad.length ? ` The plan check found ${bad.length} ${bad.length === 1 ? "problem" : "problems"}: ${bad[0].text}` : ""}${homeSource === "aircraft" ? "" : " The aircraft has no GPS position yet, so home here is where you placed it, not where the aircraft is. Heights are counted from where it takes off."}${sync.known && !sync.same ? " The fence on the Fence tab differs from the aircraft's and is not sent with the mission." : ""}`,
+        body: `${sim.points.length} ${sim.points.length === 1 ? "waypoint" : "waypoints"}, ${far(farthest)} from home at the farthest, up to ${Math.round(highest)} m above home, ending with ${sim.ending === "rtl" ? "a return home" : sim.ending === "land" ? "a landing at the last waypoint" : "a hover at the last waypoint"}.${deliveries.length ? ` It lets go of ${deliveries.length === 1 ? "a payload" : `${deliveries.length} payloads`} at ${deliveries.length === 1 ? "waypoint" : "waypoints"} ${deliveries.map((x) => x.wp).join(", ")}: load ${deliveries.length === 1 ? "it" : "them"} and close the release before arming.` : ""} It replaces the mission the aircraft holds now.${bad.length ? ` The plan check found ${bad.length} ${bad.length === 1 ? "problem" : "problems"}: ${bad[0].text}` : ""}${homeSource === "aircraft" ? "" : " The aircraft has no GPS position yet, so home here is where you placed it, not where the aircraft is. Heights are counted from where it takes off."}${sync.known && !sync.same ? " The fence on the Fence tab differs from the aircraft's and is not sent with the mission." : ""}`,
         confirmLabel: "Send the mission",
         tone: bad.length || farthest > 2000 || homeSource !== "aircraft" ? "danger" : "default",
       });
@@ -451,12 +507,14 @@ export function MissionPlanningPage() {
     order("Read the mission", async () => {
       const items = await commandLink.downloadMission();
       const known = useLink.getState().telemetry.home?.value;
-      adopt(missionToPlan(items, known ? { ...known } : sim.home), "The aircraft");
+      adopt(missionToPlan(items, known ? { ...known } : sim.home, terrain.surface, knownPayload), "The aircraft");
     });
 
   const flyNow = () =>
     order("Fly the mission", async () => {
       await commandLink.uploadMission(mission);
+      // Hang the payloads on the virtual aircraft, as if loaded on the ground. Its own gripper and servo settings decide whether they let go.
+      linkManager.sim?.loadPayloads(payloads, false);
       const g = await commandLink.setMode(COPTER_MODE.GUIDED);
       if (g !== 0) return g;
       const a = await commandLink.arm(true);
@@ -478,7 +536,18 @@ export function MissionPlanningPage() {
             ? []
             : [{ kind: fault, motor: motor.n, level: motor.level / 100, at: faultAt.by === "time" ? { time: faultAt.value } : { waypoint: faultAt.value + 1 } }];
         // Flown with the fence as drawn here: what the aircraft will hold once it is sent.
-        setResult(predict(sim.airframe, { ...params, ...fence.limits }, sim.home, mission, { windSpeed: wind.speed, windFromDeg: wind.from, gust: wind.gust / 100, soc: charge / 100, faults, fence: zonesToWire(fence.zones) }, 7, terrain));
+        setResult(
+          predict(
+            sim.airframe,
+            { ...params, ...fence.limits },
+            sim.home,
+            mission,
+            // With no aircraft's settings, each release is taken to work as planned; otherwise the aircraft's own gripper and servos decide.
+            { windSpeed: wind.speed, windFromDeg: wind.from, gust: wind.gust / 100, soc: charge / 100, faults, fence: zonesToWire(fence.zones), payloads, assumeRelease: !fromAircraft, deliveryNames: deliveries.map((x) => `Waypoint ${x.wp}`) },
+            7,
+            terrain,
+          ),
+        );
       } catch (e) {
         notify("error", "The prediction failed", (e as Error).message);
       } finally {
@@ -510,7 +579,14 @@ export function MissionPlanningPage() {
       <dl className="mp-glance" aria-label="The plan at a glance">
         <div>
           <dt>Waypoints</dt>
-          <dd>{sim.points.length}</dd>
+          <dd>
+            {sim.points.length}
+            {deliveries.length > 0 && (
+              <small title={`${deliveries.length === 1 ? "A payload" : `${deliveries.length} payloads`}, ${carriedKg.toFixed(carriedKg < 10 ? 2 : 0)} kg in all`}>
+                {deliveries.length === 1 ? "1 delivery" : `${deliveries.length} deliveries`}
+              </small>
+            )}
+          </dd>
         </div>
         <div>
           <dt>Route</dt>
@@ -518,7 +594,7 @@ export function MissionPlanningPage() {
         </div>
         <div title="Take-off, the legs at cruise speed, the waits and the landing. The prediction gives the real figure.">
           <dt>Flight time, about</dt>
-          <dd>{empty ? "–" : clock(flightSeconds({ points: sim.points, takeoffAlt: sim.takeoffAlt, ending: sim.ending, params, profile }))}</dd>
+          <dd>{empty ? "–" : clock(flightSeconds({ points: sim.points, takeoffAlt: sim.takeoffAlt, ending: sim.ending, params, profile, ground: terrain.surface }))}</dd>
         </div>
         <div>
           <dt>Highest point</dt>
@@ -621,7 +697,14 @@ export function MissionPlanningPage() {
               </button>
             </div>
           )}
-          {groundKnown && <HeightProfile profile={profile} real={real} loading={real && !simWorld && dem.status === "loading"} />}
+          {groundKnown && (
+            <HeightProfile
+              profile={profile}
+              real={real}
+              loading={real && !simWorld && dem.status === "loading"}
+              drops={deliveries.flatMap((x) => (x.ground === null ? [] : [{ wp: x.wp, from: x.cruise, to: x.ground + (x.delivery.method === "drop" ? x.delivery.heightM : x.delivery.hangM) }]))}
+            />
+          )}
         </section>
 
         <div className="stack">
@@ -724,7 +807,8 @@ export function MissionPlanningPage() {
                       const ground = terrain.surface(p.n, p.e);
                       const known = loaded && !(terrain.reach !== undefined && Math.max(Math.abs(p.n), Math.abs(p.e)) > terrain.reach);
                       return (
-                        <tr key={p.id} className="mp-wp">
+                        <Fragment key={p.id}>
+                        <tr className={`mp-wp${p.delivery ? " has-delivery" : ""}`}>
                           <td className="num c-n">{i + 1}</td>
                           {real ? (
                             <td colSpan={2} className="num mp-pos c-pos" title={`${Math.round(Math.hypot(p.n, p.e))} m from home. Drag its marker on the map to move it.`}>
@@ -749,6 +833,18 @@ export function MissionPlanningPage() {
                           <td className="c-wait" data-label="Wait (s)"><NumCell label={`Waypoint ${i + 1} wait`} value={p.holdS} min={0} max={600} onChange={(x) => sim.updatePoint(p.id, { holdS: x })} /></td>
                           <td className="c-act">
                             <div className="mp-acts">
+                            <button
+                              className={`icon-btn mp-deliver-btn${p.delivery ? " on" : ""}`}
+                              aria-pressed={!!p.delivery}
+                              aria-label={p.delivery ? `Stop delivering a payload at waypoint ${i + 1}` : `Deliver a payload at waypoint ${i + 1}`}
+                              title={p.delivery ? "Remove the delivery here (Undo brings it back)" : "Deliver a payload here: drop it, or lower it to the ground"}
+                              onClick={() => {
+                                sim.updatePoint(p.id, { delivery: p.delivery ? undefined : newDelivery("drop", defaultRelease()) });
+                                setResult(null);
+                              }}
+                            >
+                              <Package />
+                            </button>
                             <button className="icon-btn" disabled={i === 0} aria-label={`Move waypoint ${i + 1} earlier`} title="Fly this one earlier" onClick={() => { sim.shiftPoint(p.id, -1); setResult(null); }}>
                               <ArrowUp />
                             </button>
@@ -761,6 +857,26 @@ export function MissionPlanningPage() {
                             </div>
                           </td>
                         </tr>
+                        {p.delivery && (
+                          <DeliveryRow
+                            wp={i + 1}
+                            delivery={p.delivery}
+                            cruise={p.alt}
+                            ground={groundAt(p.n, p.e)}
+                            options={payload.options}
+                            port={payload.port}
+                            params={params}
+                            onChange={(d) => {
+                              sim.updatePoint(p.id, { delivery: d });
+                              setResult(null);
+                            }}
+                            onRemove={() => {
+                              sim.updatePoint(p.id, { delivery: undefined });
+                              setResult(null);
+                            }}
+                          />
+                        )}
+                        </Fragment>
                       );
                     })}
                     {/* The last command, as a row of its own, so the list is the whole mission. */}
@@ -976,7 +1092,8 @@ export function MissionPlanningPage() {
                       .map((e, i) => (
                         <li key={i} className={e.sev}>
                           <span className="num">{clock(e.t)}</span>
-                          {e.text}
+                          {/* The model counts mission items; the reader counts waypoints. */}
+                          {e.text.replace(/^Reached waypoint (\d+)$/, (all, n: string) => (steps[Number(n)] ? `Reached ${steps[Number(n)]}` : all))}
                         </li>
                       ))}
                   </ol>

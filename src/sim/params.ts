@@ -90,6 +90,11 @@ export const PARAM_DEFS: ParamDef[] = [
   { name: "FENCE_MARGIN", def: 2, help: "Fence margin, m" },
   { name: "ARMING_CHECK", def: 1, help: "Pre-arm checks on" },
   { name: "AUTO_OPTIONS", def: 0, help: "Bitmask: 1 allow arming in Auto, 2 allow take-off without raising throttle" },
+  // Lowering a payload to the ground (NAV_PAYLOAD_PLACE).
+  { name: "PLDP_THRESH", def: 0.9, help: "Touchdown when the descent's thrust falls below this share of its reference" },
+  { name: "PLDP_RNG_MAX", def: 0, help: "Release only below this rangefinder height, m (0: no rangefinder needed)" },
+  { name: "PLDP_DELAY", def: 0, help: "Seconds to wait after the release before climbing back" },
+  { name: "PLDP_SPEED_DN", def: 0, help: "Lowering speed, m/s (0: the landing speed)" },
   { name: "SYSID_THISMAV", def: 1, help: "MAVLink system id" },
   // Servo outputs, transmitter switches and the gripper (see servos.ts).
   ...SERVO_PARAM_DEFS,
@@ -134,6 +139,11 @@ const RANGE: Record<string, [number, number]> = {
   FENCE_ALT_MIN: [-100, 100],
   FENCE_RADIUS: [30, 10000],
   FENCE_MARGIN: [1, 10],
+  // ArduCopter's documented ranges.
+  PLDP_THRESH: [0.5, 0.9],
+  PLDP_RNG_MAX: [0, 100],
+  PLDP_DELAY: [0, 120],
+  PLDP_SPEED_DN: [0, 5],
   ...SERVO_RANGES,
 };
 

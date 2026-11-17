@@ -12,7 +12,7 @@ const km = (m: number) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.r
   because that, and not any single waypoint, is what decides whether the
   route is safe.
 */
-export function HeightProfile({ profile, real, loading }: { profile: RouteProfile; real: boolean; loading?: boolean }) {
+export function HeightProfile({ profile, real, loading, drops = [] }: { profile: RouteProfile; real: boolean; loading?: boolean; drops?: { wp: number; from: number; to: number }[] }) {
   const { samples, lowest, legs, length } = profile;
   if (!samples.length || !lowest) return null;
 
@@ -64,6 +64,11 @@ export function HeightProfile({ profile, real, loading }: { profile: RouteProfil
             <line key={l.endD} className="hprof-wp" x1={x(l.endD)} x2={x(l.endD)} y1={0} y2={H} />
           ))}
           <path className="hprof-fly" d={flyPath} />
+          {/* A delivery: straight down from the waypoint to where it lets go, and back. */}
+          {drops.map((dr) => {
+            const l = legs.find((g) => g.to === String(dr.wp));
+            return l ? <line key={dr.wp} className="hprof-drop" x1={x(l.endD)} x2={x(l.endD)} y1={y(dr.from)} y2={y(dr.to)} /> : null;
+          })}
           <line className="hprof-low" x1={x(lowest.d)} x2={x(lowest.d)} y1={y(lowest.fly)} y2={y(lowest.ground)} />
         </svg>
         <span className="hprof-y top">{Math.round(hi)} m</span>
@@ -77,6 +82,7 @@ export function HeightProfile({ profile, real, loading }: { profile: RouteProfil
       <div className="hprof-foot">
         <span><i className="hprof-key fly" /> Flight</span>
         <span><i className="hprof-key ground" /> Ground{real ? " (measured)" : ""}</span>
+        {drops.length > 0 && <span><i className="hprof-key drop" /> Delivery</span>}
         <span>Heights are above home</span>
         <span>{km(length)}</span>
         {loading && <span className="hprof-loading">Loading ground heights…</span>}

@@ -10,7 +10,8 @@ import { cellOcv, derive, G, NOMINAL_CELL_V, RHO, type Airframe, type Derived } 
 
   What is modelled: thrust with a first-order motor lag, thrust falling with
   battery sag, gyroscopic coupling, quadratic and linear drag against the
-  air mass, steady wind with turbulence, ground contact, and a battery that
+  air mass, steady wind with turbulence, ground contact, a payload hanging
+  below that adds its weight until it rests on the ground, and a battery that
   discharges by the power the propellers draw. What is not: blade flapping,
   ground effect, propeller wash interaction, frame flex or sensor errors.
 */
@@ -102,6 +103,12 @@ export class Physics {
   ground: (n: number, e: number) => number = () => 0;
   /** Is that point water? Coming down in it is the end of the flight. */
   water: (n: number, e: number) => boolean = () => false;
+  /**
+   * What hangs below the aircraft: its weight, and how far below. Once the
+   * aircraft is lower than that above the ground, the payload rests there and
+   * its weight is the ground's, which is how ArduCopter feels a touchdown.
+   */
+  payload: { kg: number; hangM: number } | null = null;
   private rand: () => number;
   private gustN = 0;
   private gustE = 0;
@@ -141,6 +148,17 @@ export class Physics {
 
   get soc() {
     return 1 - this.s.usedMah / this.af.capacityMah;
+  }
+
+  /** The payload is resting on the ground, not hanging. */
+  payloadResting(): boolean {
+    const s = this.s;
+    return !!this.payload && -s.pos[2] - this.ground(s.pos[0], s.pos[1]) <= this.payload.hangM;
+  }
+
+  /** Mass being carried now, kg: the aircraft, and the payload while it hangs. */
+  mass(): number {
+    return this.af.massKg + (this.payload && !this.payloadResting() ? this.payload.kg : 0);
   }
 
   /** Wind velocity of the air mass, NED, including the current gust. */
@@ -213,10 +231,11 @@ export class Physics {
     const speed = Math.hypot(va[0], va[1], va[2]);
     const kq = 0.5 * RHO * d.cdA * speed;
     const kl = 0.1 * af.massKg;
+    const mass = this.mass();
     const acc: Vec3 = [
-      (f[0] - (kq + kl) * va[0]) / af.massKg,
-      (f[1] - (kq + kl) * va[1]) / af.massKg,
-      (f[2] - (kq + 0.5 * kl) * va[2]) / af.massKg + G,
+      (f[0] - (kq + kl) * va[0]) / mass,
+      (f[1] - (kq + kl) * va[1]) / mass,
+      (f[2] - (kq + 0.5 * kl) * va[2]) / mass + G,
     ];
 
     if (s.onGround) {

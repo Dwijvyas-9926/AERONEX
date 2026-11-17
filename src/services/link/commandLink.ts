@@ -122,7 +122,13 @@ export function compareMissions(sent: MissionWire[], got: MissionWire[]): string
     if (Math.abs(a.z - b.z) > 0.05) return `Command ${i} was sent with a height of ${a.z} m and reads back as ${b.z} m.`;
     // One unit is about a centimetre on the ground.
     if (Math.abs(a.x - b.x) > 2 || Math.abs(a.y - b.y) > 2) return `Command ${i} reads back at a different position.`;
-    if (Math.abs(a.p1 - b.p1) > 0.01) return `Command ${i} reads back with a different wait.`;
+    if (a.command === 211 || a.command === 183) {
+      // A payload release: which release, and open or closed. Release coming back as grab is the one mistake that matters most.
+      if (Math.round(a.p1) !== Math.round(b.p1)) return `Command ${i} (${a.command === 211 ? "gripper" : "set servo"}) reads back for ${a.command === 211 ? "a different gripper" : `output ${Math.round(b.p1)} instead of ${Math.round(a.p1)}`}.`;
+      if (Math.round(a.p2) !== Math.round(b.p2)) return a.command === 211 ? `Command ${i} was sent to ${Math.round(a.p2) === 0 ? "release" : "grab"} and reads back as ${Math.round(b.p2) === 0 ? "release" : "grab"}.` : `Command ${i} was sent to move output ${Math.round(a.p1)} to ${Math.round(a.p2)} µs and reads back as ${Math.round(b.p2)} µs.`;
+      continue;
+    }
+    if (Math.abs(a.p1 - b.p1) > 0.01) return a.command === 94 ? `Command ${i} (lower and release) reads back with a different give-up depth.` : `Command ${i} reads back with a different wait.`;
   }
   return null;
 }

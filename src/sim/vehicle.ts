@@ -1,7 +1,7 @@
 import { encode, type FieldValue } from "../mavlink/encode";
 import { decode, MavlinkParser, type Decoded } from "../mavlink/parser";
 import type { Airframe } from "./airframe";
-import { Autopilot, MODE, type Home, type Inputs, type MissionItem, type SimEvent } from "./autopilot";
+import { Autopilot, CMD, MODE, type Home, type Inputs, type MissionItem, type SimEvent } from "./autopilot";
 import { hiddenByEnable, SimServos } from "./servos";
 import { defaultParams, PARAM_DEFS, PARAM_TYPES, sanitizeParam, sanitizeParams, storedValue, type Params } from "./params";
 import { euler, Physics } from "./physics";
@@ -27,6 +27,14 @@ export interface VehicleOptions {
   seed?: number;
   /** The landscape. Level ground when left out. */
   terrain?: Terrain;
+}
+
+/** A payload hanging below the aircraft, and what lets it go: "gripper" or "servo:n" (opened by `open` µs). */
+export interface Payload {
+  kg: number;
+  hangM: number;
+  release: string;
+  open?: number;
 }
 
 const SELF = { sysid: 1, compid: 1 };
@@ -82,9 +90,83 @@ export class VirtualVehicle {
     this.paramNotes = clean.notes;
     this.ap = new Autopilot(this.phys, clean.params, o.home);
     this.ap.mode = MODE.STABILIZE;
-    this.ap.onReached = (seq) => this.send("MISSION_ITEM_REACHED", { seq });
+    // ArduPilot reports reaching navigation commands; a do command completes without a word.
+    this.ap.onReached = (seq) => {
+      const c = this.ap.mission[seq]?.command;
+      if (c !== CMD.GRIPPER && c !== CMD.SET_SERVO && c !== CMD.CHANGE_SPEED) this.send("MISSION_ITEM_REACHED", { seq });
+    };
+    this.ap.onDo = (item) => this.doCommand(item);
+    this.ap.onPlaceRelease = () => this.placeRelease();
     this.paramNames = PARAM_DEFS.map((d) => d.name);
     this.servos.boot(this.ap.params);
+  }
+
+  /* ------------------------------------------------------------ payload */
+
+  /** What hangs below the aircraft, and what lets each one go. */
+  private payloads: (Payload & { attached: boolean })[] = [];
+  /** No aircraft's settings were known: each release works as planned, whatever the gripper and servo settings say. */
+  private assumeRelease = false;
+
+  /**
+   * Hang payloads below the aircraft, as if loaded before take-off. With
+   * `assumeRelease`, a release lets go even if the aircraft's own settings
+   * would not (for a plan made before any aircraft was linked).
+   */
+  loadPayloads(list: Payload[], assumeRelease = false) {
+    this.payloads = list.map((p) => ({ ...p, attached: true }));
+    this.assumeRelease = assumeRelease;
+    this.syncPayload();
+  }
+
+  /** Kilograms still hanging below. */
+  get payloadKg(): number {
+    return this.payloads.filter((p) => p.attached).reduce((a, p) => a + p.kg, 0);
+  }
+
+  private syncPayload() {
+    const on = this.payloads.filter((p) => p.attached);
+    this.phys.payload = on.length ? { kg: on.reduce((a, p) => a + p.kg, 0), hangM: Math.max(...on.map((p) => p.hangM)) } : null;
+  }
+
+  /** Let go of what `key` holds; the kilograms let go. */
+  private letGo(match: (p: Payload) => boolean): number {
+    let kg = 0;
+    for (const p of this.payloads) {
+      if (p.attached && match(p)) {
+        p.attached = false;
+        kg += p.kg;
+      }
+    }
+    this.syncPayload();
+    return kg;
+  }
+
+  /** A mission's gripper or servo command, as the firmware carries it out. */
+  private doCommand(item: MissionItem): number {
+    const ap = this.ap;
+    if (item.command === CMD.GRIPPER) {
+      const release = Math.round(item.p2) === 0;
+      // The firmware moves the gripper only if it started at boot; it says "Gripper Released" either way.
+      if (this.servos.gripperReady) this.servos.grip(ap.params, !release, this.clock);
+      if (!release || !(this.servos.gripperReady || this.assumeRelease)) return 0;
+      return this.letGo((p) => p.release === "gripper");
+    }
+    if (item.command === CMD.SET_SERVO) {
+      const servo = Math.round(item.p1);
+      const why = this.servos.setServo(ap.params, servo, item.p2, this.rcRaw());
+      if (why) ap.log("warn", why, "servo-refused");
+      if (why && !this.assumeRelease) return 0;
+      return this.letGo((p) => p.release === `servo:${servo}` && p.open !== undefined && Math.abs(p.open - item.p2) <= 50);
+    }
+    return 0;
+  }
+
+  /** PayloadPlace opening the gripper: the kilograms let go, or null with no gripper. */
+  private placeRelease(): number | null {
+    if (!this.servos.gripperReady && !this.assumeRelease) return null;
+    if (this.servos.gripperReady) this.servos.grip(this.ap.params, false, this.clock);
+    return this.letGo((p) => p.release === "gripper");
   }
 
   /* ----------------------------------------------------------- stepping */

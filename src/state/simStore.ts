@@ -4,6 +4,7 @@ import { PRESETS, type Airframe } from "../sim/airframe";
 import { CMD, type Home, type MissionItem } from "../sim/autopilot";
 import { M_PER_DEG, toGlobal, toLocal, type LatLon } from "../geo/geo";
 import type { TerrainKind } from "../sim/terrain";
+import { closeCommand, closingBeforeTakeoff, deliveryCommands, findDelivery, releasesUsed, soundDelivery, type Delivery } from "../mission/payload";
 
 /* What the simulator flies and where, and the mission being planned. Kept in
    this browser, so a plan survives a reload. */
@@ -16,6 +17,8 @@ export interface PlanPoint {
   alt: number;
   /** Seconds to wait there. */
   holdS: number;
+  /** A payload let go here, if one is. */
+  delivery?: Delivery;
 }
 
 export type Ending = "rtl" | "land" | "hold";
@@ -173,7 +176,10 @@ function sound(saved: Partial<SimState> | undefined, now: SimState): Partial<Sim
   out.terrain = (["flat", "hills", "highlands", "real"] as const).includes(saved.terrain as TerrainKind) ? saved.terrain : now.terrain;
   out.points = (Array.isArray(saved.points) ? saved.points : [])
     .filter((p) => p && Number.isFinite(p.n) && Number.isFinite(p.e))
-    .map((p) => ({ id: typeof p.id === "string" ? p.id : uid(), n: p.n, e: p.e, alt: num(p.alt, 2, 500, 20), holdS: num(p.holdS, 0, 600, 0) }));
+    .map((p) => {
+      const delivery = soundDelivery(p.delivery);
+      return { id: typeof p.id === "string" ? p.id : uid(), n: p.n, e: p.e, alt: num(p.alt, 2, 500, 20), holdS: num(p.holdS, 0, 600, 0), ...(delivery ? { delivery } : {}) };
+    });
   const a = saved.airframe as Partial<Airframe> | undefined;
   if (!a || !(a.massKg! > 0) || !(a.motorMaxThrustN! > 0) || !(a.capacityMah! > 0) || !(a.cells! > 0) || !(a.diagonalM! > 0) || !(a.propDiaM! > 0)) out.airframe = now.airframe;
   return out;
@@ -191,23 +197,49 @@ export function rehomed(from: LatLon, to: LatLon, points: PlanPoint[]): PlanPoin
 /**
  * The plan as MAVLink mission items.
  *
- * Item 0 is home, as ArduPilot expects; then a take-off, the waypoints, and
- * the ending. Altitudes are relative to home (frame 3).
+ * Item 0 is home, as ArduPilot expects; then the payload releases closed,
+ * a take-off, the waypoints, and the ending. Altitudes are relative to home
+ * (frame 3). A waypoint with a delivery becomes the sequence that flies it
+ * (deliveryCommands); `ground` gives the ground's height above home there,
+ * which its release height is measured from.
  */
-export function planToMission(home: Home, takeoffAlt: number, points: PlanPoint[], ending: Ending): MissionItem[] {
+export function planToMission(home: Home, takeoffAlt: number, points: PlanPoint[], ending: Ending, ground: (n: number, e: number) => number = () => 0): MissionItem[] {
   const ll = (n: number, e: number) => ({
     x: Math.round((home.lat + n / M_PER_DEG) * 1e7),
     y: Math.round((home.lon + e / (M_PER_DEG * Math.cos((home.lat * Math.PI) / 180))) * 1e7),
   });
   const z = { p1: 0, p2: 0, p3: 0, p4: 0 };
-  const items: MissionItem[] = [
-    { seq: 0, frame: 0, command: CMD.WAYPOINT, ...z, ...ll(0, 0), z: home.altMsl },
-    { seq: 1, frame: 3, command: CMD.TAKEOFF, ...z, x: 0, y: 0, z: takeoffAlt },
-  ];
-  for (const p of points) items.push({ seq: items.length, frame: 3, command: CMD.WAYPOINT, ...z, p1: p.holdS, ...ll(p.n, p.e), z: p.alt });
-  if (ending === "rtl") items.push({ seq: items.length, frame: 3, command: CMD.RTL, ...z, x: 0, y: 0, z: 0 });
-  if (ending === "land") items.push({ seq: items.length, frame: 3, command: CMD.LAND, ...z, x: 0, y: 0, z: 0 });
+  const items: MissionItem[] = [{ seq: 0, frame: 0, command: CMD.WAYPOINT, ...z, ...ll(0, 0), z: home.altMsl }];
+  const push = (it: Omit<MissionItem, "seq">) => items.push({ ...it, seq: items.length });
+  // Every release starts closed, whatever was last done to it on the ground.
+  for (const r of releasesUsed(points.flatMap((p) => (p.delivery ? [p.delivery] : [])))) push(closeCommand(r));
+  push({ frame: 3, command: CMD.TAKEOFF, ...z, x: 0, y: 0, z: takeoffAlt });
+  for (const p of points) {
+    if (p.delivery) for (const it of deliveryCommands(p.delivery, ll(p.n, p.e), p.alt, ground(p.n, p.e), p.holdS)) push(it);
+    else push({ frame: 3, command: CMD.WAYPOINT, ...z, p1: p.holdS, ...ll(p.n, p.e), z: p.alt });
+  }
+  if (ending === "rtl") push({ frame: 3, command: CMD.RTL, ...z, x: 0, y: 0, z: 0 });
+  if (ending === "land") push({ frame: 3, command: CMD.LAND, ...z, x: 0, y: 0, z: 0 });
   return items;
+}
+
+/**
+ * What each item of planToMission's mission is, in the plan's own words, by
+ * sequence number: so "reached item 7" can be told as "waypoint 2, back up".
+ */
+export function planSteps(points: PlanPoint[], ending: Ending): string[] {
+  const steps = ["home"];
+  for (const r of releasesUsed(points.flatMap((p) => (p.delivery ? [p.delivery] : [])))) steps.push(r.kind === "gripper" ? "the gripper closed" : `servo ${r.servo} closed`);
+  steps.push("the take-off height");
+  points.forEach((p, i) => {
+    const w = `waypoint ${i + 1}`;
+    if (!p.delivery) steps.push(w);
+    else if (p.delivery.method === "drop") steps.push(w, `${w}, down to the release height`, `${w}, the release`, `${w}, after the drop`, `${w}, back up`);
+    else steps.push(w, `${w}, lowered and released`, `${w}, back up`);
+  });
+  if (ending === "rtl") steps.push("the return home");
+  if (ending === "land") steps.push("the landing");
+  return steps;
 }
 
 /** Length of the route over the ground, including the leg home, in metres. */
@@ -231,16 +263,24 @@ export interface ReadPlan {
   notes: string[];
 }
 
-const NAMES: Record<number, string> = { 17: "loiter without end", 18: "loiter turns", 19: "loiter for a time", 82: "spline waypoint", 93: "delay", 112: "condition delay", 115: "condition yaw", 177: "jump", 178: "change speed", 179: "set home", 181: "set relay", 183: "set servo", 201: "region of interest", 203: "camera control", 205: "camera mount", 206: "camera trigger distance", 189: "landing start" };
+const NAMES: Record<number, string> = { 17: "loiter without end", 18: "loiter turns", 19: "loiter for a time", 82: "spline waypoint", 93: "delay", 94: "lower and release payload", 112: "condition delay", 115: "condition yaw", 177: "jump", 178: "change speed", 179: "set home", 181: "set relay", 183: "set servo", 201: "region of interest", 203: "camera control", 205: "camera mount", 206: "camera trigger distance", 189: "landing start", 211: "gripper" };
 
 /**
  * A mission, as an aircraft or a file holds it, turned back into a plan.
  *
- * The planner knows a take-off, waypoints with a wait, and one ending. A
- * mission can hold much more. Whatever does not fit is left out and named in
- * `notes`, because sending the plan back would remove it from the aircraft.
+ * The planner knows a take-off, waypoints with a wait, payload deliveries
+ * and one ending. A mission can hold much more. Whatever does not fit is
+ * left out and named in `notes`, because sending the plan back would remove
+ * it from the aircraft. `ground` gives the ground's height above home, from
+ * which a delivery's release height is measured.
  */
-export function missionToPlan(items: MissionItem[], fallbackHome: Home): ReadPlan {
+export function missionToPlan(
+  items: MissionItem[],
+  fallbackHome: Home,
+  ground: (n: number, e: number) => number = () => 0,
+  /** The weight and hang already known for a delivery at a place (a mission does not carry them); null when none is. */
+  known: (n: number, e: number) => Pick<Delivery, "kg" | "hangM"> | null = () => null,
+): ReadPlan {
   const notes: string[] = [];
   const first = items[0];
   // Item 0 is where ArduPilot keeps home.
@@ -253,6 +293,12 @@ export function missionToPlan(items: MissionItem[], fallbackHome: Home): ReadPla
   const dropped = new Map<string, number>();
   const frames = new Set<string>();
   let afterEnd = 0;
+  let rebuilt = 0;
+  let unweighed = 0;
+  // The closing commands before the take-off belong to the deliveries; they are written again from them.
+  const { closedFor, count: closing } = closingBeforeTakeoff(items);
+  let skipClosing = closing;
+  let tookOff = false;
 
   const height = (it: MissionItem): number => {
     // 3 and 6: above home. 0 and 5: above sea level. 10 and 11: above the ground.
@@ -263,22 +309,49 @@ export function missionToPlan(items: MissionItem[], fallbackHome: Home): ReadPla
     if (it.frame === 10 || it.frame === 11) frames.add("above the ground");
     return it.z;
   };
-  const place = (it: MissionItem, holdS: number, alt = height(it)) => {
+  const place = (it: MissionItem, holdS: number, alt = height(it), delivery?: Delivery) => {
     const l = toLocal(ref, it.x / 1e7, it.y / 1e7);
-    points.push({ id: uid(), n: Math.round(l.n), e: Math.round(l.e), alt: Math.max(2, Math.min(500, Math.round(alt * 10) / 10)), holdS: Math.max(0, Math.min(600, Math.round(holdS))) });
+    const n = Math.round(l.n);
+    const e = Math.round(l.e);
+    points.push({ id: uid(), n, e, alt: Math.max(2, Math.min(500, Math.round(alt * 10) / 10)), holdS: Math.max(0, Math.min(600, Math.round(holdS))), ...(delivery ? { delivery } : {}) });
   };
+  const drop = (name: string) => dropped.set(name, (dropped.get(name) ?? 0) + 1);
 
-  for (const it of items.slice(1)) {
+  for (let i = 1; i < items.length; i++) {
+    const it = items[i];
     if (ended) {
       afterEnd++;
       continue;
     }
     const here = it.x !== 0 || it.y !== 0;
+    if (!tookOff && skipClosing > 0 && ((it.command === 211 && Math.round(it.p2) === 1) || it.command === 183)) {
+      skipClosing--;
+      continue;
+    }
     if (it.command === CMD.TAKEOFF) {
+      tookOff = true;
       if (takeoffAlt === null) takeoffAlt = Math.max(2, Math.min(500, it.z));
-    } else if (it.command === CMD.WAYPOINT || it.command === CMD.LOITER_TIME) {
+      continue;
+    }
+    if (it.command === CMD.WAYPOINT && here) {
+      const found = findDelivery(items, i, closedFor);
+      if (found) {
+        const l = toLocal(ref, it.x / 1e7, it.y / 1e7);
+        const g = ground(l.n, l.e);
+        const low = height({ ...it, z: found.delivery.lowAlt });
+        const { lowAlt: _l, ...kept } = found.delivery;
+        const had = known(l.n, l.e);
+        if (!had) unweighed++;
+        const delivery: Delivery = { ...kept, heightM: Math.max(1, Math.round((low - g) * 10) / 10), kg: had?.kg ?? 0.5, hangM: had?.hangM ?? 0.3 };
+        place(it, found.holdS, height(it), delivery);
+        if (found.rebuilt) rebuilt++;
+        i += found.length - 1;
+        continue;
+      }
+    }
+    if (it.command === CMD.WAYPOINT || it.command === CMD.LOITER_TIME) {
       if (here) place(it, it.p1);
-      else dropped.set("waypoint with no position", (dropped.get("waypoint with no position") ?? 0) + 1);
+      else drop("waypoint with no position");
     } else if (it.command === CMD.LOITER_UNLIM) {
       if (here) place(it, 0);
       ending = "hold";
@@ -296,8 +369,7 @@ export function missionToPlan(items: MissionItem[], fallbackHome: Home): ReadPla
       ending = "land";
       ended = true;
     } else {
-      const name = NAMES[it.command] ?? `command ${it.command}`;
-      dropped.set(name, (dropped.get(name) ?? 0) + 1);
+      drop(NAMES[it.command] ?? `command ${it.command}`);
     }
   }
   if (!points.length && ending !== "rtl") ending = "rtl";
@@ -307,6 +379,8 @@ export function missionToPlan(items: MissionItem[], fallbackHome: Home): ReadPla
     notes.push(`${total} ${total === 1 ? "command was" : "commands were"} left out because this planner cannot show ${total === 1 ? "it" : "them"}: ${[...dropped].map(([k, c]) => (c > 1 ? `${k} (${c})` : k)).join(", ")}. Sending this plan back will remove ${total === 1 ? "it" : "them"} from the mission.`);
   }
   if (afterEnd) notes.push(`${afterEnd} ${afterEnd === 1 ? "command" : "commands"} after the landing or return ${afterEnd === 1 ? "was" : "were"} left out.`);
+  if (rebuilt) notes.push(`${rebuilt === 1 ? "A payload release was" : `${rebuilt} payload releases were`} written another way. ${rebuilt === 1 ? "It is" : "They are"} shown as AERONEX flies a delivery (stop, come down, settle, let go, wait, climb back); check each before sending, as sending will write ${rebuilt === 1 ? "it" : "them"} that way.`);
+  if (unweighed) notes.push(`A mission does not carry a payload's weight: ${unweighed === 1 ? "its delivery is" : `${unweighed} deliveries are`} shown at 0.5 kg. Set the real ${unweighed === 1 ? "weight" : "weights"}.`);
   for (const f of frames) {
     notes.push(
       f === "above sea level"

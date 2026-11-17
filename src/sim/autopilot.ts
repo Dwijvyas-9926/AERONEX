@@ -21,7 +21,44 @@ export const MODE = { STABILIZE: 0, ALT_HOLD: 2, AUTO: 3, GUIDED: 4, LOITER: 5, 
 export const MODE_NAME: Record<number, string> = { 0: "STABILIZE", 2: "ALT_HOLD", 3: "AUTO", 4: "GUIDED", 5: "LOITER", 6: "RTL", 9: "LAND", 17: "BRAKE" };
 const NEEDS_POSITION = new Set<number>([MODE.AUTO, MODE.GUIDED, MODE.LOITER, MODE.RTL, MODE.BRAKE]);
 
-export const CMD = { WAYPOINT: 16, LOITER_UNLIM: 17, LOITER_TIME: 19, RTL: 20, LAND: 21, TAKEOFF: 22, DELAY: 93, CHANGE_SPEED: 178 } as const;
+export const CMD = { WAYPOINT: 16, LOITER_UNLIM: 17, LOITER_TIME: 19, RTL: 20, LAND: 21, TAKEOFF: 22, DELAY: 93, PAYLOAD_PLACE: 94, CHANGE_SPEED: 178, SET_SERVO: 183, GRIPPER: 211 } as const;
+
+/** A payload let go in a mission, or the attempt: where, how high, how fast it was moving. */
+export interface DeliveryRecord {
+  /** The mission item that did it. */
+  seq: number;
+  kind: "drop" | "lower";
+  t: number;
+  n: number;
+  e: number;
+  /** Height above home, and above the ground below, m. */
+  alt: number;
+  agl: number;
+  /** Ground speed, m/s. */
+  speed: number;
+  /** Payload let go, kg. */
+  kg: number;
+  /**
+   * released: something let go. nothing: the command ran and nothing let go.
+   * gave-up: lowering reached its limit without touching and climbed back.
+   * aborted: lowering abandoned (PLDP_RNG_MAX with no rangefinder).
+   * landed: lowering ended with the aircraft itself on the ground.
+   */
+  outcome: "released" | "nothing" | "gave-up" | "aborted" | "landed";
+}
+
+/** ArduCopter's PayloadPlace, one state at a time (mode_auto.cpp). */
+interface PlaceState {
+  state: "fly" | "start" | "descend" | "release" | "delay" | "ascent";
+  startAlt: number;
+  speed: number;
+  established: number;
+  thrustMin: number;
+  placeStart: number;
+  releasedAt: number;
+  released: boolean;
+  landed: boolean;
+}
 
 export interface MissionItem {
   seq: number;
@@ -118,6 +155,18 @@ export class Autopilot {
   goal: { n: number; e: number; alt: number } | null = null;
   /** Set by the vehicle wrapper when a waypoint is reached. */
   onReached: ((seq: number) => void) | null = null;
+  /**
+   * A mission's do command (gripper, servo), carried out by the aircraft
+   * around the autopilot. Returns the kilograms of payload that let go.
+   */
+  onDo: ((item: MissionItem) => number) | null = null;
+  /** Payload place opening the gripper: the kilograms let go, or null when there is no gripper to open (AP::gripper().valid()). */
+  onPlaceRelease: (() => number | null) | null = null;
+  /** Each payload this flight let go, or tried to. */
+  deliveries: DeliveryRecord[] = [];
+  private place: PlaceState | null = null;
+  /** Throttle the height loop asks for, before the lean compensation: what PayloadPlace watches. */
+  private thrRaw = 0;
 
   private rate = [new Pid(), new Pid(), new Pid()];
   private rateTarget = [0, 0, 0];
@@ -141,7 +190,7 @@ export class Autopilot {
   private velCmd = { n: 0, e: 0 };
   private guided: { kind: "hold" | "vel" | "pos" | "takeoff"; vx: number; vy: number; vz: number; yawRate: number; until: number } = { kind: "hold", vx: 0, vy: 0, vz: 0, yawRate: 0, until: 0 };
   private rtl: { stage: "climb" | "return" | "loiter" | "land"; since: number } = { stage: "climb", since: 0 };
-  private auto: { started: boolean; legFrom: { n: number; e: number } | null; holdUntil: number | null; speed: number | null; done: boolean; liftAt?: number } = { started: false, legFrom: null, holdUntil: null, speed: null, done: false };
+  private auto: { started: boolean; legFrom: { n: number; e: number } | null; holdUntil: number | null; speed: number | null; done: boolean; liftAt?: number; rate?: number | null } = { started: false, legFrom: null, holdUntil: null, speed: null, done: false };
   private battLowSince: number | null = null;
   private battCrtSince: number | null = null;
   private rcLostSince: number | null = null;
@@ -248,6 +297,8 @@ export class Autopilot {
     this.accI = 0;
     this.velI = [0, 0];
     this.auto = { started: false, legFrom: null, holdUntil: null, speed: null, done: false };
+    this.place = null;
+    this.deliveries = [];
     this.holdHere();
     this.log("info", "Arming motors", "arm");
     return [];
@@ -290,6 +341,8 @@ export class Autopilot {
     this.holdHere();
     if (mode === MODE.RTL) this.rtl = { stage: "climb", since: this.phys.s.t };
     if (mode === MODE.GUIDED) this.guided = { kind: "hold", vx: 0, vy: 0, vz: 0, yawRate: 0, until: 0 };
+    this.place = null;
+    this.auto.rate = null;
     if (mode === MODE.AUTO) {
       this.auto.legFrom = null;
       this.auto.holdUntil = null;
@@ -420,7 +473,7 @@ export class Autopilot {
         idle = this.runMission(dt, inp, wpSpeed);
         if (!this.armed) return;
         [rollT, pitchT] = havePos ? this.posControl(dt, e.yaw) : [0, 0];
-        thr = this.altControl(dt, null, e);
+        thr = this.altControl(dt, this.auto.rate ?? null, e);
         break;
       }
       case MODE.RTL: {
@@ -647,6 +700,8 @@ export class Autopilot {
       this.missionSeq++;
       this.auto.legFrom = null;
       this.auto.holdUntil = null;
+      this.auto.rate = null;
+      this.place = null;
     };
     const speed = this.auto.speed ?? wpSpeed;
     switch (item.command) {
@@ -708,6 +763,20 @@ export class Autopilot {
         next();
         return false;
       }
+      case CMD.GRIPPER:
+      case CMD.SET_SERVO: {
+        // A do command runs at once, as the navigation command before it completes (AP_Mission), and reports itself the way the firmware does.
+        const grip = item.command === CMD.GRIPPER;
+        const letGo = grip ? Math.round(item.p2) === 0 : true;
+        if (grip) this.log("info", letGo ? "Gripper Released" : "Gripper Grabbed", letGo ? "gripper-release" : "gripper-grab");
+        const kg = this.onDo?.(item) ?? 0;
+        if (!this.landed && letGo) this.recordDelivery(item.seq, "drop", kg > 0 ? "released" : "nothing", kg);
+        const wasLanded = this.landed;
+        next();
+        return wasLanded;
+      }
+      case CMD.PAYLOAD_PLACE:
+        return this.runPlace(item, dt, relAlt, speed, next);
       case CMD.RTL: {
         this.onReached?.(item.seq);
         this.auto.done = true;
@@ -732,6 +801,125 @@ export class Autopilot {
         next();
         return false;
     }
+  }
+
+  private recordDelivery(seq: number, kind: DeliveryRecord["kind"], outcome: DeliveryRecord["outcome"], kg: number) {
+    const s = this.phys.s;
+    this.deliveries.push({ seq, kind, t: s.t, n: s.pos[0], e: s.pos[1], alt: this.alt, agl: this.alt - this.phys.ground(s.pos[0], s.pos[1]), speed: Math.hypot(s.vel[0], s.vel[1]), kg, outcome });
+  }
+
+  /**
+   * NAV_PAYLOAD_PLACE, as ArduCopter's PayloadPlace runs it (mode_auto.cpp):
+   * fly to the place if it has one, then descend at PLDP_SPEED_DN (else the
+   * landing speed, never faster than WPNAV_SPEED_DN); once the descent is
+   * steady, take the least throttle over two seconds as the reference; when
+   * the throttle stays under PLDP_THRESH of it for half a second, or the
+   * aircraft itself lands, open the gripper (if there is one), wait
+   * PLDP_DELAY, and climb back to where the descent began. Having descended
+   * param 1 metres without that, it gives up and climbs back.
+   */
+  private runPlace(item: MissionItem, dt: number, relAlt: number, speed: number, next: () => void): boolean {
+    const s = this.phys.s;
+    if (this.landed) {
+      this.log("warn", "Mission: a take-off command is needed before the first waypoint", "mission-error");
+      this.auto.started = false;
+      return true;
+    }
+    const now = s.t;
+    const prefix = "PayloadPlace:";
+    if (!this.place) {
+      const placed = item.x !== 0 || item.y !== 0 || item.z !== 0;
+      this.place = { state: placed ? "fly" : "start", startAlt: this.alt, speed: 0, established: now, thrustMin: 1, placeStart: now, releasedAt: 0, released: false, landed: false };
+    }
+    const pl = this.place;
+    const hold = () => this.slewVel(0, 0, this.p("WPNAV_ACCEL") / 100, dt);
+    if (pl.state === "fly") {
+      const here = item.x === 0 && item.y === 0;
+      const dest = here ? { n: this.auto.legFrom?.n ?? s.pos[0], e: this.auto.legFrom?.e ?? s.pos[1] } : this.toLocal(item.x, item.y);
+      if (relAlt > 0) this.target.alt = relAlt;
+      this.goal = { n: dest.n, e: dest.e, alt: this.target.alt };
+      const left = this.flyToward(dest.n, dest.e, speed, dt);
+      if (left < Math.max(0.5, this.p("WPNAV_RADIUS") / 100) && Math.abs(this.alt - this.target.alt) < 0.5 && Math.abs(s.vel[2]) < 0.3) pl.state = "start";
+      return false;
+    }
+    if (pl.state === "start") {
+      pl.startAlt = this.target.alt;
+      const land = Math.max(0.1, this.p("LAND_SPEED") / 100);
+      const own = this.p("PLDP_SPEED_DN");
+      pl.speed = Math.min(own > 0 ? own : land, Math.max(0.1, this.p("WPNAV_SPEED_DN") / 100));
+      pl.established = now;
+      pl.thrustMin = 1;
+      pl.state = "descend";
+    }
+    if (pl.state === "descend") {
+      hold();
+      this.auto.rate = -pl.speed;
+      const giveUp = item.p1;
+      this.goal = { n: this.target.n, e: this.target.e, alt: giveUp > 0 ? pl.startAlt - giveUp : this.phys.ground(s.pos[0], s.pos[1]) };
+      if (giveUp > 0 && pl.startAlt - this.alt > giveUp) {
+        this.log("warn", `${prefix} Reached maximum descent`, "place-gave-up");
+        this.recordDelivery(item.seq, "lower", "gave-up", 0);
+        pl.state = "ascent";
+      } else if (s.onGround) {
+        this.log("info", `${prefix} landed`, "place-landed");
+        pl.landed = true;
+        pl.state = "release";
+      } else {
+        const thresh = this.params.PLDP_THRESH ?? 0.9;
+        let check = true;
+        if (this.climbCmd > -0.95 * pl.speed) {
+          pl.established = now;
+          check = false;
+        } else if (now - pl.established < 2) {
+          pl.thrustMin = Math.min(pl.thrustMin, this.thrRaw);
+          pl.placeStart = now;
+          check = false;
+        } else if (this.thrRaw > thresh * pl.thrustMin) {
+          pl.placeStart = now;
+          check = false;
+        } else if (this.p("PLDP_RNG_MAX") > 0) {
+          // The simulator has no rangefinder.
+          this.log("warn", `${prefix} PLDP_RNG_MAX set and rangefinder not enabled`, "place-aborted");
+          this.recordDelivery(item.seq, "lower", "aborted", 0);
+          pl.state = "ascent";
+          check = false;
+        }
+        if (check && now - pl.placeStart > 0.5) {
+          this.log("info", `${prefix} payload release thrust threshold: ${(thresh * pl.thrustMin).toFixed(6)}`, "place-touchdown");
+          pl.state = "release";
+        }
+      }
+      return false;
+    }
+    if (pl.state === "release") {
+      // Hold here, with no more descent, while the gripper opens.
+      this.auto.rate = null;
+      this.target.alt = this.alt;
+      this.zDes = this.alt;
+      this.vzCmd = 0;
+      const kg = this.onPlaceRelease?.() ?? null;
+      if (kg !== null) {
+        this.log("info", `${prefix} Releasing the gripper`, "place-release");
+        pl.released = true;
+      }
+      this.recordDelivery(item.seq, "lower", pl.landed ? "landed" : kg && kg > 0 ? "released" : "nothing", kg ?? 0);
+      pl.releasedAt = now;
+      pl.state = "delay";
+    }
+    if (pl.state === "delay") {
+      hold();
+      this.goal = null;
+      // The gripper takes half a second to open (SERVO_ACTUATION_TIME), then PLDP_DELAY counts from the touchdown.
+      if (now >= pl.releasedAt + (pl.released ? 0.5 : 0) && now - pl.placeStart >= 0.5 + this.p("PLDP_DELAY")) pl.state = "ascent";
+      return false;
+    }
+    // Ascent: back to where the descent began.
+    hold();
+    this.auto.rate = null;
+    this.target.alt = pl.startAlt;
+    this.goal = { n: this.target.n, e: this.target.e, alt: pl.startAlt };
+    if (this.alt >= pl.startAlt - 0.3) next();
+    return false;
   }
 
   /* ---------------------------------------------------------- controllers */
@@ -827,6 +1015,7 @@ export class Autopilot {
     const sat = this.throttleOut >= 0.99 || this.throttleOut <= this.p("MOT_SPIN_MIN") + 0.01;
     if (!sat || Math.sign(err) !== Math.sign(this.accI)) this.accI = clamp(this.accI + this.p("PSC_ACCZ_I") * 0.1 * err * dt, -0.4, 0.4);
     let thr = hover + this.p("PSC_ACCZ_P") * 0.1 * err + this.accI;
+    this.thrRaw = thr;
     // Lean costs lift: add throttle to hold height in a bank.
     thr /= Math.max(0.5, Math.cos(e.roll) * Math.cos(e.pitch));
     return clamp(thr, 0, 1);
