@@ -7,7 +7,7 @@ import { makeTerrain } from "../../sim/terrain";
 import { VirtualVehicle } from "../../sim/vehicle";
 import { planToMission, type PlanPoint } from "../../state/simStore";
 import { armAwayFindings } from "../armHome";
-import { deliverySeconds, newDelivery, releaseKey, type Delivery } from "../payload";
+import { deliverySeconds, impactSpeed, newDelivery, releaseKey, type Delivery } from "../payload";
 
 /*
   The heights a delivery is flown at, in the virtual aircraft, against what
@@ -184,5 +184,75 @@ describe("delivery time", () => {
     const above = deliverySeconds({ ...newDelivery("drop", { kind: "gripper" }, 0.5), heightM: 22 }, 12, 0, p);
     // 10 m up at 2.5 m/s and back down at 1.5 m/s.
     expect(above - level).toBeCloseTo(10 / 2.5 + 10 / 1.5, 1);
+  });
+});
+
+/* ------------------------------------------------------------ the parcels */
+describe("the parcels themselves", () => {
+  const drop = () => {
+    const d = { ...newDelivery("drop", { kind: "gripper" }, 1), heightM: 10, hangM: 0.4 };
+    return { r: fly(d, 25).r, d };
+  };
+
+  it("hangs on its line below the aircraft and keeps to the line's length", () => {
+    const v = make();
+    v.loadPayloads([{ kg: 1, hangM: 3, release: "gripper" }], true);
+    v.ap.setMode(MODE.GUIDED, v.inputs());
+    expect(v.ap.arm(v.inputs())).toEqual([]);
+    expect(v.ap.guidedTakeoff(10)).toBe(true);
+    run(v, 25);
+    const b = v.bodies[0];
+    const s = v.phys.s;
+    expect(b.state).toBe("carried");
+    const below = b.pos[2] - s.pos[2];
+    // From the aircraft to the bottom of the box is the line's length.
+    expect(below + b.size / 2).toBeGreaterThan(2.85);
+    expect(below + b.size / 2).toBeLessThan(3.1);
+    expect(Math.hypot(b.pos[0] - s.pos[0], b.pos[1] - s.pos[1])).toBeLessThan(0.2);
+  }, 60000);
+
+  it("falls from where it was let go and lands on the point in still air, as fast as the planner says", () => {
+    const { r, d } = drop();
+    const b = r.bodies[0];
+    expect(b.state).toBe("down");
+    expect(b.released!.agl).toBeCloseTo(10, 0);
+    expect(Math.hypot(b.landed!.n - AT.n, b.landed!.e - AT.e)).toBeLessThan(0.3);
+    expect(Math.abs(b.landed!.impact - impactSpeed(d.kg, d.heightM - d.hangM))).toBeLessThan(0.6);
+    expect(r.findings.some((f) => /landed on the point, hitting the ground at 1\d\.\d m\/s/.test(f.text))).toBe(true);
+  }, 120000);
+
+  it("drifts downwind as it falls", () => {
+    const g = HILLS.surface(AT.n, AT.e);
+    const d = { ...newDelivery("drop", { kind: "gripper" }, 0.3), heightM: 25, hangM: 0.3 };
+    const m = planToMission(HOME, 20, [{ id: "a", n: AT.n, e: AT.e, alt: Math.round(g + 30), holdS: 0, delivery: d }], "rtl", HILLS.surface);
+    // From the west: it blows east.
+    const r = predict(LIFTER, { ...defaultParams(LIFTER), ...GRIP }, HOME, m, { windSpeed: 8, windFromDeg: 270, gust: 0, soc: 1, faults: [], payloads: [{ kg: d.kg, hangM: d.hangM, release: "gripper" }], deliveryNames: ["wp"] }, 7, HILLS);
+    const b = r.bodies[0];
+    expect(b.landed!.e - b.released!.e).toBeGreaterThan(1);
+    expect(Math.abs(b.landed!.n - b.released!.n)).toBeLessThan(1);
+  }, 120000);
+
+  it("is set down, not dropped, when lowered", () => {
+    const { r } = fly({ ...newDelivery("lower", { kind: "gripper" }, 1), heightM: 15, giveUpM: 25, hangM: 2 }, 25);
+    const b = r.bodies[0];
+    expect(b.state).toBe("down");
+    expect(b.landed!.impact).toBe(0);
+    expect(Math.hypot(b.landed!.n - AT.n, b.landed!.e - AT.e)).toBeLessThan(0.5);
+  }, 120000);
+
+  it("stays on board when nothing lets it go, and is cleared when the aircraft is put back", () => {
+    const v = make();
+    v.loadPayloads([{ kg: 1, hangM: 1, release: "gripper" }], false);
+    expect(v.bodies).toHaveLength(1);
+    v.reset(1);
+    expect(v.bodies).toHaveLength(0);
+    expect(v.payloadKg).toBe(0);
+  });
+
+  it("estimates the impact as a parcel falls: faster from higher, short of free fall", () => {
+    expect(impactSpeed(1, 9.6)).toBeGreaterThan(12);
+    expect(impactSpeed(1, 9.6)).toBeLessThan(Math.sqrt(2 * 9.80665 * 9.6));
+    expect(impactSpeed(1, 30)).toBeGreaterThan(impactSpeed(1, 10));
+    expect(impactSpeed(1, 0)).toBe(0);
   });
 });

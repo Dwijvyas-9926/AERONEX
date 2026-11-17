@@ -1,6 +1,7 @@
 import { encode, type FieldValue } from "../mavlink/encode";
 import { decode, MavlinkParser, type Decoded } from "../mavlink/parser";
 import type { Airframe } from "./airframe";
+import { letGoBody, newBody, stepBodies, type PayloadBody } from "./payloadBody";
 import { Autopilot, CMD, MODE, type Home, type Inputs, type MissionItem, type SimEvent } from "./autopilot";
 import { hiddenByEnable, SimServos } from "./servos";
 import { defaultParams, PARAM_DEFS, PARAM_TYPES, sanitizeParam, sanitizeParams, storedValue, type Params } from "./params";
@@ -115,9 +116,14 @@ export class VirtualVehicle {
    */
   loadPayloads(list: Payload[], assumeRelease = false) {
     this.payloads = list.map((p) => ({ ...p, attached: true }));
+    const s = this.phys.s;
+    this.bodies = list.map((p, i) => newBody(i, p, s.pos, this.phys.ground(s.pos[0], s.pos[1])));
     this.assumeRelease = assumeRelease;
     this.syncPayload();
   }
+
+  /** The payloads as things in the world: hanging, falling or on the ground. */
+  bodies: PayloadBody[] = [];
 
   /** Kilograms still hanging below. */
   get payloadKg(): number {
@@ -132,12 +138,16 @@ export class VirtualVehicle {
   /** Let go of what `key` holds; the kilograms let go. */
   private letGo(match: (p: Payload) => boolean): number {
     let kg = 0;
-    for (const p of this.payloads) {
+    const s = this.phys.s;
+    const at = { t: s.t, seq: this.ap.missionSeq, n: s.pos[0], e: s.pos[1], agl: this.ap.height - this.phys.ground(s.pos[0], s.pos[1]), speed: Math.hypot(s.vel[0], s.vel[1]) };
+    this.payloads.forEach((p, i) => {
       if (p.attached && match(p)) {
         p.attached = false;
         kg += p.kg;
+        const b = this.bodies[i];
+        if (b) letGoBody(b, this.phys.ground(b.pos[0], b.pos[1]), at);
       }
-    }
+    });
     this.syncPayload();
     return kg;
   }
@@ -194,6 +204,7 @@ export class VirtualVehicle {
     for (let i = 0; i < steps; i++) {
       this.ap.step(SIM_DT, this.inputs());
       this.phys.step(this.ap.out, SIM_DT);
+      if (this.bodies.length) stepBodies(this.bodies, this.phys.s, this.phys.wind(), this.phys.ground, SIM_DT, this.phys.s.t);
     }
     this.watchGrounded(steps * SIM_DT);
     this.clock += wallSeconds;
@@ -248,6 +259,9 @@ export class VirtualVehicle {
     this.ap.failsafes.clear();
     this.ap.mode = MODE.STABILIZE;
     this.ap.homeAt = { n: 0, e: 0, z: 0 };
+    this.payloads = [];
+    this.bodies = [];
+    this.syncPayload();
     this.ap.log("info", "Aircraft reset to home");
   }
 

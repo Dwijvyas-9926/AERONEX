@@ -87,6 +87,57 @@ export async function order(label: string, fn: () => Promise<unknown>) {
 
 export { modelledParams };
 
+const kgText = (kg: number) => (kg < 1 ? `${Math.round(kg * 1000)} g` : `${+kg.toFixed(2)} kg`);
+
+/** Each payload: on board, falling, or where it came down against where it was meant to. */
+function PayloadPanel({ boxes, targets, placing }: { boxes: BoxView[]; targets: { wp: number; n: number; e: number; method: "drop" | "lower"; heightM: number }[]; placing: Snap["placing"] }) {
+  const phase = placing
+    ? placing.state === "fly" || placing.state === "start"
+      ? "Getting into position"
+      : placing.state === "descend"
+        ? placing.measuring
+          ? "Weighing the load"
+          : "Feeling for touchdown"
+        : placing.state === "release" || placing.state === "delay"
+          ? "Touched down, letting go"
+          : "Climbing back"
+    : null;
+  return (
+    <section className="panel sim-payloads" aria-label="Payloads">
+      <div className="panel-head">
+        <h3>Payloads</h3>
+        {phase && <span className="pill warn plain">Lowering: {phase}</span>}
+      </div>
+      <ul>
+        {boxes.map((b) => {
+          const t = targets[b.id];
+          const off = t && b.landed ? Math.hypot(b.landed.n - t.n, b.landed.e - t.e) : null;
+          const setDown = !!b.landed && b.landed.impact < 0.5;
+          const state = b.state === "carried" ? "On board" : b.state === "falling" ? "Falling" : setDown ? "Set down" : "Landed";
+          const where = off === null ? "" : off < 0.5 ? " on the point" : ` ${off.toFixed(1)} m from the point`;
+          let detail = "";
+          if (b.state === "carried" && t) detail = t.method === "drop" ? `To be let go ${t.heightM} m above the ground.` : `To be lowered from ${t.heightM} m.`;
+          if (b.state === "falling" && b.released) detail = `Let go ${b.released.agl.toFixed(1)} m above the ground.`;
+          if (b.state === "down" && b.released && b.landed)
+            detail = `${setDown ? `Set down${where}` : `Let go ${b.released.agl.toFixed(1)} m up, landed${where} at ${b.landed.impact.toFixed(1)} m/s`}${b.released.speed > 1 ? `; the aircraft was moving at ${b.released.speed.toFixed(1)} m/s` : ""}.`;
+          return (
+            <li key={b.id} className={`sim-box ${b.state}`}>
+              <span className="sim-box-icon" aria-hidden />
+              <div>
+                <strong>
+                  {t ? `Waypoint ${t.wp}` : `Payload ${b.id + 1}`} · {kgText(b.kg)}
+                </strong>
+                {detail && <small>{detail}</small>}
+              </div>
+              <span className={`pill plain ${b.state === "down" ? (off !== null && off > 3 ? "warn" : "ok") : b.state === "falling" ? "warn" : "idle"}`}>{state}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 function Num({ label, value, onChange, step = 1, min, max, unit, hint }: { label: string; value: number; onChange: (v: number) => void; step?: number; min?: number; max?: number; unit?: string; hint?: string }) {
   return (
     <label className="field">
@@ -360,6 +411,22 @@ interface Snap {
   missionSeq: number;
   missionLen: number;
   toGo: number | null;
+  /** The payloads: where each is, and what became of it. */
+  boxes: BoxView[];
+  /** A lowering under way, and which part of it. */
+  placing: { state: string; measuring: boolean } | null;
+}
+
+interface BoxView {
+  id: number;
+  n: number;
+  e: number;
+  kg: number;
+  state: "carried" | "falling" | "down";
+  /** Let go: the aircraft's height above the ground and its speed then. */
+  released: { agl: number; speed: number } | null;
+  /** Came to rest: where, and how fast it hit (0: set down). */
+  landed: { n: number; e: number; impact: number } | null;
 }
 
 function useSnap(): { snap: Snap | null; track: MapPoint[]; clearTrack: () => void } {
@@ -406,6 +473,8 @@ function useSnap(): { snap: Snap | null; track: MapPoint[]; clearTrack: () => vo
         missionSeq: v.ap.missionSeq,
         missionLen: v.ap.mission.length,
         toGo: v.ap.goal ? Math.hypot(v.ap.goal.n - s.pos[0], v.ap.goal.e - s.pos[1], v.ap.goal.alt - v.ap.alt) : null,
+        boxes: v.bodies.map((b) => ({ id: b.id, n: b.pos[0], e: b.pos[1], kg: b.kg, state: b.state, released: b.released && { agl: b.released.agl, speed: b.released.speed }, landed: b.landed && { n: b.landed.n, e: b.landed.e, impact: b.landed.impact } })),
+        placing: v.ap.placing,
       });
     }, 150);
     return () => clearInterval(id);
@@ -467,7 +536,9 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
     if (v) v.phys.env = { ...wind };
   }, [wind, snap === null]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const route = useMemo(() => sim.points.map((p, i) => ({ id: p.id, n: p.n, e: p.e, label: String(i + 1) })), [sim.points]);
+  const route = useMemo(() => sim.points.map((p, i) => ({ id: p.id, n: p.n, e: p.e, label: String(i + 1), ...(p.delivery ? { tag: p.delivery.method === "drop" ? `Drop ${p.delivery.heightM} m` : "Lower", target: true } : {}) })), [sim.points]);
+  // The delivery points, in the order the payloads were loaded.
+  const targets = useMemo(() => sim.points.flatMap((p, i) => (p.delivery ? [{ wp: i + 1, n: p.n, e: p.e, method: p.delivery.method, heightM: p.delivery.heightM }] : [])), [sim.points]);
   const windShown = useMemo(() => ({ speed: wind.windSpeed, fromDeg: wind.windFromDeg }), [wind.windSpeed, wind.windFromDeg]);
   const flying = !!snap?.armed;
 
@@ -638,6 +709,7 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
               route={route}
               closeRoute={sim.ending === "rtl"}
               track={track}
+              boxes={snap.boxes}
               aircraft={{ n: snap.n, e: snap.e, yawDeg: snap.yawDeg }}
               fenceRadius={snap.fence}
               origin={sim.home}
@@ -665,7 +737,7 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
             </div>
             {snap.mode === MODE.AUTO && snap.missionLen > 1 && (
               <p className="sim-progress">
-                <Route aria-hidden /> Command {Math.min(snap.missionSeq, snap.missionLen - 1)} of {snap.missionLen - 1}
+                <Route aria-hidden /> {sentSteps?.[snap.missionSeq] ? `To ${sentSteps[snap.missionSeq]}` : `Command ${Math.min(snap.missionSeq, snap.missionLen - 1)} of ${snap.missionLen - 1}`}
                 {snap.toGo !== null ? `, ${snap.toGo >= 1000 ? `${(snap.toGo / 1000).toFixed(1)} km` : `${Math.round(snap.toGo)} m`} to go` : ""}
               </p>
             )}
@@ -686,6 +758,8 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
               <div><dt>Throttle</dt><dd className={snap.throttle > 0.9 ? "bad" : undefined}>{Math.round(snap.throttle * 100)}<small>%</small></dd></div>
             </dl>
           </section>
+
+          {snap.boxes.length > 0 && <PayloadPanel boxes={snap.boxes} targets={targets} placing={snap.placing} />}
 
           {/* What to tell it. */}
           <section className="panel">

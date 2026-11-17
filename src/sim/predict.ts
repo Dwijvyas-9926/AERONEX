@@ -1,3 +1,4 @@
+import type { PayloadBody } from "./payloadBody";
 import { type FenceWire } from "../geo/fence";
 import { derive, type Airframe } from "./airframe";
 import { CMD, MODE, MODE_NAME, type DeliveryRecord, type Home, type MissionItem, type SimEvent } from "./autopilot";
@@ -93,6 +94,8 @@ export interface Prediction {
   };
   /** Each payload let go, or the attempt, in order. */
   deliveries: DeliveryRecord[];
+  /** The payloads at the end: where each was let go and where it came to rest. */
+  bodies: PayloadBody[];
 }
 
 const LIMIT_S = 45 * 60;
@@ -147,7 +150,7 @@ export function predict(airframe: Airframe, params: Params, home: Home, mission:
     stats.impact = s.lastImpact;
     stats.endGroundM = v.phys.ground(s.pos[0], s.pos[1]);
     if (!Number.isFinite(stats.minVolts)) stats.minVolts = s.volts;
-    return { verdict, headline, findings: [...deliveryFindings(v, verdict, sc, mission, home), ...findings(v, loaded, verdict, stats, sc, mission)].sort((a, b) => ORDER[a.sev] - ORDER[b.sev]), track, events: v.events.slice(), stats, deliveries: v.ap.deliveries.slice() };
+    return { verdict, headline, findings: [...deliveryFindings(v, verdict, sc, mission, home), ...findings(v, loaded, verdict, stats, sc, mission)].sort((a, b) => ORDER[a.sev] - ORDER[b.sev]), track, events: v.events.slice(), stats, deliveries: v.ap.deliveries.slice(), bodies: v.bodies.map((b) => ({ ...b, pos: [...b.pos], vel: [...b.vel] })) };
   };
 
   // The same sequence a pilot would use: Guided, arm, Auto, start.
@@ -342,7 +345,15 @@ function deliveryFindings(v: VirtualVehicle, verdict: Verdict, sc: Scenario, mis
     const where = `${miss < 1 ? "on the point" : `${miss.toFixed(1)} m from the point`}, ${Math.max(0, r.agl).toFixed(1)} m above the ground`;
     if (r.outcome === "released") {
       const moving = r.speed > 1;
-      out.push({ sev: miss > 3 || moving ? "warn" : "ok", text: `${name}: let go of ${kgText(r.kg)} ${where}${moving ? `, still moving at ${r.speed.toFixed(1)} m/s` : ", holding still"}.` });
+      // Where what was let go came to rest.
+      const box = v.bodies.find((b) => b.released?.seq === r.seq && b.landed);
+      const off = box && at ? Math.hypot(box.landed!.n - at.n, box.landed!.e - at.e) : null;
+      const landed = box?.landed
+        ? box.landed.impact < 0.5
+          ? `; it was set down ${off! < 0.5 ? "on the point" : `${off!.toFixed(1)} m from it`}`
+          : `; it landed ${off! < 0.5 ? "on the point" : `${off!.toFixed(1)} m from it`}, hitting the ground at ${box.landed.impact.toFixed(1)} m/s`
+        : "";
+      out.push({ sev: miss > 3 || moving || (off !== null && off > 3) ? "warn" : "ok", text: `${name}: let go of ${kgText(r.kg)} ${where}${moving ? `, still moving at ${r.speed.toFixed(1)} m/s` : ", holding still"}${landed}.` });
     } else if (r.outcome === "landed") {
       out.push({ sev: "warn", text: `${name}: the touchdown was not felt, so it came down until the aircraft itself landed, ${miss.toFixed(1)} m from the point, then let go of ${kgText(r.kg)} and climbed away. The payload is too light to be felt (PLDP_THRESH).` });
     } else if (r.outcome === "gave-up") {

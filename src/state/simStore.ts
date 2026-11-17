@@ -242,6 +242,15 @@ export function planSteps(points: PlanPoint[], ending: Ending): string[] {
   return steps;
 }
 
+/** Which waypoint (index into points) each item of planToMission's mission belongs to, by sequence number; -1 for none. */
+export function planPointOfSeq(points: PlanPoint[], ending: Ending): number[] {
+  const steps = planSteps(points, ending);
+  return steps.map((w) => {
+    const m = /^waypoint (\d+)/.exec(w);
+    return m ? Number(m[1]) - 1 : -1;
+  });
+}
+
 /** Length of the route over the ground, including the leg home, in metres. */
 export function routeLength(points: PlanPoint[], ending: Ending): number {
   let d = 0;

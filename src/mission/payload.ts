@@ -1,4 +1,5 @@
-import { G, type Airframe } from "../sim/airframe";
+import { G, RHO, type Airframe } from "../sim/airframe";
+import { boxSide } from "../sim/payloadBody";
 import type { MissionItem } from "../sim/autopilot";
 
 /*
@@ -276,6 +277,17 @@ export function deliverySpeeds(p: Record<string, number | undefined>): Speeds {
   return { up, down, slow, delayS: Math.max(0, p.PLDP_DELAY ?? 0) };
 }
 
+/**
+ * How fast a dropped parcel hits the ground, m/s, falling `fallM` from rest:
+ * a tumbling box of about packed-parcel density, with air drag (as the
+ * simulator drops it).
+ */
+export function impactSpeed(kg: number, fallM: number): number {
+  const side = boxSide(kg);
+  const vt = Math.sqrt((2 * kg * G) / (RHO * 1.05 * side * side));
+  return vt * Math.sqrt(1 - Math.exp((-2 * G * Math.max(0, fallM)) / (vt * vt)));
+}
+
 /** Seconds a delivery adds to the flight, beyond flying to the waypoint. */
 export function deliverySeconds(d: Delivery, cruise: number, ground: number, p: Record<string, number | undefined>): number {
   const s = deliverySpeeds(p);
@@ -454,6 +466,10 @@ export function checkDeliveries(inp: PayloadCheckInput): PayloadFinding[] {
       const clear = d.hangM + 1.5;
       if (d.heightM < clear) out.push({ sev: "bad", text: `${at(x)}: letting go ${d.heightM} m above the ground leaves too little room under a payload hanging ${d.hangM} m below. Release at ${Math.ceil(clear)} m or higher, or lower it to the ground instead.` });
       else if (inp.real && d.heightM < 15) out.push({ sev: "warn", text: `${at(x)}: the release is ${Math.round(d.heightM)} m above the ground as the elevation data has it, and that data is typically right only to 10 m, with no trees or buildings. Check the drop site's real height, or release higher.` });
+      if (d.heightM >= clear && d.kg > 0) {
+        const v = impactSpeed(d.kg, d.heightM - d.hangM);
+        out.push({ sev: "note", text: `${at(x)}: a ${d.kg < 1 ? `${Math.round(d.kg * 1000)} g` : `${+d.kg.toFixed(2)} kg`} parcel let go ${d.heightM} m up hits the ground at about ${Math.round(v)} m/s. Pack it for that, and keep people clear of the point. In wind it lands downwind of the point: Predict shows how far.` });
+      }
       if (d.heightM > 30) out.push({ sev: "note", text: `${at(x)}: a drop from ${Math.round(d.heightM)} m lands hard and drifts with the wind unless the payload has a parachute.` });
     } else {
       if (d.release.kind !== "gripper") out.push({ sev: "bad", text: `${at(x)}: lowering to the ground releases only a gripper. With a servo release the aircraft would touch down, climb back and keep the payload.` });

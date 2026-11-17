@@ -167,6 +167,14 @@ export class Autopilot {
   /** Each payload this flight let go, or tried to. */
   deliveries: DeliveryRecord[] = [];
   private place: PlaceState | null = null;
+
+  /** Where a lowering is, for showing: null when not lowering. */
+  get placing(): { state: PlaceState["state"]; measuring: boolean; startAlt: number } | null {
+    const pl = this.place;
+    if (!pl || this.mode !== MODE.AUTO) return null;
+    // Measuring: steady in the descent, the 2 s of thrust not yet taken.
+    return { state: pl.state, measuring: pl.state === "descend" && (!pl.steady || this.phys.s.t - pl.established < 2), startAlt: pl.startAlt };
+  }
   /** Throttle the height loop asks for, before the lean compensation: what PayloadPlace watches. */
   private thrRaw = 0;
 

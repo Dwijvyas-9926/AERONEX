@@ -2,6 +2,7 @@ import { Line, OrbitControls, PerformanceMonitor, Sky } from "@react-three/drei"
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import * as THREE from "three";
+import type { Line2 } from "three-stdlib";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { FIT_TARGET, fitTransform } from "../../../rendering/fitModel";
@@ -13,7 +14,8 @@ import type { Airframe } from "../../../sim/airframe";
 import { euler } from "../../../sim/physics";
 import type { Terrain } from "../../../sim/terrain";
 import { GRAPHICS, type GraphicsPreset } from "../../../state/settingsStore";
-import type { Ending, PlanPoint } from "../../../state/simStore";
+import { planPointOfSeq, type Ending, type PlanPoint } from "../../../state/simStore";
+import type { PayloadBody } from "../../../sim/payloadBody";
 import { applyTwinMaterials } from "../../digital-twin/twinMaterials";
 import { blobTexture, cloudTexture, drapedRing, drawnGround, FAR_DROP, FAR_HALF, FAR_SEGS, groundDetail, labelTexture, NEAR_HALF, NEAR_SEGS, padTexture, plantTrees, smokeTexture, terrainGeometry } from "./landscape";
 
@@ -79,6 +81,8 @@ interface Pose {
   /** 0–1, set by an impact and decaying: how hard the camera is shaking. */
   shake: number;
   crashed: boolean;
+  /** How far a payload hangs below, m: the cameras keep it in the picture. */
+  hang: number;
 }
 
 const SUN = new THREE.Vector3(0.48, 0.6, 0.36).normalize();
@@ -381,6 +385,118 @@ function HomeBase({ wind, terrain }: { wind: { speed: number; fromDeg: number };
   );
 }
 
+/** The delivery point on the ground: a target, red and white, as drop zones are marked. */
+function DropZone({ terrain, n, e }: { terrain: Terrain; n: number; e: number }) {
+  return (
+    <>
+      <GroundRing terrain={terrain} n={n} e={e} inner={0} outer={0.5} color="#e2582c" opacity={0.95} lift={0.09} />
+      <GroundRing terrain={terrain} n={n} e={e} inner={0.5} outer={1.1} color="#f4f2ec" opacity={0.9} lift={0.08} />
+      <GroundRing terrain={terrain} n={n} e={e} inner={1.1} outer={1.7} color="#e2582c" opacity={0.85} lift={0.07} />
+      <GroundRing terrain={terrain} n={n} e={e} inner={1.7} outer={2.3} color="#f4f2ec" opacity={0.75} lift={0.06} />
+      <GroundRing terrain={terrain} n={n} e={e} inner={2.3} outer={2.5} color="#e2582c" opacity={0.8} lift={0.06} />
+    </>
+  );
+}
+
+const MAX_BOXES = 8;
+
+/**
+ * The payloads: a box on its line under the aircraft, falling once let go,
+ * and lying where it landed. Drawn from the simulator's own bodies each frame.
+ */
+function Payloads({ terrain, route, pose }: { terrain: Terrain; route: PlanPoint[]; pose: MutableRefObject<Pose> }) {
+  const boxes = useRef<(THREE.Group | null)[]>([]);
+  const spin = useRef<number[]>(Array(MAX_BOXES).fill(0));
+  const [landed, setLanded] = useState<{ id: number; n: number; e: number; text: string }[]>([]);
+  const targets = useMemo(() => route.filter((p) => p.delivery), [route]);
+  const ropes = useRef<(Line2 | null)[]>([]);
+  const marks = useRef<(THREE.Sprite | null)[]>([]);
+  const markTex = useMemo(() => Array.from({ length: MAX_BOXES }, (_, i) => labelTexture(String(i + 1), "#14213d", "#d9c49a")), []);
+  useEffect(() => () => markTex.forEach((t) => t.tex.dispose()), [markTex]);
+  const { camera } = useThree();
+  useFrame((_, dt) => {
+    const v = linkManager.sim;
+    const bodies: PayloadBody[] = v?.bodies ?? [];
+    const n = Math.min(MAX_BOXES, bodies.length);
+    // The longest line still carrying something, eased so the camera does not jump.
+    const hang = Math.max(0, ...bodies.filter((b) => b.state === "carried").map((b) => (v ? Math.min(b.hangM, Math.max(0, -v.phys.s.pos[2] + b.pos[2])) : 0)));
+    pose.current.hang += (hang - pose.current.hang) * Math.min(1, dt * 2);
+    const down = bodies.filter((b) => b.state === "down" && b.landed);
+    if (down.length !== landed.length) {
+      setLanded(
+        down.map((b) => {
+          const t = targets[b.id];
+          const off = t && b.landed ? Math.hypot(b.landed.n - t.n, b.landed.e - t.e) : null;
+          const how = b.landed!.impact < 0.5 ? "set down" : `${b.landed!.impact.toFixed(0)} m/s`;
+          return { id: b.id, n: b.pos[0], e: b.pos[1], text: off === null ? how : `${off < 0.5 ? "on target" : `${off.toFixed(1)} m off`} · ${how}` };
+        }),
+      );
+    }
+    for (let i = 0; i < MAX_BOXES; i++) {
+      const g = boxes.current[i];
+      const l = ropes.current[i];
+      const m = marks.current[i];
+      const b = bodies[i];
+      if (!g || !l || !m) continue;
+      g.visible = !!b && i < n;
+      l.visible = !!b && b.state === "carried" && i < n;
+      m.visible = false;
+      if (!b) continue;
+      const grounded = b.state === "down" || b.pos[2] >= -terrain.surface(b.pos[0], b.pos[1]) - b.size / 2 - 0.02;
+      // On the ground, sit on the ground as drawn; in the air, where the physics has it.
+      const y = grounded ? drawnGround(terrain, b.pos[0], b.pos[1]) + b.size / 2 : -b.pos[2];
+      g.position.set(b.pos[1], y, -b.pos[0]);
+      g.scale.setScalar(b.size);
+      // Falling, it tumbles; at rest, it lies square.
+      if (b.state === "falling") {
+        spin.current[i] += dt * 2.2;
+        g.rotation.set(spin.current[i] * 0.7, spin.current[i] * 0.4, spin.current[i]);
+      } else if (b.state === "down") g.rotation.set(0, spin.current[i], 0);
+      else g.rotation.set(0, 0, 0);
+      if (l.visible && v) {
+        const s = v.phys.s;
+        l.geometry.setPositions([s.pos[1], -s.pos[2] - 0.05, -s.pos[0], b.pos[1], y + b.size / 2, -b.pos[0]]);
+      }
+      // Far off, a box is a speck: a numbered tag beside it keeps it in sight while it is in the air.
+      const far = camera.position.distanceTo(g.position);
+      m.visible = b.state !== "down" && (b.state === "falling" || !!b.released || far > 25) && far > 12;
+      if (m.visible) {
+        const k = lensScale(camera);
+        m.position.set(g.position.x + 0.4 + far * 0.012, g.position.y, g.position.z);
+        m.scale.set(0.024 * markTex[i].aspect * k, 0.024 * k, 1);
+      }
+    }
+  });
+  return (
+    <group>
+      {Array.from({ length: MAX_BOXES }, (_, i) => (
+        <Line key={`l${i}`} ref={(x) => void (ropes.current[i] = x as unknown as Line2 | null)} points={[[0, 0, 0], [0, -1, 0]]} color="#f4f2ec" lineWidth={1.6} visible={false} frustumCulled={false} />
+      ))}
+      {markTex.map((t, i) => (
+        <sprite key={`m${i}`} ref={(x) => void (marks.current[i] = x)} visible={false} renderOrder={10}>
+          <spriteMaterial map={t.tex} sizeAttenuation={false} depthTest={false} transparent />
+        </sprite>
+      ))}
+      {Array.from({ length: MAX_BOXES }, (_, i) => (
+        <group key={i} ref={(x) => void (boxes.current[i] = x)} visible={false}>
+          <mesh castShadow>
+            <boxGeometry args={[1, 1, 1]} />
+            <meshStandardMaterial color="#b5835a" roughness={0.85} />
+          </mesh>
+          {/* Packing tape round it, so a tumble can be seen. */}
+          <mesh>
+            <boxGeometry args={[1.02, 1.02, 0.22]} />
+            <meshStandardMaterial color="#d9c49a" roughness={0.6} />
+          </mesh>
+        </group>
+      ))}
+      {landed.map((x) => (
+        <Tag key={x.id} text={x.text} position={[x.e, drawnGround(terrain, x.n, x.e) + 1.6, -x.n]} tone="active" size={0.03} />
+      ))}
+    </group>
+  );
+}
+
 function Route({ terrain, route, takeoffAlt, ending, pose, fenceRadius }: { terrain: Terrain; route: PlanPoint[]; takeoffAlt: number; ending: Ending; pose: MutableRefObject<Pose>; fenceRadius: number | null }) {
   const active = useRef(-1);
   const rings = useRef<(THREE.Mesh | null)[]>([]);
@@ -389,15 +505,21 @@ function Route({ terrain, route, takeoffAlt, ending, pose, fenceRadius }: { terr
       [0, 0.1, 0],
       [0, takeoffAlt, 0],
     ];
-    for (const p of route) pts.push([p.e, p.alt, -p.n]);
+    for (const p of route) {
+      pts.push([p.e, p.alt, -p.n]);
+      // A delivery goes straight down to its height over the ground and back up.
+      if (p.delivery) pts.push([p.e, terrain.surface(p.n, p.e) + p.delivery.heightM, -p.n], [p.e, p.alt, -p.n]);
+    }
     const last = route[route.length - 1];
     if (last && ending === "rtl") pts.push([0, last.alt, 0], [0, 0.1, 0]);
     if (last && ending === "land") pts.push([last.e, terrain.surface(last.n, last.e) + 0.1, -last.n]);
     return pts;
   }, [route, takeoffAlt, ending, terrain]);
+  // Which waypoint each mission item belongs to: deliveries and closed releases add items.
+  const pointOf = useMemo(() => planPointOfSeq(route, ending), [route, ending]);
   useFrame(({ clock }) => {
-    // The waypoint being flown to pulses; mission item 2 is waypoint 1.
-    const now = pose.current.seq - 2;
+    // The waypoint being flown to pulses.
+    const now = pointOf[pose.current.seq] ?? -1;
     active.current = now;
     rings.current.forEach((r, i) => {
       if (!r) return;
@@ -417,8 +539,8 @@ function Route({ terrain, route, takeoffAlt, ending, pose, fenceRadius }: { terr
           <Fragment key={p.id}>
           <GroundRing terrain={terrain} n={p.n} e={p.e} inner={0.9} outer={1.15} color={ACCENT} opacity={0.7} />
           <group position={[p.e, 0, -p.n]}>
-            {/* A post from the ground to the waypoint: its height above what is under it. */}
-            <mesh position={[0, g + h / 2, 0]}>
+            {/* A post from the ground to the waypoint: its height above what is under it. A delivery has its own way down drawn instead, and the post would hide the payload. */}
+            <mesh position={[0, g + h / 2, 0]} visible={!p.delivery}>
               <cylinderGeometry args={[0.07, 0.07, h, 6]} />
               <meshBasicMaterial color={ACCENT} transparent opacity={0.45} />
             </mesh>
@@ -427,7 +549,18 @@ function Route({ terrain, route, takeoffAlt, ending, pose, fenceRadius }: { terr
               <meshBasicMaterial color={ACCENT} />
             </mesh>
             <Tag text={`${i + 1}  ${Math.round(p.alt)} m`} position={[0, p.alt + 2.6, 0]} />
+            {p.delivery && (
+              <>
+                {/* Where it lets go, or where lowering starts: a ring at that height over the point. */}
+                <mesh position={[0, g + p.delivery.heightM, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                  <torusGeometry args={[1.1, 0.06, 8, 32]} />
+                  <meshBasicMaterial color="#e2582c" />
+                </mesh>
+                <Tag text={p.delivery.method === "drop" ? `DROP ${p.delivery.heightM} m` : `LOWER from ${p.delivery.heightM} m`} position={[2.4, g + p.delivery.heightM + 0.4, 0]} tone="light" size={0.032} />
+              </>
+            )}
           </group>
+          {p.delivery && <DropZone terrain={terrain} n={p.n} e={p.e} />}
           </Fragment>
         );
       })}
@@ -948,12 +1081,13 @@ function CameraRig({ view, pose, terrain, size }: { view: WorldView; pose: Mutab
     // Heading as a direction on the ground: north is −Z.
     tmp.back.set(-Math.sin(p.yaw), 0, Math.cos(p.yaw));
     if (view === "chase") {
-      const dist = Math.max(2.4, size * 5.5);
-      tmp.want.copy(p.pos).addScaledVector(tmp.back, dist).add(tmp.look.set(0, dist * 0.42, 0));
+      // With a payload on a line, stand back and look a little lower, so both are in the picture.
+      const dist = Math.max(2.4, size * 5.5, p.hang * 1.9);
+      tmp.want.copy(p.pos).addScaledVector(tmp.back, dist).add(tmp.look.set(0, dist * 0.42 - p.hang * 0.3, 0));
       if (fresh.current) camera.position.copy(tmp.want);
       else camera.position.lerp(tmp.want, k);
       setFov(55);
-      camera.lookAt(tmp.look.copy(p.pos).addScaledVector(tmp.back, -dist * 0.6));
+      camera.lookAt(tmp.look.copy(p.pos).addScaledVector(tmp.back, -dist * 0.6).add(tmp.back.set(0, -p.hang * 0.5, 0)));
     } else if (view === "fpv") {
       camera.position.copy(p.pos).addScaledVector(tmp.back, -size * 0.25).add(tmp.look.set(0, size * 0.1, 0));
       camera.quaternion.copy(p.quat);
@@ -973,7 +1107,7 @@ function CameraRig({ view, pose, terrain, size }: { view: WorldView; pose: Mutab
       const d = camera.position.distanceTo(p.pos);
       camera.lookAt(p.pos);
       // Zoom in as it goes away, but never so far that the surroundings are lost.
-      setFov(Math.min(55, Math.max(9, (2 * Math.atan((size * 9) / Math.max(1, d)) * 180) / Math.PI)));
+      setFov(Math.min(55, Math.max(9, (2 * Math.atan((size * 9 + p.hang * 2.5) / Math.max(1, d)) * 180) / Math.PI)));
     } else {
       // Orbit: the pilot's own camera, carried along with the aircraft.
       const c = controls.current;
@@ -1029,7 +1163,7 @@ function Atmosphere({ onEnv }: { onEnv: (t: THREE.Texture) => void }) {
 
 export default function FlightWorld(props: FlightWorldProps) {
   const g = GRAPHICS[props.graphics];
-  const pose = useRef<Pose>({ pos: new THREE.Vector3(), quat: new THREE.Quaternion(), yaw: 0, ground: 0, throttle: 0, armed: false, seq: 0, vel: new THREE.Vector3(), shake: 0, crashed: false });
+  const pose = useRef<Pose>({ pos: new THREE.Vector3(), quat: new THREE.Quaternion(), yaw: 0, ground: 0, throttle: 0, armed: false, seq: 0, vel: new THREE.Vector3(), shake: 0, crashed: false, hang: 0 });
   const [env, setEnv] = useState<THREE.Texture | null>(null);
   const onEnv = useCallback((t: THREE.Texture) => setEnv(t), []);
   const size = props.airframe.diagonalM + props.airframe.propDiaM;
@@ -1055,6 +1189,7 @@ export default function FlightWorld(props: FlightWorldProps) {
       <Route terrain={props.terrain} route={props.route} takeoffAlt={props.takeoffAlt} ending={props.ending} pose={pose} fenceRadius={props.fenceRadius} />
       <WindStreaks wind={props.wind} pose={pose} />
       <Flight {...props} pose={pose} env={env} shadows={shadows} />
+      {!props.source && <Payloads terrain={props.terrain} route={props.route} pose={pose} />}
       <CrashEffects pose={pose} terrain={props.terrain} wind={props.wind} size={size} />
       <CameraRig view={props.view} pose={pose} terrain={props.terrain} size={size} />
     </Canvas>

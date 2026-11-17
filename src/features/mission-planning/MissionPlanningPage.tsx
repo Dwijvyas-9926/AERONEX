@@ -185,7 +185,7 @@ export function MissionPlanningPage() {
     () =>
       sim.points.map((p, i) => {
         const tags = [p.delivery ? (p.delivery.method === "drop" ? "Drop" : "Lower") : "", i === sim.points.length - 1 ? lastTag.trim() : ""].filter(Boolean);
-        return { id: p.id, n: p.n, e: p.e, label: String(i + 1), tag: tags.join(" · ") };
+        return { id: p.id, n: p.n, e: p.e, label: String(i + 1), tag: tags.join(" · "), target: !!p.delivery };
       }),
     [sim.points, lastTag],
   );
@@ -724,6 +724,7 @@ export function MissionPlanningPage() {
               route={route}
               closeRoute={sim.ending === "rtl"}
               ghost={result?.track}
+              boxes={result?.bodies.map((b) => ({ id: b.id, n: b.pos[0], e: b.pos[1], state: b.state }))}
               fenceRadius={circleRadius}
               origin={sim.home}
               fenceLayer={fenceLayer}
