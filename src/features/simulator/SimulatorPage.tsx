@@ -14,7 +14,8 @@ import { notify } from "../../state/notifyStore";
 import { NumInput } from "../../components/ui/NumInput";
 import { modelledParams } from "../../sim/firmwareParams";
 import { useActiveProfile } from "../../state/profileStore";
-import { planToMission, useSim } from "../../state/simStore";
+import { planSteps, planToMission, useSim } from "../../state/simStore";
+import { inPlanWords, useSentMission } from "../../state/sentMission";
 import { releaseKey } from "../../mission/payload";
 import { clockTime } from "../../utils/format";
 import { fromFrameStudio, fromProfile } from "./airframeSources";
@@ -415,6 +416,7 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
   const sim = useSim();
   const events = useLink((s) => s.events);
   const status = useLink((s) => s.status);
+  const sentSteps = useSentMission((s) => s.steps);
   const { snap, track, clearTrack } = useSnap();
   const [wind, setWind] = useState({ windSpeed: 0, windFromDeg: 270, gust: 0.3 });
   const [speed, setSpeed] = useState(1);
@@ -474,6 +476,7 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
     order("Fly the mission", async () => {
       if (sim.points.length === 0) throw new Error("There is no mission yet. Plan one in Mission Planning.");
       await commandLink.uploadMission(planToMission(sim.home, sim.takeoffAlt, sim.points, sim.ending, terrain.surface));
+      useSentMission.getState().set(planSteps(sim.points, sim.ending));
       // The plan's payloads hang below, as loaded on the ground; the virtual aircraft's own release settings decide whether they let go.
       if (!flying) linkManager.sim?.loadPayloads(sim.points.flatMap((p) => (p.delivery ? [{ kg: p.delivery.kg, hangM: p.delivery.hangM, release: releaseKey(p.delivery.release), open: p.delivery.release.kind === "servo" ? p.delivery.release.open : undefined }] : [])), false);
       if (!flying) {
@@ -713,7 +716,7 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
                 {events.slice(0, 30).map((ev) => (
                   <li key={ev.id} className={ev.level}>
                     <span className="num">{clockTime(ev.at)}</span>
-                    {ev.text}
+                    {inPlanWords(ev.text, sentSteps)}
                   </li>
                 ))}
               </ul>

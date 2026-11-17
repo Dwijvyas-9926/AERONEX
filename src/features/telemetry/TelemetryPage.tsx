@@ -1,3 +1,4 @@
+import { inPlanWords, useSentMission } from "../../state/sentMission";
 import { Activity, HeartPulse, MessageSquareText } from "lucide-react";
 import { ConnectPrompt } from "../../components/ui/ConnectPrompt";
 import { useNow } from "../../hooks/useNow";
@@ -9,6 +10,7 @@ export function TelemetryPage() {
   const status = useLink((s) => s.status);
   const stats = useLink((s) => s.stats);
   const events = useLink((s) => s.events);
+  const sentSteps = useSentMission((s) => s.steps);
   const frames = useLink((s) => s.recentFrames);
   const last = useLink((s) => s.lastHeartbeatAt);
   const vehicle = useLink((s) => s.vehicle);
@@ -155,7 +157,7 @@ export function TelemetryPage() {
                   {events.map((e) => (
                     <li key={e.id} className={e.level}>
                       <span className="num">{clockTime(e.at)}</span>
-                      <span>{e.text}</span>
+                      <span>{inPlanWords(e.text, sentSteps)}</span>
                     </li>
                   ))}
                 </ul>

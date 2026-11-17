@@ -11,6 +11,7 @@ import { useLink } from "../../state/linkStore";
 import { confirmAction, notify } from "../../state/notifyStore";
 import { useParams } from "../../state/paramStore";
 import { missionToPlan, planSteps, planToMission, routeLength, useSim, type Ending, type ReadPlan } from "../../state/simStore";
+import { inPlanWords, useSentMission } from "../../state/sentMission";
 import { FlightMap } from "../simulator/FlightMap";
 import { makeTerrain, type TerrainKind } from "../../sim/terrain";
 import { modelledParams, order } from "../simulator/SimulatorPage";
@@ -499,6 +500,7 @@ export function MissionPlanningPage() {
       });
       if (differs && sendError) throw sendError;
       if (differs) throw new Error(`The mission was sent, but the aircraft does not hold what was sent. ${differs} Send it again, and do not fly until it reads back the same.`);
+      useSentMission.getState().set(steps);
       notify("success", "Mission sent and checked", `${mission.length - 1} commands are on the ${virtual ? "virtual " : ""}aircraft, and reading them back gave the same mission.`);
     });
   };
@@ -513,6 +515,7 @@ export function MissionPlanningPage() {
   const flyNow = () =>
     order("Fly the mission", async () => {
       await commandLink.uploadMission(mission);
+      useSentMission.getState().set(steps);
       // Hang the payloads on the virtual aircraft, as if loaded on the ground. Its own gripper and servo settings decide whether they let go.
       linkManager.sim?.loadPayloads(payloads, false);
       const g = await commandLink.setMode(COPTER_MODE.GUIDED);
@@ -1093,7 +1096,7 @@ export function MissionPlanningPage() {
                         <li key={i} className={e.sev}>
                           <span className="num">{clock(e.t)}</span>
                           {/* The model counts mission items; the reader counts waypoints. */}
-                          {e.text.replace(/^Reached waypoint (\d+)$/, (all, n: string) => (steps[Number(n)] ? `Reached ${steps[Number(n)]}` : all))}
+                          {inPlanWords(e.text, steps)}
                         </li>
                       ))}
                   </ol>

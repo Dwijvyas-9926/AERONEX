@@ -746,7 +746,7 @@ export class Autopilot {
         if (arrived && item.command !== CMD.LOITER_UNLIM) {
           if (this.auto.holdUntil === null) {
             this.auto.holdUntil = s.t + Math.max(0, item.p1);
-            this.log("info", `Reached waypoint ${item.seq}`, "waypoint");
+            this.log("info", `Reached command #${item.seq}`, "waypoint");
           }
           if (s.t >= this.auto.holdUntil) next();
         }
