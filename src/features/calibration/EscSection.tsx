@@ -110,13 +110,14 @@ export function EscSection({ canSend }: { canSend: boolean }) {
 
           <ParamSelect name="ESC_CALIBRATION" label="ESC calibration mode" options={ESC_CALIBRATION} help="“Auto-calibrate at the next power-up” is set for you by the button below." disabled={!canSend} />
 
+          {virtual && <p className="muted">The virtual aircraft has no ESCs, so there is nothing to calibrate on it. The steps are here to read through.</p>}
           <label className="esc-confirm">
             <input type="checkbox" checked={propsOff} onChange={(e) => setPropsOff(e.target.checked)} />
             <span>I have removed all propellers.</span>
           </label>
 
           <div className="cal-actions">
-            <button className="btn btn-danger" disabled={!canSend || armed || !propsOff || waiting} onClick={() => void calibrate()}>
+            <button className="btn btn-danger" disabled={!canSend || armed || !propsOff || waiting || virtual} title={virtual ? "The virtual aircraft has no ESCs to calibrate" : undefined} onClick={() => void calibrate()}>
               <Rocket /> Set calibration for the next power-up
             </button>
             {escCal !== undefined && escCal !== 0 && (
