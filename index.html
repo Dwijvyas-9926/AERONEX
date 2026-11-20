@@ -9,6 +9,11 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f6f3ec" />
+    <meta name="color-scheme" content="light" />
+    <meta name="application-name" content="AERONEX" />
+    <meta name="apple-mobile-web-app-title" content="AERONEX" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
     <meta name="description" content="AERONEX Ground Station: design, set up, fly and review a Pixhawk drone from the browser. Frame design, calibration, tuning, live flight data and a flight simulator." />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="AERONEX Ground Station" />
@@ -21,6 +26,9 @@
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <p style="font: 16px/1.5 system-ui, sans-serif; max-width: 34rem; margin: 4rem auto; padding: 0 1.5rem">AERONEX Ground Station runs in the browser and needs JavaScript. Turn JavaScript on for this site and reload the page.</p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

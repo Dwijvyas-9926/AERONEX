@@ -79,6 +79,7 @@ function PidSlider({ control, linked, disabled, edits }: { control: PidControl; 
           step={control.step}
           value={shown}
           disabled={disabled || !known}
+          aria-label={`${control.label} slider`}
           onChange={(e) => stage(Number(e.target.value))}
         />
         <button className="pid-nudge" disabled={disabled || !known} onClick={() => stage(shown + control.step)} aria-label={`Increase ${control.label}`}><Plus size={14} /></button>
@@ -92,7 +93,7 @@ function Section({ title, controls, linked, disabled, edits, extra }: { title: s
   return (
     <section className="panel">
       <div className="panel-head">
-        <h3>{title}</h3>
+        <h2 className="h3">{title}</h2>
         {extra}
       </div>
       <div className="panel-body pid-body">
@@ -130,7 +131,7 @@ function Advisor({ edits, values }: { edits: ParamEdits; values: Record<string, 
   return (
     <section className="panel pid-advisor">
       <div className="panel-head">
-        <h3>What should I change?</h3>
+        <h2 className="h3">What should I change?</h2>
       </div>
       <div className="panel-body pid-body">
         <p className="muted" style={{ fontSize: "var(--t-sm)" }}>Describe what the aircraft is doing. The fix is staged — nothing is written until you upload.</p>

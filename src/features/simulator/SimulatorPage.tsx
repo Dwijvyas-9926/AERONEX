@@ -105,7 +105,7 @@ function PayloadPanel({ boxes, targets, placing }: { boxes: BoxView[]; targets: 
   return (
     <section className="panel sim-payloads" aria-label="Payloads">
       <div className="panel-head">
-        <h3>Payloads</h3>
+        <h2 className="h3">Payloads</h2>
         {phase && <span className="pill warn plain">Lowering: {phase}</span>}
       </div>
       <ul>
@@ -196,7 +196,7 @@ function Setup({ running = false, onDone }: { running?: boolean; onDone?: () => 
       <div className="stack">
         <section className="panel">
           <div className="panel-head">
-            <h3>The aircraft to simulate</h3>
+            <h2 className="h3">The aircraft to simulate</h2>
             <span className="muted" style={{ fontSize: "var(--t-sm)" }}>{af.name}</span>
           </div>
           <div className="panel-body form-grid">
@@ -302,7 +302,7 @@ function Setup({ running = false, onDone }: { running?: boolean; onDone?: () => 
 
         <section className="panel">
           <div className="panel-head">
-            <h3>Where and how it starts</h3>
+            <h2 className="h3">Where and how it starts</h2>
           </div>
           <div className="panel-body form-grid">
             <Num label="Home latitude" unit="°" value={sim.home.lat} step={0.0001} min={-85} max={85} onChange={(v) => sim.set("home", { ...sim.home, lat: v })} />
@@ -351,7 +351,7 @@ function Setup({ running = false, onDone }: { running?: boolean; onDone?: () => 
       <div className="stack">
         <section className="panel">
           <div className="panel-head">
-            <h3>What this simulates</h3>
+            <h2 className="h3">What this simulates</h2>
           </div>
           <div className="panel-body sim-notes">
             <p>
@@ -544,6 +544,8 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
 
   const takeOff = () =>
     order("Take-off", async () => {
+      // These arm and fly with one press. Only the virtual aircraft is ever flown from a button like this, whatever put the button on screen.
+      if (!useLink.getState().virtual) throw new Error("This flies the virtual aircraft only. A real aircraft is linked: fly it from your transmitter.");
       const g = await commandLink.setMode(COPTER_MODE.GUIDED);
       if (g !== 0) return g;
       const a = await commandLink.arm(true);
@@ -553,6 +555,8 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
 
   const flyMission = () =>
     order("Fly the mission", async () => {
+      // These arm and fly with one press. Only the virtual aircraft is ever flown from a button like this, whatever put the button on screen.
+      if (!useLink.getState().virtual) throw new Error("This flies the virtual aircraft only. A real aircraft is linked: fly it from your transmitter.");
       if (sim.points.length === 0) throw new Error("There is no mission yet. Plan one in Mission Planning.");
       // It sets home where it arms: from anywhere but the plan's home, the plan's heights move with the ground.
       const v = linkManager.sim;
@@ -726,7 +730,7 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
             <div className="sim-state-head">
               <div>
                 <span className="sim-label">Flight mode</span>
-                <h3>{MODE_NAME[snap.mode] ?? "Mode"}</h3>
+                <h2 className="h3">{MODE_NAME[snap.mode] ?? "Mode"}</h2>
               </div>
               <div className="sim-state-side">
                 <span className={`pill ${stateTone} plain`}>{state}</span>
@@ -805,7 +809,7 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
               </button>
             </div>
             {book === "events" ? (
-              <ul className="sim-events">
+              <ul className="sim-events" tabIndex={0} aria-label="Events">
                 {events.slice(0, 30).map((ev) => (
                   <li key={ev.id} className={ev.level}>
                     <span className="num">{clockTime(ev.at)}</span>

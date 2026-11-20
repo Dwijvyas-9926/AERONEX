@@ -113,7 +113,7 @@ export function PreflightPage() {
       <div className="pf-grid">
         {/* Sensors */}
         <section className="panel pf-tile">
-          <div className="panel-head"><h3><CircleCheck size={16} /> Sensor health</h3></div>
+          <div className="panel-head"><h2 className="h3"><CircleCheck size={16} /> Sensor health</h2></div>
           <div className="pf-sensors">
             {sensorChecks.map((s) => (
               <div key={s.label} className="pf-row">
@@ -127,7 +127,7 @@ export function PreflightPage() {
 
         {/* EKF */}
         <section className="panel pf-tile">
-          <div className="panel-head"><h3><Compass size={16} /> EKF / state estimate</h3><Dot h={ekfHealth} /></div>
+          <div className="panel-head"><h2 className="h3"><Compass size={16} /> EKF / state estimate</h2><Dot h={ekfHealth} /></div>
           <div className="pf-body">
             {ekf ? (
               <>
@@ -145,7 +145,7 @@ export function PreflightPage() {
 
         {/* GPS */}
         <section className="panel pf-tile">
-          <div className="panel-head"><h3><Satellite size={16} /> GPS</h3><Dot h={gpsH} /></div>
+          <div className="panel-head"><h2 className="h3"><Satellite size={16} /> GPS</h2><Dot h={gpsH} /></div>
           <div className="pf-body">
             {gps ? (
               <dl className="pf-kv">
@@ -161,7 +161,7 @@ export function PreflightPage() {
 
         {/* Vibration */}
         <section className="panel pf-tile">
-          <div className="panel-head"><h3><Waves size={16} /> Vibration</h3><Dot h={vibeHealthAll} /></div>
+          <div className="panel-head"><h2 className="h3"><Waves size={16} /> Vibration</h2><Dot h={vibeHealthAll} /></div>
           <div className="pf-body">
             {vibe ? (
               <>
@@ -178,7 +178,7 @@ export function PreflightPage() {
 
         {/* Battery */}
         <section className="panel pf-tile">
-          <div className="panel-head"><h3><BatteryMedium size={16} /> Battery</h3><Dot h={battH} /></div>
+          <div className="panel-head"><h2 className="h3"><BatteryMedium size={16} /> Battery</h2><Dot h={battH} /></div>
           <div className="pf-body">
             {batt ? (
               <dl className="pf-kv">
@@ -194,7 +194,7 @@ export function PreflightPage() {
 
         {/* RC */}
         <section className="panel pf-tile">
-          <div className="panel-head"><h3><Radio size={16} /> RC link</h3><Dot h={rc && rc.count > 0 ? "ok" : "unknown"} /></div>
+          <div className="panel-head"><h2 className="h3"><Radio size={16} /> RC link</h2><Dot h={rc && rc.count > 0 ? "ok" : "unknown"} /></div>
           <div className="pf-body">
             {rc ? (
               <dl className="pf-kv">
@@ -210,7 +210,7 @@ export function PreflightPage() {
 
       {/* Pre-arm messages */}
       <section className="panel" style={{ marginTop: "var(--s4)" }}>
-        <div className="panel-head"><h3>{armed ? "Vehicle armed" : "Pre-arm messages"}</h3></div>
+        <div className="panel-head"><h2 className="h3">{armed ? "Vehicle armed" : "Pre-arm messages"}</h2></div>
         <div className="panel-body cal-body">
           {verdict.prearm.length === 0 ? (
             <p className="muted">{armed ? "The vehicle is armed; pre-arm checks passed." : "No pre-arm failure in the last minute. If the vehicle refuses to arm, its reason will appear here."}</p>

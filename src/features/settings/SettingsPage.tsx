@@ -30,7 +30,7 @@ export function SettingsPage() {
       <div className="stack">
         <section className="panel">
           <div className="panel-head">
-            <h3>Display</h3>
+            <h2 className="h3">Display</h2>
           </div>
           <div className="setting">
             <div>
@@ -79,7 +79,7 @@ export function SettingsPage() {
 
         <section className="panel">
           <div className="panel-head">
-            <h3>Assistant</h3>
+            <h2 className="h3">Assistant</h2>
           </div>
           <div className="setting">
             <div>
@@ -152,7 +152,7 @@ export function SettingsPage() {
 
         <section className="panel">
           <div className="panel-head">
-            <h3>Stored data</h3>
+            <h2 className="h3">Stored data</h2>
           </div>
           <div className="setting">
             <div>

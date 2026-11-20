@@ -1,5 +1,6 @@
 import { Check, Compass, Loader2, RotateCw, Save, TriangleAlert, X } from "lucide-react";
 import { commandLink } from "../../services/link/commandLink";
+import { notify } from "../../state/notifyStore";
 import { useNow } from "../../hooks/useNow";
 import { MAG_CAL_STATUS, magCalOk, useCalibration } from "../../state/calibrationStore";
 import { useLink } from "../../state/linkStore";
@@ -100,7 +101,16 @@ export function CompassSection({ canSend }: { canSend: boolean }) {
               </button>
             )}
             {mag.phase === "success" && (
-              <button className="btn btn-ghost" onClick={() => void commandLink.reboot()}>
+              <button
+                className="btn btn-ghost"
+                disabled={armed || !canSend}
+                onClick={() =>
+                  void commandLink
+                    .reboot()
+                    .then(() => notify("info", "Rebooting", "Connect again when the flight controller is back."))
+                    .catch((e: Error) => notify("error", "Not rebooted", e.message))
+                }
+              >
                 <Loader2 size={15} /> Reboot to apply
               </button>
             )}

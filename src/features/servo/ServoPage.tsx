@@ -143,7 +143,8 @@ export function ServoPage() {
   };
 
   const restart = async () => {
-    if (vehicle?.armed) return notify("error", "Disarm first", "The flight controller cannot be restarted while armed.");
+    const block = commandLink.rebootBlock();
+    if (block) return notify("error", block.title, block.body);
     const ok = await confirmAction({
       title: "Restart the flight controller?",
       body: virtual
@@ -152,7 +153,11 @@ export function ServoPage() {
       confirmLabel: "Restart",
     });
     if (!ok) return;
-    await commandLink.reboot();
+    try {
+      await commandLink.reboot();
+    } catch (e) {
+      return notify("error", "Not restarted", (e as Error).message);
+    }
     useRebootNeeded.getState().clear();
     notify("info", virtual ? "Restarted" : "Restarting", virtual ? undefined : "Connect again when the flight controller is back.");
   };
@@ -227,7 +232,7 @@ export function ServoPage() {
 
       <section className="panel sv-board-panel">
         <div className="panel-head">
-          <h3>{shownBoard.pixhawk1 ? "Pixhawk 2.4.8" : board.boardId !== null ? `Board id ${board.boardId}` : "Outputs"}</h3>
+          <h2 className="h3">{shownBoard.pixhawk1 ? "Pixhawk 2.4.8" : board.boardId !== null ? `Board id ${board.boardId}` : "Outputs"}</h2>
           <span className="sv-board-src">
             {!ready
               ? "Preview"
@@ -277,7 +282,7 @@ function OutputsList({ outputs, pwm, selected, onSelect, flagged, edits, names }
   return (
     <section className="panel sv-list" aria-label="Outputs">
       <div className="panel-head">
-        <h3>Outputs</h3>
+        <h2 className="h3">Outputs</h2>
       </div>
       <ul>
         {outputs.map((o) => {
@@ -358,9 +363,9 @@ function Editor(props: EditorProps) {
     <section className="panel sv-editor" aria-label={`${o.port.long} settings`}>
       <div className="panel-head sv-editor-head">
         <div>
-          <h3>
+          <h2 className="h3">
             {o.port.long} <span className="muted">SERVO{n}</span>
-          </h3>
+          </h2>
           <p className="sv-editor-now">
             <span className={`sv-dot sv-cat-${categoryOf(o.fn)}`} aria-hidden /> {info.label}
           </p>
@@ -776,9 +781,9 @@ function Switches({ merged, saved, set }: { merged: Params; saved: Params; set: 
   return (
     <section className="panel sv-switches">
       <div className="panel-head">
-        <h3>
+        <h2 className="h3">
           <Radio size={16} /> Transmitter switches
-        </h3>
+        </h2>
       </div>
       <div className="panel-body">
         <p className="sv-what">A switch on the transmitter can release the payload, raise the gear, take a picture or fire the parachute, by giving its channel an option (RCn_OPTION). Flight-mode and other options are on the Calibration and Parameters pages.</p>
@@ -839,7 +844,7 @@ function Checks({ issues, onSelect, onFix }: { issues: Issue[]; onSelect: (n: nu
   return (
     <section className="panel sv-checks" aria-label="Checks">
       <div className="panel-head">
-        <h3>Checks</h3>
+        <h2 className="h3">Checks</h2>
         <span className="sv-board-src">{issues.length ? `${issues.length} to look at` : "Nothing to fix"}</span>
       </div>
       <div className="panel-body">

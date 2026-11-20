@@ -56,8 +56,23 @@ export function RadioSection({ canSend }: { canSend: boolean }) {
   };
 
   const finish = async () => {
+    /*
+      The four flight sticks must have been moved through their whole travel.
+      ArduPilot refuses to arm with a stick's range short of 1300 to 1700 µs
+      (RC_Channel pre-arm), and a range captured from a stick that was only
+      nudged would make a small movement in flight count as full deflection.
+      Nothing is written until all four are right.
+    */
+    const short = [1, 2, 3, 4].filter((ch) => {
+      const c = capRef.current[ch];
+      return !c || c.min > 1300 || c.max < 1700;
+    });
+    if (short.length) {
+      notify("warn", "Move the sticks all the way first", `${short.map((ch) => `Channel ${ch} (${RADIO_FUNCTION[ch]?.split(" ")[0].toLowerCase() ?? "stick"})`).join(", ")} ${short.length === 1 ? "has" : "have"} not been to both ends of ${short.length === 1 ? "its" : "their"} travel yet. Nothing was saved. Keep capturing, move every stick to each limit, and finish again.`);
+      return;
+    }
     setCapturing(false);
-    // Write min/max for every captured channel, trim = current (centre the sticks first).
+    // Write min/max for every captured channel, trim = current (sticks centred, throttle down).
     const current: Record<number, number> = {};
     for (const { ch, pwm } of live) current[ch] = pwm;
     // "Saved" only when every write was confirmed; otherwise say which were not.
@@ -85,7 +100,7 @@ export function RadioSection({ canSend }: { canSend: boolean }) {
       </div>
 
       {stale && <div className="callout warn"><X /><span>No live RC data. Turn the transmitter on and bind the receiver; channels appear here when the autopilot forwards them.</span></div>}
-      {capturing && <div className="callout accent"><span>Move every stick and switch to its limits, then centre the sticks and press <strong>Finish &amp; save</strong>.</span></div>}
+      {capturing && <div className="callout accent"><span>Move every stick and switch to its limits. Then centre the sticks, put the throttle all the way down, and press <strong>Finish &amp; save</strong>.</span></div>}
       {saved && !capturing && <div className="callout ok"><Check /><span>Endpoints and trims written to the autopilot.</span></div>}
 
       <section className="panel">

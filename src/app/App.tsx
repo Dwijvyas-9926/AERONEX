@@ -1,7 +1,6 @@
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { lazy, Suspense, useEffect } from "react";
 import { HashRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { AboutPage } from "../features/about/AboutPage";
 import { BrandLockup } from "../components/shell/BrandMark";
 import { startHomeFollow } from "../services/link/homeFollow";
 import { ErrorBoundary } from "../components/shell/ErrorBoundary";
@@ -12,22 +11,7 @@ import { ConfirmDialog, Toasts } from "../components/shell/Overlays";
 import { Sidebar } from "../components/shell/Sidebar";
 import { StatusBar } from "../components/shell/StatusBar";
 import { VirtualDataBanner } from "../components/shell/VirtualDataBanner";
-import { CalibrationPage } from "../features/calibration/CalibrationPage";
-import { ConnectionPage } from "../features/connection/ConnectionPage";
-import { DigitalTwinPage } from "../features/digital-twin/DigitalTwinPage";
-import { DoctorPage } from "../features/doctor/DoctorPage";
-import { FlightDataPage } from "../features/flightdata/FlightDataPage";
-import { FrameStudioPage } from "../features/frame-studio/FrameStudioPage";
-import { MissionPlanningPage } from "../features/mission-planning/MissionPlanningPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
-import { FullParamsPage } from "../features/params/FullParamsPage";
-import { KeyboardFlightPage } from "../features/keyboard-flight/KeyboardFlightPage";
-import { PidTuningPage } from "../features/pid/PidTuningPage";
-import { PreflightPage } from "../features/preflight/PreflightPage";
-import { SettingsPage } from "../features/settings/SettingsPage";
-import { SimulatorPage } from "../features/simulator/SimulatorPage";
-import { TelemetryPage } from "../features/telemetry/TelemetryPage";
-import { VehicleConfigPage } from "../features/vehicle-config/VehicleConfigPage";
 import { prefersReducedMotion, useSettings } from "../state/settingsStore";
 import { useLinkNotifications } from "./useLinkNotifications";
 import { useLink } from "../state/linkStore";
@@ -36,6 +20,23 @@ import { routeFor } from "./routes";
 import { useUi } from "../state/uiStore";
 
 // Flight Logs is large (charts, the reader, the replay) and only needed when opened.
+// Each page is fetched when it is first opened, so the first screen does not wait for all twenty. The offline copy holds every one.
+const AboutPage = lazy(() => import("../features/about/AboutPage").then((m) => ({ default: m.AboutPage })));
+const CalibrationPage = lazy(() => import("../features/calibration/CalibrationPage").then((m) => ({ default: m.CalibrationPage })));
+const ConnectionPage = lazy(() => import("../features/connection/ConnectionPage").then((m) => ({ default: m.ConnectionPage })));
+const DigitalTwinPage = lazy(() => import("../features/digital-twin/DigitalTwinPage").then((m) => ({ default: m.DigitalTwinPage })));
+const DoctorPage = lazy(() => import("../features/doctor/DoctorPage").then((m) => ({ default: m.DoctorPage })));
+const FlightDataPage = lazy(() => import("../features/flightdata/FlightDataPage").then((m) => ({ default: m.FlightDataPage })));
+const FrameStudioPage = lazy(() => import("../features/frame-studio/FrameStudioPage").then((m) => ({ default: m.FrameStudioPage })));
+const MissionPlanningPage = lazy(() => import("../features/mission-planning/MissionPlanningPage").then((m) => ({ default: m.MissionPlanningPage })));
+const FullParamsPage = lazy(() => import("../features/params/FullParamsPage").then((m) => ({ default: m.FullParamsPage })));
+const KeyboardFlightPage = lazy(() => import("../features/keyboard-flight/KeyboardFlightPage").then((m) => ({ default: m.KeyboardFlightPage })));
+const PidTuningPage = lazy(() => import("../features/pid/PidTuningPage").then((m) => ({ default: m.PidTuningPage })));
+const PreflightPage = lazy(() => import("../features/preflight/PreflightPage").then((m) => ({ default: m.PreflightPage })));
+const SettingsPage = lazy(() => import("../features/settings/SettingsPage").then((m) => ({ default: m.SettingsPage })));
+const SimulatorPage = lazy(() => import("../features/simulator/SimulatorPage").then((m) => ({ default: m.SimulatorPage })));
+const TelemetryPage = lazy(() => import("../features/telemetry/TelemetryPage").then((m) => ({ default: m.TelemetryPage })));
+const VehicleConfigPage = lazy(() => import("../features/vehicle-config/VehicleConfigPage").then((m) => ({ default: m.VehicleConfigPage })));
 const ServoPage = lazy(() => import("../features/servo/ServoPage").then((m) => ({ default: m.ServoPage })));
 const FirmwarePage = lazy(() => import("../features/firmware/FirmwarePage").then((m) => ({ default: m.FirmwarePage })));
 const LogsPage = lazy(() => import("../features/logs/LogsPage").then((m) => ({ default: m.LogsPage })));
@@ -69,6 +70,7 @@ function AnimatedRoutes() {
         transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
       >
         <ErrorBoundary page={location.pathname}>
+        <Suspense fallback={<div className="page-pad" role="status">Loading…</div>}>
         <Routes location={location}>
           <Route path="/" element={<OverviewPage />} />
           <Route path="/connection" element={<ConnectionPage />} />
@@ -92,6 +94,7 @@ function AnimatedRoutes() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<OverviewPage />} />
         </Routes>
+        </Suspense>
         </ErrorBoundary>
       </motion.div>
     </AnimatePresence>

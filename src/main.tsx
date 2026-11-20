@@ -10,9 +10,12 @@ import "./styles/base.css";
 import "./styles/shell.css";
 import "./styles/pages.css";
 import App from "./app/App";
+import { startOffline } from "./app/offline";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
   </StrictMode>,
 );
+
+startOffline();

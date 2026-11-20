@@ -80,6 +80,37 @@ export function MotorTestSection({ canSend }: { canSend: boolean }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [blocked]);
 
+  /*
+    Out of sight, stopped. A browser slows the timers of a tab that is not
+    showing, to once a second and later to once a minute, and it keeps them
+    running: a motor left spinning would go on being told to spin, unseen, or
+    run on to the end of its last command. So leaving the tab or the window
+    stops every motor and ends a sequence.
+  */
+  const seqRunningRef = useRef(seqRunning);
+  seqRunningRef.current = seqRunning;
+  useEffect(() => {
+    const away = () => {
+      if (!spinningRef.current.some(Boolean) && !seqRunningRef.current) return;
+      seqAbort.current = true;
+      setSeqRunning(false);
+      setSeqIndex(-1);
+      setSpinning(Array(8).fill(false));
+      if (canSendRef.current) void commandLink.stopAllMotors(8);
+    };
+    const hidden = () => {
+      if (document.hidden) away();
+    };
+    document.addEventListener("visibilitychange", hidden);
+    window.addEventListener("blur", away);
+    window.addEventListener("pagehide", away);
+    return () => {
+      document.removeEventListener("visibilitychange", hidden);
+      window.removeEventListener("blur", away);
+      window.removeEventListener("pagehide", away);
+    };
+  }, []);
+
   // Stop everything only when the component actually unmounts (not on every
   // canSend change — that was what reset the sequence after the first motor).
   useEffect(
@@ -166,7 +197,7 @@ export function MotorTestSection({ canSend }: { canSend: boolean }) {
       <div className="cal-sec-head">
         <div>
           <h2>Motor test</h2>
-          <p>Spin each motor on its own to check wiring order and direction. Set its speed with the slider or type an exact percent — the motor stops by itself the instant anything interrupts the link.</p>
+          <p>Spin each motor on its own to check wiring order and direction. Set its speed with the slider or type an exact percent. A motor stops by itself when the link is interrupted, and when you leave this tab or window.</p>
         </div>
         <Fan className="cal-sec-icon" />
       </div>

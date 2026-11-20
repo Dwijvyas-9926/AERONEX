@@ -57,7 +57,7 @@ function Editor({ profile, onDirty }: { profile: VehicleProfile; onDirty: (d: bo
   return (
     <section className="panel">
       <div className="panel-head">
-        <h3>{profile.name}</h3>
+        <h2 className="h3">{profile.name}</h2>
         <div style={{ display: "flex", gap: 6 }}>
           {activeId === profile.id ? (
             <span className="pill ok plain">
@@ -226,7 +226,7 @@ export function VehicleConfigPage() {
       <div className="profiles">
         <section className="panel">
           <div className="panel-head">
-            <h3>Profiles</h3>
+            <h2 className="h3">Profiles</h2>
             <span className="muted num">{profiles.length}</span>
           </div>
           <div className="profile-list" role="listbox" aria-label="Vehicle profiles">
@@ -248,7 +248,7 @@ export function VehicleConfigPage() {
         ) : (
           <section className="panel">
             <div className="empty">
-              <h3>No profiles</h3>
+              <h2 className="h3">No profiles</h2>
               <p>Create a profile to describe your aircraft.</p>
             </div>
           </section>

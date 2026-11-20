@@ -728,7 +728,35 @@ class CommandLink {
     }
   }
 
+  /**
+   * Why the flight controller may not be restarted right now; null when it may.
+   *
+   * Never while armed: a restart in the air is a fall. ArduPilot refuses it
+   * too, but the refusal should not depend on the firmware alone.
+   *
+   * Never with an ESC calibration waiting: with ESC_CALIBRATION at 2 or 3
+   * ArduCopter sends full throttle to every ESC as it starts
+   * (esc_calibration.cpp), and ESCs that are already powered spin the motors
+   * at full power. That start is to be made by plugging the battery in, with
+   * the propellers off, not from a button.
+   */
+  rebootBlock(): { title: string; body: string } | null {
+    const l = useLink.getState();
+    if (l.vehicle?.armed) return { title: "Disarm before restarting", body: "The aircraft is armed. Restarting the flight controller now would stop its motors. Land and disarm first." };
+    const esc = useParams.getState().values.ESC_CALIBRATION;
+    if (!l.virtual && (esc === 2 || esc === 3)) {
+      return {
+        title: "An ESC calibration is waiting",
+        body: "ESC_CALIBRATION is set, so the flight controller will send full throttle to the ESCs the next time it starts. Do not restart it from here: remove the propellers, unplug the battery and USB, and plug the battery back in. To cancel instead, clear the calibration flag on the Calibration page, ESC tab.",
+      };
+    }
+    return null;
+  }
+
+  /** Restart the flight controller. Throws, in words, when it must not be restarted now (see rebootBlock). */
   async reboot() {
+    const block = this.rebootBlock();
+    if (block) throw blocked(block);
     // param1=1: reboot autopilot. Best-effort — the vehicle drops the link as it reboots.
     try {
       await this.write("COMMAND_LONG", { ...this.cmdFields(CMD.PREFLIGHT_REBOOT_SHUTDOWN, { p1: 1 }) });
@@ -795,6 +823,18 @@ class CommandLink {
 
   private uploadList(items: MissionWire[], type: number, what: string): Promise<void> {
     const t = this.target();
+    /*
+      The last check before anything is sent, whichever page built the list:
+      every number must be a number, and every place a place on the Earth. A
+      value that is not a number (an emptied height box, a division by zero
+      upstream) would otherwise be encoded as NaN and decided by the firmware.
+    */
+    for (const it of items) {
+      const nums = [it.seq, it.frame, it.command, it.p1, it.p2, it.p3, it.p4, it.x, it.y, it.z];
+      if (!nums.every(Number.isFinite)) return Promise.reject(new Error(`The ${what} was not sent: item ${it.seq} holds a value that is not a number.`));
+      if (Math.abs(it.x) > 90e7 || Math.abs(it.y) > 180e7) return Promise.reject(new Error(`The ${what} was not sent: item ${it.seq} is not at a place on the Earth.`));
+    }
+    if (items.some((it, i) => it.seq !== i)) return Promise.reject(new Error(`The ${what} was not sent: its items are not numbered in order.`));
     this.ups.get(type)?.reject(new Error("Superseded by a newer upload"));
     return new Promise<void>((resolve, reject) => {
       let tries = 0;
@@ -935,8 +975,15 @@ class CommandLink {
       }).catch(() => {});
     } else if (name === "MISSION_ACK" && up) {
       const result = d.type as number;
-      if (result === 0) up.resolve();
-      else {
+      if (result === 0) {
+        /*
+          "Accepted" counts only once every item has been asked for. An
+          acknowledgement left over from an earlier exchange, arriving as this
+          one starts, would otherwise report a list as sent that the aircraft
+          never took.
+        */
+        if (up.sent >= up.items.length) up.resolve();
+      } else {
         /*
           The firmware says why in a status text, which it queues and sends
           after the refusal itself. Wait a moment for it, so the reason given

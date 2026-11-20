@@ -45,7 +45,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: [Copter-4.6.3, Copter-4.7.2]
+        release: [Copter-4.6.3, Copter-4.7.3]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

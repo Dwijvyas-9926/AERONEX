@@ -87,15 +87,23 @@ export function LogsPage() {
         </header>
         {(loading || error) && <Status />}
         <div className="lp-start">
-          <section className="lp-drop" onClick={() => pick.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && pick.current?.click()} aria-label="Open a log file">
+          <section className="lp-drop" onClick={() => pick.current?.click()} aria-label="Open a log file">
             <FileUp size={30} strokeWidth={1.6} />
             <h2>Drop a log here, or choose a file</h2>
             <p>
               <strong>.bin</strong> DataFlash logs from the aircraft's SD card or a download, and <strong>.tlog</strong> telemetry logs from Mission Planner, QGroundControl, MAVProxy or AERONEX.
             </p>
-            <span className="btn btn-primary">
+            {/* The whole area takes a click or a drop; this is the control a keyboard reaches. */}
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                pick.current?.click();
+              }}
+            >
               <FolderOpen size={15} /> Choose a log
-            </span>
+            </button>
             {libraryAvailable() && (
               <label className="lp-keep" onClick={(e) => e.stopPropagation()}>
                 <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} /> Keep a copy in this browser's log library

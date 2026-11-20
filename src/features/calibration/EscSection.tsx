@@ -12,21 +12,34 @@ export function EscSection({ canSend }: { canSend: boolean }) {
   useRequireParams(["MOT_PWM_TYPE", "MOT_PWM_MIN", "MOT_PWM_MAX", "MOT_SPIN_ARM", "MOT_SPIN_MIN", "MOT_SPIN_MAX", "ESC_CALIBRATION"], canSend);
   const armed = useLink((s) => s.vehicle?.armed) ?? false;
   const escCal = useParams((s) => s.values["ESC_CALIBRATION"]);
+  const virtual = useLink((s) => s.virtual);
+  const volts = useLink((s) => s.telemetry.battery?.value.voltage ?? null);
   const [propsOff, setPropsOff] = useState(false);
-  const [done, setDone] = useState(false);
+  // Set and waiting for the power-up that runs it: 2 passes the stick through, 3 runs by itself.
+  const waiting = escCal === 2 || escCal === 3;
+  /*
+    A flight battery on the aircraft, by its voltage: USB alone reads about
+    5 V or nothing. With the ESCs already powered, the full throttle sent at
+    the calibration start-up spins the motors instead of teaching the ESCs.
+  */
+  const batteryOn = !virtual && volts !== null && volts > 6;
 
+  /*
+    Sets the one-shot "calibrate at the next power-up" mode and stops there.
+    It used to restart the flight controller as well. ArduCopter, started with
+    ESC_CALIBRATION = 3, sends full throttle to every ESC for five seconds and
+    then zero (Copter::esc_calibration_auto). An ESC learns its range only if
+    that is the first signal it sees as it powers up; one that is already
+    powered takes it as a command and runs its motor at full power. So the
+    start has to be made by plugging the battery in, never from a button here.
+  */
   const calibrate = async () => {
-    // Arm the one-shot "calibrate at next boot" mode, then reboot into it —
-    // only once the aircraft has confirmed the setting. Rebooting without it
-    // would show the steps for a calibration that is not going to happen.
     try {
       await commandLink.setParam("ESC_CALIBRATION", 3);
+      notify("success", "Calibration set for the next power-up", "Unplug USB and the battery now, then follow the steps.");
     } catch (e) {
-      notify("error", "ESC calibration not started", (e as Error).message);
-      return;
+      notify("error", "ESC calibration not set", (e as Error).message);
     }
-    setDone(true);
-    await commandLink.reboot();
   };
 
   return (
@@ -62,20 +75,40 @@ export function EscSection({ canSend }: { canSend: boolean }) {
       <section className="panel">
         <div className="panel-head">
           <h3>ESC calibration</h3>
-          {done && <span className="pill accent plain">rebooting…</span>}
+          {waiting && <span className="pill warn plain">Set for the next power-up</span>}
         </div>
         <div className="panel-body cal-body">
           <p className="muted">
-            All-at-once calibration: the autopilot passes your throttle straight to every ESC on the next boot so each learns its min and max together. It arms <code>ESC_CALIBRATION</code> and reboots — then follow your ESCs' tones.
+            All-at-once calibration, as ArduPilot does it: the next time the flight controller powers up it sends every ESC full throttle for five seconds and then zero, so each learns its range. An ESC only learns if that is the first
+            thing it sees as it powers up, so the start is made by plugging the battery in, not from this page.
           </p>
+          {batteryOn && !waiting && (
+            <div className="callout warn">
+              <TriangleAlert />
+              <span>
+                <strong>A battery is connected ({volts!.toFixed(1)} V).</strong> Set the calibration with the aircraft on USB power alone. ESCs that are already powered treat the calibration's full throttle as a command.
+              </span>
+            </div>
+          )}
+          {waiting && (
+            <div className="callout danger">
+              <TriangleAlert />
+              <span>
+                <strong>The next power-up sends full throttle to the ESCs.</strong> Do not restart the flight controller from the app{batteryOn ? `, and unplug the battery now (${volts!.toFixed(1)} V)` : ""}. Follow the steps from step 3, or
+                clear the flag to cancel.
+              </span>
+            </div>
+          )}
           <ol className="esc-steps">
-            <li>Remove propellers. Confirm below.</li>
-            <li>Press <strong>Calibrate &amp; reboot</strong>. The board reboots into calibration mode.</li>
-            <li>With the battery connected, raise throttle to full, wait for the ESC tones, then lower to zero.</li>
-            <li>Power-cycle. Calibration mode clears itself after the pass.</li>
+            <li>Remove every propeller. Tick the box below.</li>
+            <li>With the aircraft on USB power only (battery unplugged), press <strong>Set calibration for the next power-up</strong>.</li>
+            <li>Unplug USB, so the flight controller and the ESCs are all off.</li>
+            <li>Plug the battery in. If the aircraft has a safety switch, press it. Do not touch the throttle.</li>
+            <li>Listen: a musical tone and two beeps, then a beep for each battery cell and one long beep. The range is set.</li>
+            <li>Unplug the battery, wait a few seconds, and power up as usual. The calibration clears itself after the pass.</li>
           </ol>
 
-          <ParamSelect name="ESC_CALIBRATION" label="ESC calibration mode" options={ESC_CALIBRATION} help="“Auto-calibrate on next boot” is set for you by the button below." disabled={!canSend} />
+          <ParamSelect name="ESC_CALIBRATION" label="ESC calibration mode" options={ESC_CALIBRATION} help="“Auto-calibrate at the next power-up” is set for you by the button below." disabled={!canSend} />
 
           <label className="esc-confirm">
             <input type="checkbox" checked={propsOff} onChange={(e) => setPropsOff(e.target.checked)} />
@@ -83,8 +116,8 @@ export function EscSection({ canSend }: { canSend: boolean }) {
           </label>
 
           <div className="cal-actions">
-            <button className="btn btn-danger" disabled={!canSend || armed || !propsOff} onClick={() => void calibrate()}>
-              <Rocket /> Calibrate &amp; reboot
+            <button className="btn btn-danger" disabled={!canSend || armed || !propsOff || waiting} onClick={() => void calibrate()}>
+              <Rocket /> Set calibration for the next power-up
             </button>
             {escCal !== undefined && escCal !== 0 && (
               <button className="btn btn-ghost" disabled={!canSend} onClick={() => writeParam("ESC_CALIBRATION", 0)}>

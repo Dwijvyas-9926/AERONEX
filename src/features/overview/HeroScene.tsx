@@ -348,11 +348,35 @@ function Lights({ shadows }: { shadows: boolean }) {
 
 export interface HeroSceneProps {
   animate: boolean;
+  /** Called once if the scene is drawing too slowly to animate. */
+  onSlow?: () => void;
   graphics: GraphicsPreset;
   onReady?: () => void;
 }
 
-export default function HeroScene({ animate, graphics, onReady }: HeroSceneProps) {
+/*
+  A device that cannot draw this scene at a usable rate (no graphics
+  hardware, or a weak one) should not be made to: at a few frames a second the
+  scene looks broken and holds up everything else on the page. The first
+  frames are timed, and if they are slow the page is told, and stops the
+  motion: the scene stays as a still picture.
+*/
+function FrameWatch({ onSlow }: { onSlow: () => void }) {
+  const seen = useRef<number[]>([]);
+  const done = useRef(false);
+  useFrame((_, dt) => {
+    if (done.current) return;
+    // The first frames compile shaders and are slow on any device.
+    seen.current.push(dt);
+    if (seen.current.length < 9) return;
+    done.current = true;
+    const late = seen.current.slice(4).sort((a, b) => a - b);
+    if (late[Math.floor(late.length / 2)] > 0.085) onSlow();
+  });
+  return null;
+}
+
+export default function HeroScene({ animate, graphics, onReady, onSlow }: HeroSceneProps) {
   const g = GRAPHICS[graphics];
   return (
     <Canvas
@@ -378,6 +402,7 @@ export default function HeroScene({ animate, graphics, onReady }: HeroSceneProps
       <Forest />
       <GroundMarker />
       <Rig animate={animate} />
+      {animate && onSlow && <FrameWatch onSlow={onSlow} />}
     </Canvas>
   );
 }

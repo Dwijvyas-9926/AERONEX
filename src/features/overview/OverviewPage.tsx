@@ -36,6 +36,9 @@ function useInView<T extends HTMLElement>() {
   return [ref, inView && tabVisible] as const;
 }
 
+/** Remembered across visits to this page within one session. */
+let tooSlow = false;
+
 function Hero() {
   const motionPref = useSettings((s) => s.motion);
   const graphics = useSettings((s) => s.graphics);
@@ -44,14 +47,24 @@ function Hero() {
   const [ready, setReady] = useState(false);
   const webgl = useMemo(() => hasWebGL2(), []);
   const nav = useNavigate();
-  const animate = !reduced && visible;
+  // Found too slow to animate on this device, for this visit: the scene stays a still picture.
+  const [slow, setSlow] = useState(() => tooSlow);
+  const animate = !reduced && visible && !slow;
 
   return (
     <section className="hero" ref={ref} aria-labelledby="hero-title">
       <div className={`hero-canvas${ready ? " ready" : ""}`} aria-hidden>
         {webgl ? (
           <Suspense fallback={null}>
-            <HeroScene animate={animate} graphics={graphics} onReady={() => setReady(true)} />
+            <HeroScene
+              animate={animate}
+              graphics={graphics}
+              onReady={() => setReady(true)}
+              onSlow={() => {
+                tooSlow = true;
+                setSlow(true);
+              }}
+            />
           </Suspense>
         ) : null}
       </div>
@@ -98,7 +111,7 @@ function Hero() {
         </p>
       )}
 
-      <a className="hero-scroll" href="#main-start" aria-label="Scroll to how AERONEX works">
+      <a className="hero-scroll" href="#main-start" aria-label="See how it works: scroll to how AERONEX works">
         <span>See how it works</span>
         <ChevronDown size={18} />
       </a>

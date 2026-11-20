@@ -53,12 +53,12 @@ export function TelemetryPage() {
           <div className="stack">
             <section className="panel">
               <div className="panel-head">
-                <h3>Messages</h3>
+                <h2 className="h3">Messages</h2>
                 <span className="muted" style={{ fontSize: "var(--t-sm)" }}>
                   {rates.length} types, {stats.framesOk.toLocaleString()} valid frames
                 </span>
               </div>
-              <div className="table-wrap">
+              <div className="table-wrap" tabIndex={0} role="region" aria-label="Messages table, scrolls">
                 <table className="table">
                   <thead>
                     <tr>
@@ -82,12 +82,12 @@ export function TelemetryPage() {
 
             <section className="panel">
               <div className="panel-head">
-                <h3>Latest frames</h3>
+                <h2 className="h3">Latest frames</h2>
                 <span className="muted" style={{ fontSize: "var(--t-sm)" }}>
                   CRC-validated, newest first
                 </span>
               </div>
-              <div className="table-wrap" style={{ maxHeight: 300 }}>
+              <div className="table-wrap" style={{ maxHeight: 300 }} tabIndex={0} role="region" aria-label="Latest frames table, scrolls">
                 <table className="table">
                   <thead>
                     <tr>
@@ -123,7 +123,7 @@ export function TelemetryPage() {
           <div className="stack">
             <section className="panel">
               <div className="panel-head">
-                <h3>Link health</h3>
+                <h2 className="h3">Link health</h2>
               </div>
               <dl className="readouts" style={{ margin: 0, borderRadius: 0 }}>
                 <div className="readout">
@@ -146,14 +146,14 @@ export function TelemetryPage() {
             </section>
             <section className="panel" data-events>
               <div className="panel-head">
-                <h3>Events and vehicle messages</h3>
+                <h2 className="h3">Events and vehicle messages</h2>
               </div>
               {events.length === 0 ? (
                 <p className="muted" style={{ padding: "var(--s4) var(--s5)", fontSize: "var(--t-sm)" }}>
                   Nothing yet.
                 </p>
               ) : (
-                <ul className="event-log" style={{ maxHeight: 520 }}>
+                <ul className="event-log" style={{ maxHeight: 520 }} tabIndex={0} aria-label="Events">
                   {events.map((e) => (
                     <li key={e.id} className={e.level}>
                       <span className="num">{clockTime(e.at)}</span>

@@ -57,9 +57,9 @@ export const escTypeName = (v: number) => ESC_TYPES.find((t) => t.value === v)?.
 
 export const ESC_CALIBRATION: Option[] = [
   { value: 0, label: "Normal start-up (no calibration)" },
-  { value: 1, label: "Calibrate at next boot if throttle is high" },
-  { value: 2, label: "Always calibrate at next boot" },
-  { value: 3, label: "Auto-calibrate on next boot" },
+  { value: 1, label: "Pass the throttle stick to the ESCs at the next power-up, if it is high" },
+  { value: 2, label: "Pass the throttle stick to the ESCs at the next power-up" },
+  { value: 3, label: "Auto-calibrate at the next power-up" },
   { value: 9, label: "Disabled" },
 ];
 

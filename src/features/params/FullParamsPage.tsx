@@ -147,8 +147,9 @@ export function FullParamsPage() {
   };
 
   const reboot = async () => {
-    if (vehicle?.armed) {
-      notify("error", "Disarm first", "The flight controller cannot be rebooted while armed.");
+    const block = commandLink.rebootBlock();
+    if (block) {
+      notify("error", block.title, block.body);
       return;
     }
     const ok = await confirmAction({
@@ -157,7 +158,12 @@ export function FullParamsPage() {
       confirmLabel: "Reboot",
     });
     if (!ok) return;
-    await commandLink.reboot();
+    try {
+      await commandLink.reboot();
+    } catch (e) {
+      notify("error", "Not rebooted", (e as Error).message);
+      return;
+    }
     useRebootNeeded.getState().clear();
     notify("info", "Rebooting", "Reconnect when the flight controller is back.");
   };

@@ -4,10 +4,14 @@ A web-based UAV ground control station, digital-twin workspace and flight
 simulator for Pixhawk-class multicopters. It connects to real flight
 controllers over MAVLink and is just as usable with no hardware attached.
 
-This repository is **milestone 1 — the application foundation**. It is built so
-the simulator, digital twin, calibration and command layers slot into the same
-app rather than arriving as separate demos. What is real today, and what is
-scaffolded, is listed honestly below and in the app itself.
+It takes an ArduCopter multirotor from a drawing to a flight and its review:
+frame design, firmware install, calibration, servo outputs, tuning, parameters,
+mission planning with a geofence and payload delivery, a virtual aircraft to
+rehearse on, live flight data, and flight-log analysis. What each part does, and
+what it does not, is listed below and in the app itself.
+
+The app is static files with no server. After one visit it opens with no
+internet (see Deploying), which is how a ground station is used in the field.
 
 ---
 
@@ -34,7 +38,7 @@ npm test         # run the protocol and link unit tests (Vitest)
 
 ## What works today
 
-### Vehicle Connection — real, read-only
+### Vehicle Connection — real
 - **Web Serial** connection to a flight controller over **USB** or a
   **telemetry radio** exposed as a serial device.
 - A from-scratch **MAVLink 1/2 parser** that CRC-validates every frame against
@@ -283,6 +287,45 @@ npm test         # run the protocol and link unit tests (Vitest)
 
 ---
 
+### Calibration — real
+- Accelerometer (six positions and level), gyro and compass, driven by the
+  autopilot's own prompts; "calibrated" is shown only on the autopilot's own
+  success message.
+- Radio: capture each channel's travel and save the endpoints. Nothing is
+  saved unless all four sticks reached both ends (ArduPilot refuses to arm on
+  a range short of 1300 to 1700 µs).
+- Flight modes, ESC protocol and range.
+- **ESC calibration as ArduPilot documents it.** The button sets
+  `ESC_CALIBRATION = 3` and does not restart the board: started that way,
+  ArduCopter sends full throttle to every ESC for five seconds, which only
+  teaches an ESC that is powering up at that moment. The page warns when a
+  battery is connected, and every Restart button in the app refuses while a
+  calibration is waiting.
+- Motor test with a props-off gate; motors stop when the link is interrupted
+  and when the tab or window is left.
+
+## Deploying
+
+`npm run build` writes `dist/`, which any static host can serve.
+
+- **Offline.** The build writes a service worker (`dist/sw.js`) that keeps the
+  app's own files on the device after the first visit. A new release is picked
+  up when the app is next opened; it is never swapped under a running session.
+- **Security headers.** `vercel.json` (Vercel) and `dist/_headers` (Netlify,
+  Cloudflare Pages) send the content security policy, HSTS, `nosniff`, a
+  referrer policy, a permissions policy (serial, location and clipboard only)
+  and a frame-ancestors rule. The build fails if the two files disagree. On
+  another host, send the same headers; they are listed in `vite.config.ts`.
+- **Firmware downloads.** ArduPilot's firmware server sends no CORS headers,
+  so the Firmware page fetches through `/ardupilot-firmware/` on its own host.
+  `vercel.json` and `dist/_redirects` set that up; without it the page offers
+  the download link and a file picker instead.
+- **HTTPS.** Web Serial and the offline copy both need `https://` (or
+  `http://localhost`).
+
+See `SECURITY.md` for how to report a vulnerability and how the app is built
+to resist one.
+
 ## Browser support
 
 The hardware link uses the **Web Serial API**, available in Chromium-based
@@ -374,16 +417,19 @@ first STEP import.
 
 ## Roadmap
 
-1. **Foundation & visual identity** — *this milestone*
+1. Foundation & visual identity — **done**
 2. Flight simulator — **done: physics, ArduCopter model, 3D world, faults**
 3. Digital Twin Studio (model import + orientation) — **done: STEP/mesh import + test flight**
-4. Pixhawk command layer (stream requests, parameters, commands with ACKs)
-5. Calibration & configuration (firmware-aware)
-6. Integration, testing, refinement
+4. Pixhawk command layer — **done: parameters, commands with acknowledgements and retries, missions, fences, ArduCopter-only gate**
+5. Calibration & configuration — **done: sensors, radio, flight modes, ESC, motor test, PID, parameters with ArduPilot's own documentation**
+6. Integration, testing, refinement — **done: full audit, 20 November 2026 (security, drone safety, accessibility, offline)**
 7. Mission planning — **done: real map, ground clearance, prediction, plan files**
 8. Flight logs — **done: .bin and .tlog analysis, recording, download from the aircraft, charts, replay**
 9. Firmware install — **done: latest stable ArduCopter over USB, build picked for the board, verified**
 10. Servo outputs — **done: payload release, transmitter channels, tests, Pixhawk 2.4.8 rail drawing, checked on firmware**
+11. Payload delivery — **done: drop or lower to the ground, checked on ArduCopter 4.6 and 4.7, shown in the simulator**
+
+Next: a survey grid, rally points, winch delivery, and a desktop app with native serial and network links.
 
 ## Maps and ground heights
 
@@ -423,7 +469,7 @@ and that the planner's flight-time prediction is within 15% of the flight.
 They are skipped unless pointed at a simulator binary:
 
 ```
-git clone --depth 1 --branch Copter-4.7.2 https://github.com/ArduPilot/ardupilot.git
+git clone --depth 1 --branch Copter-4.7.3 https://github.com/ArduPilot/ardupilot.git
 cd ardupilot && git submodule update --init --recursive --depth 1
 ./waf configure --board sitl && ./waf copter
 cd ../AERONEX_test
@@ -440,7 +486,7 @@ interference, power lost in the air) and keeps each `.bin` and `.tlog`;
 `LOG_FIXTURES=<folder> npx vitest run sitl/logfaults` then checks that each
 raises the right finding and the normal flight raises none.
 
-They have been run against ArduCopter 4.7.2 and 4.6.3. On GitHub, the CI
+They have been run against ArduCopter 4.7.3, 4.7.2 and 4.6.3. On GitHub, the CI
 workflow (`.github/workflows/ci.yml`) runs the type check, lint, unit tests,
 build and dependency audit on every push, and these firmware tests on both
 releases on demand and weekly. They do not replace a

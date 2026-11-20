@@ -32,6 +32,11 @@ h4 {
   letter-spacing: 0.005em;
 }
 
+/* A panel title that is the next level under the page title: an h2 that looks as the panel titles always have. */
+.h3 {
+  font-size: 1.17em;
+}
+
 p {
   margin: 0;
 }
@@ -43,6 +48,22 @@ a {
 
 a:hover {
   text-decoration: underline;
+}
+
+/* A link inside a sentence is underlined: colour alone does not mark it for everyone. */
+p a,
+li a,
+small a,
+.callout a,
+.muted a {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+p a.btn,
+li a.btn {
+  text-decoration: none;
 }
 
 button,
@@ -289,7 +310,7 @@ textarea {
   border-bottom: 1px solid var(--line-soft);
 }
 
-.panel-head h3 {
+.panel-head :is(h3, .h3) {
   font-size: var(--t-lg);
 }
 
@@ -553,7 +574,7 @@ textarea {
   border-left: 1px solid var(--line);
 }
 
-.connect-prompt-list h3 {
+.connect-prompt-list :is(h3, .h3) {
   margin: 0 0 var(--s5);
   font-size: var(--t-sm);
   font-weight: 600;

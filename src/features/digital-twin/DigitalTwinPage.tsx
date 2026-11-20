@@ -36,7 +36,7 @@ function Dropzone({ onFile, disabled }: { onFile: (f: File) => void; disabled: b
       }}
     >
       <Upload />
-      <h3>Drop your drone model here</h3>
+      <h2 className="h3">Drop your drone model here</h2>
       <p>STEP or STP from your CAD tool, or GLB, glTF, OBJ or STL. The file is read in your browser and never uploaded.</p>
       <button className="btn btn-primary" disabled={disabled} onClick={() => inputRef.current?.click()}>
         <FileUp /> Choose file
@@ -89,7 +89,7 @@ function OrientationPanel({ profileId, model }: { profileId: string; model: Extr
   return (
     <section className="panel">
       <div className="panel-head">
-        <h3>Orientation &amp; scale</h3>
+        <h2 className="h3">Orientation &amp; scale</h2>
         <button
           className="btn btn-ghost"
           style={{ height: 30 }}
@@ -205,7 +205,7 @@ export function DigitalTwinPage() {
       <div className="page-pad">
         <div className="empty">
           <Box />
-          <h3>No aircraft profile</h3>
+          <h2 className="h3">No aircraft profile</h2>
           <p>Create a profile first — the model is saved with it.</p>
         </div>
       </div>
@@ -254,7 +254,7 @@ export function DigitalTwinPage() {
         <section className="panel">
           <div className="empty">
             <Box />
-            <h3>WebGL 2 isn&rsquo;t available</h3>
+            <h2 className="h3">WebGL 2 isn&rsquo;t available</h2>
             <p>The 3D viewport needs WebGL 2. Everything else in the app still works.</p>
           </div>
         </section>
@@ -323,7 +323,7 @@ export function DigitalTwinPage() {
             {imported && (
               <section className="panel">
                 <div className="panel-head">
-                  <h3>Imported model</h3>
+                  <h2 className="h3">Imported model</h2>
                   <span className="muted" style={{ fontSize: "var(--t-sm)" }}>
                     {FORMAT_LABEL[imported.format]}
                   </span>
@@ -367,7 +367,7 @@ export function DigitalTwinPage() {
             )}
             <section className="panel">
               <div className="panel-head">
-                <h3>How to test it</h3>
+                <h2 className="h3">How to test it</h2>
               </div>
               <ol className="test-steps">
                 <li>

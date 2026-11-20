@@ -563,6 +563,8 @@ export function MissionPlanningPage() {
 
   const flyNow = () =>
     order("Fly the mission", async () => {
+      // These arm and fly with one press. Only the virtual aircraft is ever flown from a button like this, whatever put the button on screen.
+      if (!useLink.getState().virtual) throw new Error("This flies the virtual aircraft only. A real aircraft is linked: fly it from your transmitter.");
       await commandLink.uploadMission(mission);
       useSentMission.getState().set(steps);
       // Hang the payloads on the virtual aircraft, as if loaded on the ground. Its own gripper and servo settings decide whether they let go.
@@ -667,7 +669,7 @@ export function MissionPlanningPage() {
       <div className="mp-grid">
         <section className="panel mp-map">
           <div className="panel-head">
-            <h3>Route</h3>
+            <h2 className="h3">Route</h2>
             <div className="segmented mp-world" role="group" aria-label="What the route is drawn on" title={simWorld ? "The virtual aircraft is flying in this world. Stop it to change." : undefined}>
               <button aria-pressed={real} disabled={!!simWorld} onClick={() => { sim.set("terrain", "real"); setResult(null); }}>
                 <Globe /> Real map
@@ -778,7 +780,7 @@ export function MissionPlanningPage() {
           </div>
           <section className="panel" id="mp-plan" role="tabpanel" aria-labelledby="mp-tab-plan" hidden={tab !== "plan"}>
             <div className="panel-head">
-              <h3>Plan</h3>
+              <h2 className="h3">Plan</h2>
               <div className="mp-tools" role="group" aria-label="Plan tools">
                 <button className="icon-btn" disabled={!sim.canUndo} onClick={() => { sim.undo(); setResult(null); }} aria-label="Undo" title="Undo (Ctrl Z)">
                   <Undo2 />
@@ -1005,7 +1007,7 @@ export function MissionPlanningPage() {
 
           <section className="panel" id="mp-fence" role="tabpanel" aria-labelledby="mp-tab-fence" hidden={tab !== "fence"}>
             <div className="panel-head">
-              <h3>Geofence</h3>
+              <h2 className="h3">Geofence</h2>
             </div>
             <FencePanel
               home={sim.home}
@@ -1027,7 +1029,7 @@ export function MissionPlanningPage() {
 
           <section className="panel" id="mp-predict" role="tabpanel" aria-labelledby="mp-tab-predict" hidden={tab !== "predict"}>
             <div className="panel-head">
-              <h3>Predict this flight</h3>
+              <h2 className="h3">Predict this flight</h2>
             </div>
             <div className="panel-body mp-predict">
               <p className="mp-source">
@@ -1108,7 +1110,7 @@ export function MissionPlanningPage() {
               <div className="mp-verdict">
                 {v.tone === "ok" ? <CircleCheck /> : v.tone === "bad" ? <CircleX /> : <TriangleAlert />}
                 <div>
-                  <h3>{v.title}</h3>
+                  <h2 className="h3">{v.title}</h2>
                   <p>{result.headline}</p>
                 </div>
               </div>
@@ -1129,7 +1131,7 @@ export function MissionPlanningPage() {
               <div className="mp-cols">
                 <div>
                   <h4>What it means</h4>
-                  <ul className="mp-findings">
+                  <ul className="mp-findings" tabIndex={0} aria-label="What the prediction found">
                     {result.findings.map((f) => (
                       <li key={f.text} className={f.sev}>
                         {f.text}

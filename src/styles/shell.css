@@ -985,7 +985,7 @@ kbd {
   color: var(--ink);
 }
 
-.help-body h3 {
+.help-body :is(h3, .h3) {
   font-family: var(--font-ui);
   font-size: var(--t-sm);
   font-weight: 700;
@@ -1571,7 +1571,7 @@ kbd {
   line-height: 1.55;
 }
 
-.as-setup h3 {
+.as-setup :is(h3, .h3) {
   display: flex;
   align-items: center;
   gap: var(--s2);
@@ -1581,7 +1581,7 @@ kbd {
   color: var(--ink);
 }
 
-.as-setup h3 svg {
+.as-setup :is(h3, .h3) svg {
   width: 16px;
   height: 16px;
   color: var(--accent);

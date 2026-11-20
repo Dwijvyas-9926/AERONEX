@@ -52,7 +52,7 @@ function Column({ o, x, y, num, p, live }: { o: Output; x: number; y: number; nu
       role="button"
       tabIndex={0}
       aria-pressed={sel}
-      aria-label={`${o.port.long}, SERVO${o.servo}: ${info.label}${live ? `, ${live} microseconds` : ""}`}
+      aria-label={`${num} ${shortName(o)}: ${o.port.long}, SERVO${o.servo}, ${info.label}${live ? `, ${live} microseconds` : ""}`}
       onClick={() => p.onSelect(o.servo)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {

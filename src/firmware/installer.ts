@@ -16,6 +16,7 @@
   - A board picked while running its firmware is sent the same restart
     command over the port, and the bootloader picked or caught after it.
 */
+import { useParams } from "../state/paramStore";
 import { create } from "zustand";
 import { encode } from "../mavlink/encode";
 import { commandLink } from "../services/link/commandLink";
@@ -363,6 +364,9 @@ export async function restartLinkedIntoBootloader() {
   const s = useLink.getState();
   if (!s.vehicle || s.virtual) return fail("No aircraft linked", "Connect the board over USB first, or use Find the board.");
   if (s.vehicle.armed) return fail("The aircraft is armed", "Disarm before installing firmware.");
+  // New firmware starts with the old settings: an ESC calibration left waiting would run on its first start.
+  const esc = useParams.getState().values.ESC_CALIBRATION;
+  if (esc === 2 || esc === 3) return fail("An ESC calibration is waiting", "ESC_CALIBRATION is set, so the board sends full throttle to the ESCs the next time it starts, with the new firmware too. Clear the calibration flag on the Calibration page (ESC tab) first, or finish the calibration.");
   const info = linkManager.linkedPortInfo();
   if (!info || !isFlightControllerPort(info)) {
     return fail(

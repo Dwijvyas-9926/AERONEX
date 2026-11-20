@@ -246,7 +246,7 @@ export function FrameStudioPage() {
         {/* ------------------------------------------------------ inputs */}
         <section className="panel fs-inputs">
           <div className="panel-head">
-            <h3>{STEPS[stepIndex].label}</h3>
+            <h2 className="h3">{STEPS[stepIndex].label}</h2>
             <span className="pill">{stepIndex + 1} / {STEPS.length}</span>
           </div>
           <div className="panel-body">
@@ -723,7 +723,7 @@ export function FrameStudioPage() {
                       within their stress and deflection limits, and the aircraft has the thrust to fly. Go and make it.
                     </p>
                   ) : (
-                    <ul className="fs-findings">
+                    <ul className="fs-findings" tabIndex={0} aria-label="Design check findings">
                       {[...errors, ...warns].map((f) => <FindingRow key={f.id} f={f} />)}
                     </ul>
                   )}
@@ -816,7 +816,7 @@ export function FrameStudioPage() {
         {/* ----------------------------------------------------- results */}
         <section className="panel fs-results">
           <div className="panel-head">
-            <h3>Worked out</h3>
+            <h2 className="h3">Worked out</h2>
           </div>
           <div className="panel-body">
             <div className="fs-stats">

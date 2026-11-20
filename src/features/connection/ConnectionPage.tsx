@@ -17,7 +17,7 @@ function Unsupported() {
     <section className="panel">
       <div className="empty">
         <Usb />
-        <h3>{secure ? `${browserName()} can't talk to serial devices` : "Serial access needs a secure page"}</h3>
+        <h2 className="h3">{secure ? `${browserName()} can't talk to serial devices` : "Serial access needs a secure page"}</h2>
         <p>
           {secure
             ? "Connecting a flight controller from the browser uses the Web Serial API, which is available in Chrome, Edge and Opera on desktop. Firefox and Safari don't support it."
@@ -249,7 +249,7 @@ function VehiclePanels() {
     <>
       <section className="panel">
         <div className="panel-head">
-          <h3>Discovered vehicle</h3>
+          <h2 className="h3">Discovered vehicle</h2>
           <span className={`pill ${status === "connected" ? "ok" : "warn"}`}>{status === "connected" ? "Heartbeat OK" : LINK_STATUS[status].label}</span>
         </div>
         <dl className="readouts" style={{ margin: 0, borderRadius: 0 }}>
@@ -294,7 +294,7 @@ function VehiclePanels() {
 
       <section className="panel">
         <div className="panel-head">
-          <h3>{virtual ? "Simulated telemetry" : "Live telemetry"}</h3>
+          <h2 className="h3">{virtual ? "Simulated telemetry" : "Live telemetry"}</h2>
           <span className="muted" style={{ fontSize: "var(--t-sm)" }}>
             Shown only when the vehicle sends it
           </span>
@@ -363,7 +363,7 @@ function VehiclePanels() {
       {tel.radio && (
         <section className="panel">
           <div className="panel-head">
-            <h3>Telemetry radio</h3>
+            <h2 className="h3">Telemetry radio</h2>
             <span className="muted" style={{ fontSize: "var(--t-sm)" }}>
               Reported by the radio, {ago(tel.radio.at, now)}
             </span>
@@ -429,7 +429,7 @@ function Diagnostics() {
             Nothing yet.
           </p>
         ) : (
-          <ul className="event-log">
+          <ul className="event-log" tabIndex={0} aria-label="Events">
             {events.slice(0, 40).map((e) => (
               <li key={e.id} className={e.level}>
                 <span className="num">{clockTime(e.at)}</span>
@@ -449,7 +449,7 @@ function RadioPrereqs() {
   return (
     <section className="panel">
       <div className="panel-head">
-        <h3>Before you connect by radio</h3>
+        <h2 className="h3">Before you connect by radio</h2>
       </div>
       <ul className="plan-list" style={{ padding: "0 var(--s5)" }}>
         {[
@@ -539,7 +539,7 @@ export function ConnectionPage() {
           <div className="stack">
             <section className="panel">
               <div className="panel-head">
-                <h3>What this link does</h3>
+                <h2 className="h3">What this link does</h2>
               </div>
               <div className="panel-body" style={{ display: "grid", gap: "var(--s3)", fontSize: "var(--t-sm)", color: "var(--ink-2)" }}>
                 <p>
