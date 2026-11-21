@@ -1,1 +1,3 @@
-- AERONEX's home on GitHub is now github.com/Dwijvyas-9926/AERONEX. Updates come from there from this version on.
+- Installing firmware now works in the Windows app: downloads from ArduPilot's firmware server pass through AERONEX itself, instead of falling back to a file to download by hand.
+- The About page, the guide, the assistant and other pages now describe the Windows app correctly: data is kept on this computer, ports are chosen in AERONEX's own list, and the assistant knows how updates and storage work here.
+- Fixed the assistant's instructions, which wrongly listed flight logs and firmware installing as things AERONEX cannot do.

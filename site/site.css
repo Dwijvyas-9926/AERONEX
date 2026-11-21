@@ -1,0 +1,548 @@
+/* AERONEX download site. The app's own palette and type, one page. */
+
+@font-face {
+  font-family: "Manrope";
+  src: url("/fonts/manrope-latin-wght-normal.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Saira Semi Condensed";
+  src: url("/fonts/saira-semi-condensed-latin-600-normal.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Saira Semi Condensed";
+  src: url("/fonts/saira-semi-condensed-latin-700-normal.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+
+:root {
+  --page: #f6f3ec;
+  --well: #ece7dd;
+  --card: #fdfcf8;
+  --line: #dad3c4;
+  --ink: #14213d;
+  --ink-2: #33405c;
+  --muted: #56617a;
+  --accent: #a8470f;
+  --accent-hover: #8e3b0b;
+  --brand-orange: #d95f0a;
+  /* The flight display's colours, for the safety band. */
+  --pfd: #0d1629;
+  --pfd-2: #13213f;
+  --pfd-ink: #f4f2ec;
+  --pfd-muted: #b8c0cf;
+  --pfd-line: rgba(244, 242, 236, 0.16);
+  --pfd-accent: #f4a259;
+  --display: "Saira Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --text: "Manrope", system-ui, sans-serif;
+  --gutter: clamp(16px, 5vw, 72px);
+  --measure: 62ch;
+}
+
+* {
+  box-sizing: border-box;
+}
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink-2);
+  font: 400 17px/1.6 var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+a {
+  color: var(--accent);
+  text-underline-offset: 3px;
+}
+a:hover {
+  color: var(--accent-hover);
+}
+:focus-visible {
+  outline: 3px solid var(--brand-orange);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+h1,
+h2,
+h3 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--display);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.005em;
+}
+h2 {
+  font-size: clamp(32px, 4.2vw, 52px);
+}
+h3 {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+code {
+  font-family: var(--text);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+.skip:focus {
+  left: 16px;
+  top: 16px;
+  z-index: 10;
+  background: var(--card);
+  padding: 8px 12px;
+}
+
+/* ---------- header ---------- */
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px var(--gutter);
+}
+.lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+.lockup img {
+  border-radius: 9px;
+}
+.word {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 26px;
+  letter-spacing: 0.12em;
+  color: var(--ink);
+}
+.word em {
+  font-style: normal;
+  color: var(--brand-orange);
+}
+.top nav {
+  display: flex;
+  gap: 28px;
+  font-weight: 600;
+  font-size: 15px;
+}
+.top nav a {
+  color: var(--ink-2);
+  text-decoration: none;
+}
+.top nav a:hover {
+  color: var(--accent);
+}
+
+/* ---------- hero ---------- */
+.hero {
+  padding: clamp(32px, 6vw, 88px) 0 0 var(--gutter);
+  display: grid;
+  gap: clamp(36px, 5vw, 64px);
+}
+.hero-text {
+  padding-right: var(--gutter);
+  max-width: 1100px;
+}
+.hero h1 {
+  font-size: clamp(48px, 8.4vw, 124px);
+  line-height: 0.92;
+  max-width: 13ch;
+}
+.lede {
+  margin: 28px 0 0;
+  max-width: 58ch;
+  font-size: clamp(18px, 1.6vw, 21px);
+  color: var(--ink-2);
+}
+.get {
+  margin-top: 36px;
+}
+.btn-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 28px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 18px;
+  text-decoration: none;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.2) inset, 0 10px 24px -12px rgba(168, 71, 15, 0.7);
+  transition: background 0.15s ease;
+}
+.btn-download:hover {
+  background: var(--accent-hover);
+  color: #fff;
+}
+.get-meta {
+  margin: 14px 0 0;
+  font-size: 15px;
+  color: var(--muted);
+}
+.get-meta a {
+  font-weight: 600;
+}
+.get-other {
+  margin: 10px 0 0;
+  max-width: 52ch;
+  font-size: 15px;
+  color: var(--ink-2);
+}
+
+/* The product, as it is: a framed screenshot that runs off the right edge. */
+.shot {
+  margin: 0;
+}
+.shot img {
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--well);
+  box-shadow: 0 30px 60px -30px rgba(20, 33, 61, 0.45), 0 2px 6px rgba(20, 33, 61, 0.06);
+}
+.shot-hero img {
+  border-radius: 16px 0 0 16px;
+  border-right: 0;
+  width: 100%;
+}
+
+/* ---------- sections ---------- */
+.band {
+  padding: clamp(72px, 10vw, 140px) var(--gutter) 0;
+}
+.section-lede {
+  margin: 20px 0 0;
+  max-width: var(--measure);
+  font-size: 18px;
+}
+
+/* The four stages: a route with four stops, as the app's side menu numbers them. */
+.stages {
+  list-style: none;
+  counter-reset: stage;
+  margin: 56px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  border-top: 2px solid var(--ink);
+}
+.stages li {
+  counter-increment: stage;
+  position: relative;
+  padding: 36px 28px 0 0;
+}
+.stages li::before {
+  content: counter(stage);
+  position: absolute;
+  top: -15px;
+  left: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--page);
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  font: 700 14px/24px var(--text);
+  text-align: center;
+}
+.stages li:first-child::before {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.stages h3 {
+  font-size: 30px;
+}
+.stages p {
+  margin: 12px 0 0;
+  font-size: 16px;
+}
+.stages .pages {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.gallery {
+  margin-top: clamp(56px, 8vw, 104px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(48px, 6vw, 80px) 32px;
+}
+/* The simulator, large, with its caption beside it; the other two below, side by side. */
+.shot-wide {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr);
+  gap: 32px;
+  align-items: end;
+}
+.shot-wide figcaption {
+  font-size: 18px;
+}
+.gallery figcaption {
+  margin-top: 16px;
+  max-width: 52ch;
+  font-size: 16px;
+}
+.gallery figcaption strong {
+  color: var(--ink);
+}
+
+/* ---------- safety: the flight display's own colours ---------- */
+.panel-dark {
+  margin-top: clamp(72px, 10vw, 140px);
+  background: radial-gradient(120% 140% at 100% 0%, var(--pfd-2) 0%, var(--pfd) 60%);
+  color: var(--pfd-muted);
+}
+.panel-dark-inner {
+  padding: clamp(64px, 9vw, 120px) var(--gutter);
+  position: relative;
+}
+/* A horizon line and centre mark, as on the attitude indicator. */
+.panel-dark-inner::before {
+  content: "";
+  position: absolute;
+  left: var(--gutter);
+  right: var(--gutter);
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--pfd-accent) 12%, var(--pfd-accent) 88%, transparent);
+  opacity: 0.85;
+}
+.panel-dark h2 {
+  color: var(--pfd-ink);
+}
+.panel-dark .section-lede {
+  color: var(--pfd-muted);
+}
+.rules {
+  margin: 56px 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0 48px;
+}
+.rules > div {
+  padding: 22px 0;
+  border-top: 1px solid var(--pfd-line);
+}
+.rules dt {
+  color: var(--pfd-ink);
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.2;
+}
+.rules dt::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 12px;
+  border: 2px solid var(--pfd-accent);
+  transform: rotate(45deg) translateY(-3px);
+}
+.rules dd {
+  margin: 8px 0 0 26px;
+  font-size: 16px;
+}
+.caveat {
+  margin: 40px 0 0;
+  max-width: var(--measure);
+  padding-left: 16px;
+  border-left: 2px solid var(--pfd-accent);
+  color: var(--pfd-ink);
+  font-size: 15px;
+}
+
+/* ---------- install ---------- */
+.steps {
+  list-style: none;
+  counter-reset: step;
+  margin: 48px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  max-width: 880px;
+}
+.steps li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  column-gap: 8px;
+  padding: 24px 0;
+  border-top: 1px solid var(--line);
+}
+.steps li::before {
+  content: counter(step);
+  grid-row: span 2;
+  font: 700 40px/1 var(--display);
+  color: var(--accent);
+}
+.steps p {
+  margin: 8px 0 0;
+  max-width: var(--measure);
+}
+
+.facts {
+  margin-top: clamp(56px, 8vw, 96px);
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.3fr;
+  gap: 32px;
+}
+.facts section {
+  padding: 28px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.facts p,
+.facts ul {
+  margin: 12px 0 0;
+  font-size: 16px;
+}
+.facts ul {
+  padding-left: 18px;
+}
+.facts li + li {
+  margin-top: 6px;
+}
+
+.news {
+  padding: clamp(72px, 10vw, 120px) var(--gutter) 0;
+  max-width: calc(880px + 2 * var(--gutter));
+}
+.news h2 {
+  font-size: clamp(28px, 3vw, 38px);
+}
+.news-list {
+  margin: 20px 0 0;
+  padding-left: 20px;
+}
+.news-list li + li {
+  margin-top: 8px;
+}
+
+/* ---------- footer ---------- */
+.foot {
+  margin-top: clamp(80px, 10vw, 140px);
+  padding: 40px var(--gutter) 48px;
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px 48px;
+  font-size: 15px;
+}
+.foot p {
+  margin: 10px 0 0;
+}
+.foot ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+}
+.lockup-small .word {
+  font-size: 18px;
+}
+.lockup-small img {
+  border-radius: 6px;
+}
+.fine {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ---------- the privacy page ---------- */
+.doc {
+  padding: clamp(40px, 6vw, 80px) var(--gutter) 0;
+  max-width: calc(760px + 2 * var(--gutter));
+}
+.doc h1 {
+  font-size: clamp(44px, 6vw, 72px);
+}
+.doc h2 {
+  margin-top: 48px;
+  font-size: 30px;
+}
+.doc p,
+.doc li {
+  max-width: var(--measure);
+}
+.doc .updated {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+/* ---------- narrower screens ---------- */
+@media (max-width: 1000px) {
+  .stages {
+    grid-template-columns: 1fr 1fr;
+    border-top: 0;
+    gap: 40px 24px;
+  }
+  .stages li {
+    border-top: 2px solid var(--ink);
+  }
+  .gallery,
+  .facts {
+    grid-template-columns: 1fr;
+  }
+  .shot-wide {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .rules {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 640px) {
+  body {
+    font-size: 16px;
+  }
+  .top nav a:not(:last-child) {
+    display: none;
+  }
+  .stages {
+    grid-template-columns: 1fr;
+  }
+  .btn-download {
+    width: 100%;
+    justify-content: center;
+  }
+  .steps li {
+    grid-template-columns: 40px 1fr;
+  }
+  .steps li::before {
+    font-size: 32px;
+  }
+  .foot {
+    grid-template-columns: 1fr;
+  }
+}

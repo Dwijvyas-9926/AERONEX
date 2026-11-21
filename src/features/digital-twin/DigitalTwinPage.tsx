@@ -14,6 +14,7 @@ import type { ModelDescriptor } from "../../vehicle/types";
 import { FlightHud } from "./FlightHud";
 import { useKeys } from "./useKeys";
 import type { TwinMode } from "./TwinScene";
+import { DESKTOP } from "../../desktop/wording";
 
 const TwinScene = lazy(() => import("./TwinScene"));
 
@@ -37,7 +38,7 @@ function Dropzone({ onFile, disabled }: { onFile: (f: File) => void; disabled: b
     >
       <Upload />
       <h2 className="h3">Drop your drone model here</h2>
-      <p>STEP or STP from your CAD tool, or GLB, glTF, OBJ or STL. The file is read in your browser and never uploaded.</p>
+      <p>STEP or STP from your CAD tool, or GLB, glTF, OBJ or STL. The file is read {DESKTOP ? "on your computer" : "in your browser"} and never uploaded.</p>
       <button className="btn btn-primary" disabled={disabled} onClick={() => inputRef.current?.click()}>
         <FileUp /> Choose file
       </button>

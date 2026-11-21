@@ -6,6 +6,7 @@ import { notify } from "../../state/notifyStore";
 import { commandLink, vehicleBlock } from "../../services/link/commandLink";
 import { useLink } from "../../state/linkStore";
 import { DEFAULT_CONFIG, FlightController, type FlightDeps, type FlightState, type KeyState, type LogLevel } from "./flightController";
+import { APP_WINDOW } from "../../desktop/wording";
 
 const DEG = 180 / Math.PI;
 const fresh = (at: number | undefined) => at != null && Date.now() - at < 3000;
@@ -298,7 +299,7 @@ export function KeyboardFlightPage() {
       ) : (
         <div className="callout danger">
           <TriangleAlert />
-          <span><strong>Real flight.</strong> Props on, open area, everyone clear. Keep this browser tab focused — if it loses focus the drone holds, and if it disconnects the drone lands itself.</span>
+          <span><strong>Real flight.</strong> Props on, open area, everyone clear. Keep {APP_WINDOW} focused — if it loses focus the drone holds, and if it disconnects the drone lands itself.</span>
         </div>
       )}
 

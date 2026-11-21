@@ -6,6 +6,7 @@
   the same four questions in the same order, so the panel is predictable: a
   reader who has opened it on one page knows where to look on the next.
 */
+import { DESKTOP, KEPT_HERE } from "../desktop/wording";
 export interface Guide {
   /** One or two sentences: what this page is for. */
   purpose: string;
@@ -83,7 +84,7 @@ export const GUIDES: Record<string, Guide> = {
     ],
     steps: [
       "Choose USB cable or Telemetry radio.",
-      "Press Connect and pick your device from the list the browser shows.",
+      `Press Connect and pick your device from the list ${DESKTOP ? "AERONEX" : "the browser"} shows.`,
       "Wait a few seconds for the status to turn to Connected.",
       "Nothing arriving? Try the other baud rate: 115,200 for USB, 57,600 for most radios.",
     ],
@@ -326,7 +327,7 @@ export const GUIDES: Record<string, Guide> = {
       "Choose Metric or Imperial for heights and speeds.",
       "Paste an Anthropic API key to turn on the assistant, and choose whether it may search the web and see the linked aircraft.",
     ],
-    terms: [["API key", "A password that lets the app use an online service on your behalf. It stays in this browser."]],
+    terms: [["API key", `A password that lets the app use an online service on your behalf. It stays ${KEPT_HERE}.`]],
   },
 };
 

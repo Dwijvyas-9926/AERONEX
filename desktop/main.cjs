@@ -31,6 +31,7 @@ const {
   dialog,
   ipcMain,
   nativeTheme,
+  net,
   protocol,
   safeStorage,
   session,
@@ -40,6 +41,7 @@ const fs = require("node:fs");
 const fsp = require("node:fs/promises");
 const path = require("node:path");
 const { createUpdater } = require("./updater.cjs");
+const { proxyFirmware } = require("./firmwareProxy.cjs");
 
 const APP_SCHEME = "aeronex";
 const ROOT = path.join(__dirname, "..", "dist");
@@ -93,6 +95,9 @@ const TYPES = {
  * out of `dist` is refused rather than resolved.
  */
 async function serve(request) {
+  // Firmware downloads pass through to ArduPilot's server (firmwareProxy.cjs).
+  const firmware = proxyFirmware(request, (u, init) => net.fetch(u, init));
+  if (firmware) return firmware;
   const url = new URL(request.url);
   let rel = decodeURIComponent(url.pathname);
   if (rel === "/" || rel === "") rel = "/index.html";

@@ -223,7 +223,7 @@ export function SettingsPage() {
           <div className="setting">
             <div>
               <strong>Record telemetry logs</strong>
-              <p>Keep a telemetry log (.tlog) of every session linked to an aircraft, real or virtual, in the Flight Logs library. It opens there and in Mission Planner, QGroundControl and MAVProxy. Kept in this browser only.</p>
+              <p>Keep a telemetry log (.tlog) of every session linked to an aircraft, real or virtual, in the Flight Logs library. It opens there and in Mission Planner, QGroundControl and MAVProxy. Kept {isDesktop() ? "on this computer" : "in this browser"} only.</p>
             </div>
             <Segmented
               label="Record telemetry logs"

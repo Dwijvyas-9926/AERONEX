@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AERONEX Ground Station for Windows</title>
+    <meta name="description" content="AERONEX is a free, open-source ground station for ArduCopter drones on Windows: set up a Pixhawk, rehearse in a simulator, plan missions, fly and review the logs." />
+    <meta property="og:title" content="AERONEX Ground Station for Windows" />
+    <meta property="og:description" content="A free, open-source ground station for ArduCopter drones. Set up, rehearse, fly and review." />
+    <meta property="og:image" content="/img/social-card.png" />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#f6f3ec" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" href="/img/favicon-32.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+    <link rel="preload" href="/fonts/saira-semi-condensed-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/site.css" />
+    <script type="module" src="/download.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the page</a>
+    <header class="top">
+      <a class="lockup" href="/" aria-label="AERONEX Ground Station, home">
+        <img src="/img/icon.png" alt="" width="36" height="36" />
+        <span class="word">AERONE<em>X</em></span>
+      </a>
+      <nav aria-label="Site">
+        <a href="#what">What it does</a>
+        <a href="#safety">Safety</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/Dwijvyas-9926/AERONEX">Source code</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-text">
+          <h1 id="hero-title">Ground control for ArduCopter, on Windows.</h1>
+          <p class="lede">
+            Set up a Pixhawk, rehearse in a simulator, plan a mission over real ground, fly it, and find out afterwards what went wrong. One app, free
+            and open source.
+          </p>
+          <div class="get" data-download>
+            <a class="btn-download" href="https://github.com/Dwijvyas-9926/AERONEX/releases/latest" data-download-link>
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              <span data-download-label>Download for Windows</span>
+            </a>
+            <p class="get-meta" data-download-meta>Windows 10 and 11, 64-bit. Free.</p>
+            <p class="get-other" data-not-windows hidden>
+              AERONEX runs on Windows for now. Download it here for a Windows PC; versions for macOS and Linux are not available yet.
+            </p>
+          </div>
+        </div>
+        <figure class="shot shot-hero">
+          <img src="/img/overview.webp" width="2400" height="1500" alt="AERONEX's Overview page: the aircraft in 3D over a valley, with a live instrument panel, and the side menu of Design, Set up, Fly and Review." />
+        </figure>
+      </section>
+
+      <section id="what" class="band" aria-labelledby="what-title">
+        <h2 id="what-title">From a drawing to a reviewed flight</h2>
+        <p class="section-lede">Four stages, in the order you would do them. Every page works without the ones before it, and the built-in virtual aircraft stands in for hardware until you plug a flight controller in.</p>
+        <ol class="stages">
+          <li>
+            <h3>Design</h3>
+            <p>Draw a frame around the parts you own and get files to cut or print. Import your 3D model and check which way is forward.</p>
+            <p class="pages">Frame Studio, Digital Twin</p>
+          </li>
+          <li>
+            <h3>Set up</h3>
+            <p>Link the Pixhawk by USB or telemetry radio, install ArduCopter, calibrate the sensors, set the outputs and tune how it flies.</p>
+            <p class="pages">Connection, Firmware, Calibration, Servo Outputs, PID Tuning, Parameters</p>
+          </li>
+          <li>
+            <h3>Fly</h3>
+            <p>Get a go or no-go before arming, rehearse in the simulator, plan a mission over measured ground, then fly it and watch it live.</p>
+            <p class="pages">Preflight Check, Flight Simulator, Mission Planning, Flight Data</p>
+          </li>
+          <li>
+            <h3>Review</h3>
+            <p>Open the flight log: what went wrong, every reading charted, and the flight replayed in 3D. A health scan says what to fix.</p>
+            <p class="pages">Flight Logs, Drone Doctor, Telemetry</p>
+          </li>
+        </ol>
+
+        <div class="gallery">
+          <figure class="shot shot-wide">
+            <img src="/img/simulator.webp" width="1600" height="1000" loading="lazy" alt="The Flight Simulator: a virtual quadcopter on a landing pad, with take-off, mission, hold, return and land controls." />
+            <figcaption><strong>Rehearse first.</strong> The virtual aircraft speaks MAVLink like a real one, so every page can be learned and every mission flown before a propeller turns.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="/img/missions.webp" width="1600" height="1000" loading="lazy" alt="Mission Planning: a five-waypoint route drawn on the practice field, with its length, flight time and height listed." />
+            <figcaption><strong>Plan over real ground.</strong> Routes are checked against the terrain, the fence and the battery as you draw, then read back from the aircraft after sending.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="/img/flight-data.webp" width="1600" height="1000" loading="lazy" alt="Flight Data: a primary flight display with attitude, heading, speed and height tapes." />
+            <figcaption><strong>Fly with the instruments.</strong> A primary flight display with attitude, heading, speed and height, fed live from the aircraft.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="safety" class="panel-dark" aria-labelledby="safety-title">
+        <div class="panel-dark-inner">
+          <h2 id="safety-title">Built not to hurt the aircraft</h2>
+          <p class="section-lede">Each of these is enforced by the app, and checked against ArduPilot's own simulator build of ArduCopter 4.6 and 4.7 for every release.</p>
+          <dl class="rules">
+            <div>
+              <dt>Commands for ArduCopter only</dt>
+              <dd>Any other autopilot is shown and read, never commanded.</dd>
+            </div>
+            <div>
+              <dt>Every command confirmed</dt>
+              <dd>Each waits for the aircraft's acknowledgement. A refusal is reported in plain words, never assumed to have worked.</dd>
+            </div>
+            <div>
+              <dt>No settings changed in flight</dt>
+              <dd>Nothing is written to an armed aircraft without your confirmation, and the board cannot be restarted while armed.</dd>
+            </div>
+            <div>
+              <dt>The autopilot's own pre-arm checks</dt>
+              <dd>Preflight Check follows ArduCopter's verdict and adds battery, GPS and link checks on top. It never overrides it.</dd>
+            </div>
+            <div>
+              <dt>Motors only on purpose</dt>
+              <dd>Motor tests need the propellers-off box ticked and stop when the link drops or you leave the window.</dd>
+            </div>
+            <div>
+              <dt>Firmware installed with care</dt>
+              <dd>Matched to the board's identity, only on a disarmed aircraft, and every byte read back before the board restarts.</dd>
+            </div>
+            <div>
+              <dt>Missions checked twice</dt>
+              <dd>Sending needs a GPS fix and a disarmed aircraft, and the mission is read back and compared afterwards.</dd>
+            </div>
+            <div>
+              <dt>Updates wait for you</dt>
+              <dd>AERONEX never restarts to update while a flight controller is connected or firmware is being installed.</dd>
+            </div>
+          </dl>
+          <p class="caveat">AERONEX is not flight-certified. The pilot is responsible for every flight: fly within the law, keep clear of people, and test on your own hardware with the propellers off before you rely on it.</p>
+        </div>
+      </section>
+
+      <section id="install" class="band" aria-labelledby="install-title">
+        <h2 id="install-title">Installing</h2>
+        <ol class="steps">
+          <li>
+            <h3>Download and run the installer</h3>
+            <p>Use the button at the top of this page. It always gives the latest version, straight from the project's GitHub releases.</p>
+          </li>
+          <li>
+            <h3>If Windows says "Windows protected your PC"</h3>
+            <p>
+              AERONEX is not code-signed yet, so Windows does not recognise the publisher. Click <strong>More info</strong>, check the file is
+              <code>AERONEX-Setup</code> followed by the version, then click <strong>Run anyway</strong>. Only run an installer you downloaded from this
+              page or from the GitHub releases.
+            </p>
+          </li>
+          <li>
+            <h3>Set it up</h3>
+            <p>Choose where to install. On first launch AERONEX asks for your name and describes your first aircraft. Both stay on your computer.</p>
+          </li>
+          <li>
+            <h3>Connect the aircraft</h3>
+            <p>Plug the Pixhawk in by USB, or the telemetry radio, click <strong>Connect</strong> and pick its port. Start with the propellers off.</p>
+          </li>
+        </ol>
+
+        <div class="facts">
+          <section>
+            <h3>Updates</h3>
+            <p>AERONEX looks for a new version when it starts and every few hours, downloads it in the background and asks before restarting. It never restarts while an aircraft is connected.</p>
+          </section>
+          <section>
+            <h3>Your data</h3>
+            <p>No account and no analytics. Aircraft, missions, logs and settings stay on your computer; API keys are encrypted by Windows. <a href="/privacy.html">What leaves your computer</a></p>
+          </section>
+          <section>
+            <h3>What you need</h3>
+            <ul>
+              <li>Windows 10 or 11, 64-bit, and about 350 MB of disk space</li>
+              <li>A Pixhawk 2.4.8, Holybro Pixhawk 6C Mini or another MAVLink board running ArduCopter 4.6 or 4.7</li>
+              <li>A USB cable, or a telemetry radio that shows up as a COM port</li>
+              <li>Nothing else for the simulator; internet only for maps, firmware and updates</li>
+            </ul>
+          </section>
+        </div>
+      </section>
+
+      <section class="news" aria-labelledby="news-title" data-release hidden>
+        <h2 id="news-title" data-release-title>What's new</h2>
+        <ul class="news-list" data-release-notes></ul>
+        <p><a href="https://github.com/Dwijvyas-9926/AERONEX/releases">Every version and its notes</a></p>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <div>
+        <a class="lockup lockup-small" href="/"><img src="/img/icon.png" alt="" width="24" height="24" /><span class="word">AERONE<em>X</em></span></a>
+        <p>Made by Dwij Vyas. Open source under the <a href="https://github.com/Dwijvyas-9926/AERONEX/blob/main/LICENSE">Apache License 2.0</a>.</p>
+      </div>
+      <ul>
+        <li><a href="https://github.com/Dwijvyas-9926/AERONEX">Source code</a></li>
+        <li><a href="https://github.com/Dwijvyas-9926/AERONEX/releases">All versions</a></li>
+        <li><a href="/privacy.html">Privacy</a></li>
+        <li><a href="https://github.com/Dwijvyas-9926/AERONEX/security">Report a security problem</a></li>
+      </ul>
+      <p class="fine">AERONEX is an independent project, not affiliated with or endorsed by ArduPilot or Holybro. ArduPilot, ArduCopter and Pixhawk are names of their respective owners.</p>
+    </footer>
+  </body>
+</html>

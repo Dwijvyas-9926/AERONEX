@@ -25,9 +25,11 @@ jobs:
   windows:
     runs-on: windows-latest
     timeout-minutes: 30
-    # One release at a time: two pushes of the same new version must not both publish it.
+    # One run at a time across every branch: two pushes of the same new version
+    # (desktop and main, say) must not both publish it. The second one finds
+    # the release already published and only builds.
     concurrency:
-      group: desktop-${{ github.ref }}
+      group: desktop-release
       cancel-in-progress: false
     permissions:
       contents: write # only used when a new version is published

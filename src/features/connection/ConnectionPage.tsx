@@ -10,6 +10,7 @@ import { confirmAction } from "../../state/notifyStore";
 import { useSettings } from "../../state/settingsStore";
 import { ago, altitude, clockTime, duration, GPS_FIX, RAD, speed } from "../../utils/format";
 import { LINK_STATUS, TELEMETRY_STALE_MS } from "./linkStatus";
+import { DESKTOP } from "../../desktop/wording";
 
 function Unsupported() {
   const secure = isSecureContextOk();
@@ -71,7 +72,7 @@ function GrantedPorts({ disabled }: { disabled: boolean }) {
     <div className="field">
       <span>Ports this site may use</span>
       {ports.length === 0 ? (
-        <small>None yet. Press Connect and pick your device in the browser&rsquo;s list; it will be remembered here.</small>
+        <small>None yet. Press Connect and pick your device in {DESKTOP ? "AERONEX’s" : "the browser’s"} list; it will be remembered here.</small>
       ) : (
         <div className="port-list">
           {ports.map((p, i) => (

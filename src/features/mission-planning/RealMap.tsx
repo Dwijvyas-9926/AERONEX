@@ -15,6 +15,7 @@ import { useLink } from "../../state/linkStore";
 import { useDem, useMapPrefs } from "../../state/mapStore";
 import { notify } from "../../state/notifyStore";
 import { ZONE_COLOR, type FenceLayer } from "./fenceLayer";
+import { DESKTOP } from "../../desktop/wording";
 
 /*
   The route on a real map: a satellite picture over measured ground.
@@ -545,7 +546,7 @@ export default function RealMap(props: RealMapProps) {
     if (!navigator.geolocation) return notify("warn", "This browser cannot tell where it is");
     navigator.geolocation.getCurrentPosition(
       (p) => mapRef.current?.flyTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 16 }),
-      () => notify("warn", "Your location is not available", "Allow location for this page in the browser, or type the coordinates in Layers."),
+      () => notify("warn", "Your location is not available", DESKTOP ? "AERONEX for Windows does not use your location. Type the coordinates in Layers." : "Allow location for this page in the browser, or type the coordinates in Layers."),
       { enableHighAccuracy: true, timeout: 10000 },
     );
   };
@@ -636,7 +637,7 @@ export default function RealMap(props: RealMapProps) {
             <label className="field">
               <span>MapTiler key</span>
               <input className="input" type="password" autoComplete="off" value={prefs.keys[src.needsKey] ?? ""} onChange={(e) => prefs.set("keys", { ...prefs.keys, [src.needsKey!]: e.target.value })} placeholder="Paste the key from your MapTiler account" />
-              <small>Kept in this browser only, and sent only to MapTiler.</small>
+              <small>{DESKTOP ? "Encrypted by Windows on this computer" : "Kept in this browser only"}, and sent only to MapTiler.</small>
             </label>
           )}
           {src.id === "custom" && (
