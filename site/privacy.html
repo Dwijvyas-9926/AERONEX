@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy: AERONEX</title>
+    <meta name="description" content="What AERONEX keeps on your computer, the few things that leave it, and how messages from this website are sent." />
+    <meta name="theme-color" content="#fcf3ea" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" href="img/favicon-32.png" type="image/png" />
+    <link rel="stylesheet" href="site.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+    <svg width="0" height="0" class="vh" aria-hidden="true">
+      <defs>
+        <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14" /></symbol>
+        <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" /></symbol>
+      </defs>
+    </svg>
+
+    <header class="top" id="top-bar">
+      <div class="wrap bar">
+        <a class="brand" href="index.html" aria-label="AERONEX home">
+          <img src="img/mark.png" width="46" height="46" alt="" />
+          <span><span class="word">AERONE<b>X</b></span><small>Ground Station</small></span>
+        </a>
+        <nav class="main" aria-label="Primary">
+          <a href="index.html#platform">Platform</a>
+          <a href="index.html#safety">Safety</a>
+          <a href="index.html#contact">Contact</a>
+        </nav>
+        <a class="btn btn-primary btn-sm" href="index.html#download">Download <svg class="ic"><use href="#i-down" /></svg></a>
+        <button class="menu-btn" id="menuBtn" aria-label="Open the menu" aria-expanded="false" aria-controls="drawer"><svg class="ic"><use href="#i-list" /></svg></button>
+      </div>
+      <div class="drawer" id="drawer">
+        <a href="index.html#platform">Platform</a>
+        <a href="index.html#safety">Safety</a>
+        <a href="index.html#contact">Contact</a>
+        <a class="btn btn-primary" href="index.html#download">Download for Windows</a>
+      </div>
+    </header>
+
+    <main id="main" class="doc">
+      <div class="wrap">
+        <span class="kicker">Privacy</span>
+        <h1>Your data stays <em>yours</em></h1>
+        <p class="updated">Updated 21 November 2026</p>
+
+        <div class="doc-card">
+          <p>
+            AERONEX has no accounts, no analytics and no server of its own. What you enter stays on your computer. A few things are fetched from the
+            internet when you use the features that need them, and this page lists every one.
+          </p>
+
+          <h2>What stays on your computer</h2>
+          <p>
+            Your name from the first-run setup, aircraft profiles, frame designs, mission plans, flight logs and settings are stored in your Windows user
+            folder, at <code>%APPDATA%\AERONEX</code>. In the app, <strong>Help, then Where my data is kept</strong>, opens it. API keys you enter are
+            encrypted by Windows for your user account before they are saved.
+          </p>
+          <p>
+            <strong>Settings, then Reset app data</strong>, deletes all of it. Uninstalling AERONEX leaves it in place, so a reinstall picks up where you
+            left off; delete the folder to remove it.
+          </p>
+
+          <h2>What leaves your computer, and when</h2>
+          <ul>
+            <li>
+              <strong>Looking for updates.</strong> When AERONEX starts and every four hours, it asks GitHub whether there is a newer version, and downloads
+              it from GitHub if there is. Like any web request, this tells GitHub your IP address. Nothing about you or your aircraft is sent.
+            </li>
+            <li><strong>Installing firmware.</strong> Only when you use the Firmware page: the firmware list and the build for your board come from ArduPilot's server, firmware.ardupilot.org.</li>
+            <li>
+              <strong>Maps.</strong> Only when a map is on screen: map pictures and ground heights come from the provider you choose, such as Sentinel-2
+              cloudless by EOX, OpenStreetMap, Esri World Imagery, MapTiler (with your own key), or Terrain Tiles on AWS. Each receives the map area being
+              shown.
+            </li>
+            <li>
+              <strong>The assistant.</strong> Only if you add your own Anthropic API key: your questions and the aircraft's readings, never its location, go
+              to Anthropic to be answered, under your own account with them.
+            </li>
+            <li><strong>Links.</strong> Documentation and other links open in your web browser, not inside AERONEX.</li>
+          </ul>
+          <p>Nothing else is sent. The flight controller is reached only over your USB cable or telemetry radio.</p>
+
+          <h2 id="contact">Messages sent from this website</h2>
+          <p>
+            The contact form sends your name, email address, subject and message to Dwij Vyas by email, through
+            <a href="https://formsubmit.co/" target="_blank" rel="noopener">FormSubmit</a>, a form-to-email service. Your email address is used only to
+            reply to you. If you would rather not use the form, write to <a href="mailto:dwijgvyas@gmail.com">dwijgvyas@gmail.com</a> directly.
+          </p>
+
+          <h2>This website</h2>
+          <p>
+            The site is hosted by Vercel, which keeps standard request logs. It sets no cookies and has no analytics. To show the newest version, your
+            browser asks GitHub's public API for the latest release.
+          </p>
+
+          <h2>Questions</h2>
+          <p>
+            Ask through the <a href="index.html#contact">contact form</a> or on the project's
+            <a href="https://github.com/Dwijvyas-9926/AERONEX/issues" target="_blank" rel="noopener">GitHub issues</a>. To report a security problem
+            privately, use <a href="https://github.com/Dwijvyas-9926/AERONEX/security" target="_blank" rel="noopener">Security, then Report a vulnerability</a>.
+          </p>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <div class="legal">
+          <span>© <span data-year>2026</span> Dwij Vyas. AERONEX is open source under the <a href="https://github.com/Dwijvyas-9926/AERONEX/blob/main/LICENSE" target="_blank" rel="noopener">Apache License 2.0</a>.</span>
+          <span>ArduPilot, ArduCopter, Pixhawk and MAVLink are trademarks of their respective owners. AERONEX is an independent project and is not affiliated with or endorsed by them.</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

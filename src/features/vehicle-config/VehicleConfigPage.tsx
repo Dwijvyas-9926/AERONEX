@@ -4,6 +4,7 @@ import { useLink } from "../../state/linkStore";
 import { confirmAction, notify } from "../../state/notifyStore";
 import { useProfiles } from "../../state/profileStore";
 import { BOARD_LABELS, BOARD_NOTES, FIRMWARE_LABELS, FRAME_LABELS, type BoardId, type DeclaredFirmware, type FrameType, type VehicleProfile } from "../../vehicle/types";
+import { DESKTOP, KEPT_HERE } from "../../desktop/wording";
 
 type Draft = Pick<VehicleProfile, "name" | "frame" | "firmware" | "board" | "massGrams" | "diagonalMm" | "notes">;
 
@@ -51,7 +52,7 @@ function Editor({ profile, onDirty }: { profile: VehicleProfile; onDirty: (d: bo
 
   const save = () => {
     update(profile.id, { ...draft, name: draft.name.trim() });
-    notify("success", "Profile saved", `${draft.name.trim()} is stored in this browser.`);
+    notify("success", "Profile saved", `${draft.name.trim()} is stored ${KEPT_HERE}.`);
   };
 
   return (
@@ -132,8 +133,10 @@ function Editor({ profile, onDirty }: { profile: VehicleProfile; onDirty: (d: bo
         <div className="callout span2">
           <Info />
           <span>
-            3D model: the default quadcopter. Import your own assembly in Digital Twin. Profiles live in this
-            browser&rsquo;s storage; clearing site data removes them.
+            3D model: the default quadcopter. Import your own assembly in Digital Twin.{" "}
+            {DESKTOP
+              ? "Profiles are kept on this computer; Reset app data in Settings removes them."
+              : "Profiles live in this browser’s storage; clearing site data removes them."}
           </span>
         </div>
       </div>
@@ -155,7 +158,7 @@ function Editor({ profile, onDirty }: { profile: VehicleProfile; onDirty: (d: bo
             onClick={async () => {
               const ok = await confirmAction({
                 title: `Delete ${profile.name}?`,
-                body: "This removes the profile from this browser. It does not change anything on a flight controller. This can't be undone.",
+                body: `This removes the profile from ${DESKTOP ? "this computer" : "this browser"}. It does not change anything on a flight controller. This can't be undone.`,
                 confirmLabel: "Delete profile",
                 tone: "danger",
               });

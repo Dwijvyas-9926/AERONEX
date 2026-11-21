@@ -13,6 +13,7 @@ import { BOARD_LABELS, FIRMWARE_LABELS, FRAME_LABELS } from "../../vehicle/types
 import { HeroInstruments } from "./HeroInstruments";
 import { ROUTES, STAGES } from "../../app/routes";
 import { useUi } from "../../state/uiStore";
+import { DESKTOP } from "../../desktop/wording";
 
 const HeroScene = lazy(() => import("./HeroScene"));
 
@@ -101,7 +102,7 @@ function Hero() {
       ) : (
         <div className="hero-instruments">
           <AttitudeIndicator roll={-6} pitch={4} size={116} />
-          <p className="hero-disclaimer">WebGL 2 isn&rsquo;t available in this browser, so the live 3D preview is off. Everything else works.</p>
+          <p className="hero-disclaimer">WebGL 2 isn&rsquo;t available {DESKTOP ? "on this computer" : "in this browser"}, so the live 3D preview is off. Everything else works.</p>
         </div>
       )}
 
@@ -231,7 +232,7 @@ function ModePanels() {
 function Capabilities() {
   const items = useMemo(
     () => [
-      { label: "Web Serial", ok: hasWebSerial(), why: "Needed to connect a flight controller from the browser." },
+      { label: "Web Serial", ok: hasWebSerial(), why: "Needed to connect a flight controller." },
       { label: "Secure context", ok: isSecureContextOk(), why: "Web Serial only works on https:// or localhost." },
       { label: "WebGL 2", ok: hasWebGL2(), why: "Needed for 3D views and the simulator." },
       { label: "Gamepad API", ok: hasGamepadApi(), why: "Optional. Lets the simulator use a gamepad or USB joystick." },
@@ -241,7 +242,7 @@ function Capabilities() {
   return (
     <section className="panel">
       <div className="panel-head">
-        <h3>This browser</h3>
+        <h3>{DESKTOP ? "This computer" : "This browser"}</h3>
         <MonitorCheck size={18} color="var(--muted)" />
       </div>
       <ul className="caps">

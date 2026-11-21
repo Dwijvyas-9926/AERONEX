@@ -2,6 +2,8 @@ import { Cable, FlaskConical, Gamepad2, Globe, HardDrive, Lock, ShieldCheck, Wif
 import { Link } from "react-router-dom";
 import { ROUTES, STAGES, type BuildStatus } from "../../app/routes";
 import { BrandLogo } from "../../components/shell/BrandMark";
+import { useUpdates } from "../../desktop/updates";
+import { isDesktop } from "../../desktop/bridge";
 import { useUi } from "../../state/uiStore";
 
 /*
@@ -51,11 +53,19 @@ const SAFEGUARDS: { title: string; body: string }[] = [
   },
 ];
 
+/* The Windows app and the browser version describe themselves differently where they differ. */
+const DESKTOP = isDesktop();
+const HERE = DESKTOP ? "on this computer" : "in this browser";
+
 /* The short facts someone deciding whether to use it looks for first. */
 const FACTS: { icon: typeof Globe; title: string; body: string }[] = [
-  { icon: Globe, title: "Runs in the browser", body: "Nothing to install. Chrome, Edge or Opera on a desktop for the hardware link; any modern browser for everything else." },
-  { icon: WifiOff, title: "Works offline", body: "After one visit the app opens with no internet. Map areas can be saved for the field." },
-  { icon: Lock, title: "Your data stays with you", body: "There is no server and no account. Plans, logs and settings are kept in this browser only." },
+  DESKTOP
+    ? { icon: HardDrive, title: "A Windows app", body: "Installs like any program and keeps itself up to date, asking before it restarts and never while an aircraft is connected." }
+    : { icon: Globe, title: "Runs in the browser", body: "Nothing to install. Chrome, Edge or Opera on a desktop for the hardware link; any modern browser for everything else." },
+  DESKTOP
+    ? { icon: WifiOff, title: "Works offline", body: "Everything except maps, firmware downloads and the assistant works with no internet. Map areas can be saved for the field." }
+    : { icon: WifiOff, title: "Works offline", body: "After one visit the app opens with no internet. Map areas can be saved for the field." },
+  { icon: Lock, title: "Your data stays with you", body: `There is no server and no account. Plans, logs and settings are kept ${HERE} only.` },
   { icon: FlaskConical, title: "Checked on real firmware", body: "Every release is flown against ArduPilot's own simulator build of ArduCopter 4.6 and 4.7." },
 ];
 
@@ -63,9 +73,13 @@ const REQUIREMENTS: [string, string][] = [
   ["Flight controller", "Pixhawk 2.4.8, Holybro Pixhawk 6C Mini, and other MAVLink boards running ArduCopter"],
   ["Firmware", "ArduCopter 4.6 and 4.7 (multicopters and traditional helicopters for firmware install)"],
   ["Link", "USB cable, or a telemetry radio that appears as a serial port"],
-  ["Browser, for hardware", "Chrome, Edge or Opera on Windows, macOS or Linux (Web Serial), over https"],
-  ["Browser, without hardware", "Any current browser with WebGL 2, including Firefox and Safari"],
-  ["Screen", "Laptop or desktop recommended; every page also fits a tablet or phone"],
+  ...(DESKTOP
+    ? ([["Computer", "Windows 10 or 11, 64-bit, with about 350 MB of disk space"]] as [string, string][])
+    : ([
+        ["Browser, for hardware", "Chrome, Edge or Opera on Windows, macOS or Linux (Web Serial), over https"],
+        ["Browser, without hardware", "Any current browser with WebGL 2, including Firefox and Safari"],
+        ["Screen", "Laptop or desktop recommended; every page also fits a tablet or phone"],
+      ] as [string, string][])),
 ];
 
 const CREDITS: [string, string][] = [
@@ -79,15 +93,18 @@ const CREDITS: [string, string][] = [
 
 export function AboutPage() {
   const openGuide = useUi((s) => s.toggle);
+  // The Windows app knows its own version; in a browser the page is always the latest.
+  const version = useUpdates((s) => s.status?.current ?? null);
   return (
     <div className="page-pad about">
       <section className="about-hero">
         <h1 className="about-logo">
           <BrandLogo />
         </h1>
-        <p className="about-tagline">A ground station for ArduCopter drones that runs in your browser.</p>
+        <p className="about-tagline">{DESKTOP ? "A ground station for ArduCopter drones, for Windows." : "A ground station for ArduCopter drones that runs in your browser."}</p>
         <p className="about-meta">
           <span className="pill accent plain">Pre-release</span>
+          {version ? <span className="pill plain">Version {version} for Windows</span> : null}
           <span className="pill plain">ArduCopter 4.6 and 4.7</span>
           <span className="pill plain">Pixhawk 2.4.8 and 6C Mini</span>
         </p>
@@ -95,7 +112,7 @@ export function AboutPage() {
 
       <p className="about-lede">
         AERONEX takes a multicopter from a drawing to a calibrated, checked aircraft, then flies it and tells you what went wrong. It connects to the
-        flight controller over a USB cable or a telemetry radio, needs nothing installed, and comes with a virtual aircraft so every page can be learned
+        flight controller over a USB cable or a telemetry radio{DESKTOP ? "" : ", needs nothing installed,"} and comes with a virtual aircraft so every page can be learned
         before any hardware is plugged in.
       </p>
 
@@ -202,7 +219,7 @@ export function AboutPage() {
               <HardDrive aria-hidden className="about-inline-icon" /> Where your data lives
             </h3>
             <p>
-              Aircraft profiles, frame designs, mission plans, flight logs and settings are stored in this browser and nowhere else. AERONEX has no
+              Aircraft profiles, frame designs, mission plans, flight logs and settings are stored {HERE} and nowhere else. AERONEX has no
               server, no account and no analytics. Reset app data in Settings removes all of it. Nothing on a flight controller is touched by a reset.
             </p>
           </section>
@@ -212,8 +229,10 @@ export function AboutPage() {
             </h3>
             <p>
               Map pictures and ground heights are fetched from the provider you choose. Firmware is fetched from ArduPilot's server. If you add your
-              own Anthropic key, your questions and the aircraft's readings (never its location) go to Anthropic to answer them. Keys are kept for the
-              session unless you choose to remember them.
+              own Anthropic key, your questions and the aircraft's readings (never its location) go to Anthropic to answer them.{" "}
+              {DESKTOP
+                ? "Keys are encrypted by Windows for your user account. The app also asks GitHub for new versions when it starts and every few hours."
+                : "Keys are kept for the session unless you choose to remember them."}
             </p>
           </section>
         </div>
@@ -239,10 +258,10 @@ export function AboutPage() {
       <section className="about-section">
         <h2>Under the hood</h2>
         <p className="about-prose">
-          AERONEX talks to the flight controller through the browser's Web Serial API, using its own MAVLink 1 and 2 implementation that checks every
+          AERONEX talks to the flight controller through {DESKTOP ? "the serial port, by way of Chromium's Web Serial API inside Electron" : "the browser's Web Serial API"}, using its own MAVLink 1 and 2 implementation that checks every
           frame against its checksum. Real hardware and the virtual aircraft share one command path, so the code that drives a drone is the code
           exercised every day. The virtual aircraft is a six-degree-of-freedom physics model with ArduCopter's own control laws. The app is built with
-          React, TypeScript, Three.js and MapLibre, and is delivered as static files.
+          React, TypeScript, Three.js and MapLibre, and is delivered as {DESKTOP ? "a Windows app built with Electron, updated from GitHub Releases." : "static files."}
         </p>
       </section>
 
@@ -265,6 +284,17 @@ export function AboutPage() {
           ))}
         </dl>
         <p className="about-prose about-prose-top">AERONEX is an independent project. It is not affiliated with or endorsed by ArduPilot, Holybro, or any map provider named here.</p>
+        <p className="about-prose">
+          AERONEX is open source under the{" "}
+          <a href="https://github.com/Dwijvyas-9926/AERONEX/blob/main/LICENSE" target="_blank" rel="noreferrer">
+            Apache License 2.0
+          </a>
+          , copyright 2026 Dwij Vyas. The licence covers the code, not the AERONEX name or logo. The libraries it includes are listed with their licences in{" "}
+          <a href="https://github.com/Dwijvyas-9926/AERONEX/blob/main/THIRD-PARTY-NOTICES.txt" target="_blank" rel="noreferrer">
+            THIRD-PARTY-NOTICES.txt
+          </a>
+          {isDesktop() ? ", which is also in the folder AERONEX is installed in." : "."}
+        </p>
       </section>
 
       <section className="about-creator">

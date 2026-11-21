@@ -3,6 +3,7 @@
   needs, what happens to its settings, and what to do when it does not work.
 */
 import { CircleAlert, Download, ExternalLink } from "lucide-react";
+import { DESKTOP } from "../../desktop/wording";
 
 const DOCS = "https://ardupilot.org/copter/docs";
 
@@ -120,7 +121,13 @@ export function Guide({ onInstall }: { onInstall: () => void }) {
           <dd>Some new or rare boards have no stable release yet. Download a build from the firmware server and install it from a file, knowing it has had less testing.</dd>
           <dt>Download blocked</dt>
           <dd>
-            AERONEX downloads through its own server when run with <code>npm run dev</code> or <code>npm run preview</code>. Hosted elsewhere, the browser may not be allowed to fetch from the firmware server directly: AERONEX then links to the file, which you download and install from a file.
+            {DESKTOP ? (
+              <>The Windows app downloads firmware through itself, so this only happens when the computer cannot reach firmware.ardupilot.org. Check the internet connection, or download the file there and install it from a file.</>
+            ) : (
+              <>
+                AERONEX downloads through its own server when run with <code>npm run dev</code> or <code>npm run preview</code>. Hosted elsewhere, the browser may not be allowed to fetch from the firmware server directly: AERONEX then links to the file, which you download and install from a file.
+              </>
+            )}
           </dd>
           <dt>The board never shows up at all</dt>
           <dd>

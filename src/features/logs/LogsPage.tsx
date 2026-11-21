@@ -19,6 +19,7 @@ import { useLogs, type LogTab } from "./store";
 import { Timeline } from "./Timeline";
 import { Messages } from "./Messages";
 import "./logs.css";
+import { DESKTOP } from "../../desktop/wording";
 
 const TABS: { id: LogTab; label: string; Icon: typeof Activity }[] = [
   { id: "report", label: "Report", Icon: Gauge },
@@ -106,7 +107,7 @@ export function LogsPage() {
             </button>
             {libraryAvailable() && (
               <label className="lp-keep" onClick={(e) => e.stopPropagation()}>
-                <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} /> Keep a copy in this browser's log library
+                <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} /> Keep a copy in {DESKTOP ? "the log library on this computer" : "this browser's log library"}
               </label>
             )}
           </section>

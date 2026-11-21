@@ -30,6 +30,7 @@ import {
 } from "../../firmware/installer";
 import { Guide } from "./Guide";
 import "./firmware.css";
+import { DESKTOP } from "../../desktop/wording";
 
 type Tab = "install" | "guide";
 
@@ -196,7 +197,7 @@ function Start({ onGuide }: { onGuide: () => void }) {
               <button className="btn btn-primary btn-lg" disabled={linkedOther} onClick={() => void findBoard()}>
                 <Search size={16} /> Find the board
               </button>
-              <button className="btn" disabled={linkedOther} onClick={() => void waitForBoard()} title="For a board this browser has been allowed to open before">
+              <button className="btn" disabled={linkedOther} onClick={() => void waitForBoard()} title={DESKTOP ? "For a board AERONEX has opened before in this session" : "For a board this browser has been allowed to open before"}>
                 <Usb size={15} /> Wait for a board I have used before
               </button>
             </div>

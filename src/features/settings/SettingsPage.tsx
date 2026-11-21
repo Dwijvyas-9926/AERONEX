@@ -2,6 +2,13 @@ import { useState } from "react";
 import { confirmAction, notify } from "../../state/notifyStore";
 import { resetAppData } from "../../state/resetApp";
 import { rememberKeys, setRememberKeys } from "../../state/secretStorage";
+import { isDesktop } from "../../desktop/bridge";
+import { encryptionAvailable } from "../../desktop/secrets";
+import { UpdatesSection } from "../../desktop/UpdateNotice";
+import { OPERATOR_NAME_MAX, useOperator } from "../../state/operatorStore";
+import { holdingAircraft } from "../../desktop/updates";
+import { useLink } from "../../state/linkStore";
+import { useFirmware } from "../../firmware/installer";
 import { AI_MODELS, GRAPHICS, useSettings, type GraphicsPreset, type MotionPref, type Units } from "../../state/settingsStore";
 
 function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: [T, string][]; onChange: (v: T) => void; label: string }) {
@@ -16,6 +23,50 @@ function Segmented<T extends string>({ value, options, onChange, label }: { valu
   );
 }
 
+/** The name and team from the first-run setup. Saved when a field is left. */
+function OperatorSection() {
+  const name = useOperator((s) => s.name);
+  const team = useOperator((s) => s.team);
+  const update = useOperator((s) => s.update);
+  const [n, setN] = useState(name);
+  const [t, setT] = useState(team);
+  return (
+    <section className="panel">
+      <div className="panel-head">
+        <h2 className="h3">You</h2>
+      </div>
+      <div className="setting">
+        <div>
+          <strong>Name and team</strong>
+          <p>From the first-run setup. Kept on {isDesktop() ? "this computer" : "this browser"} only; AERONEX has no accounts and sends this nowhere.</p>
+        </div>
+        <div className="operator-fields">
+          <input
+            className="input"
+            aria-label="Your name"
+            maxLength={OPERATOR_NAME_MAX}
+            value={n}
+            onChange={(e) => setN(e.target.value)}
+            onBlur={() => {
+              update({ name: n });
+              setN(useOperator.getState().name);
+            }}
+          />
+          <input
+            className="input"
+            aria-label="Team or organisation"
+            placeholder="Team or organisation"
+            maxLength={OPERATOR_NAME_MAX}
+            value={t}
+            onChange={(e) => setT(e.target.value)}
+            onBlur={() => update({ team: t })}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function SettingsPage() {
   const s = useSettings();
   const [remember, setRemember] = useState(rememberKeys);
@@ -24,10 +75,12 @@ export function SettingsPage() {
       <header className="page-head">
         <div>
           <h1>Settings</h1>
-          <p>Saved in this browser and applied immediately.</p>
+          <p>{isDesktop() ? "Saved on this computer and applied immediately." : "Saved in this browser and applied immediately."}</p>
         </div>
       </header>
       <div className="stack">
+        <OperatorSection />
+        <UpdatesSection />
         <section className="panel">
           <div className="panel-head">
             <h2 className="h3">Display</h2>
@@ -91,21 +144,34 @@ export function SettingsPage() {
               {s.aiKey && <button className="btn btn-ghost" onClick={() => s.set("aiKey", "")} title="Remove stored key">Clear</button>}
             </div>
           </div>
-          <div className="setting">
-            <div>
-              <strong>Remember keys on this device</strong>
-              <p>Off: API keys (this one and any map provider key) are kept only until this browser tab closes. On: they stay in this browser's storage until you clear them. Leave it off on a shared computer.</p>
+          {isDesktop() ? (
+            <div className="setting">
+              <div>
+                <strong>Where keys are kept</strong>
+                <p>
+                  {encryptionAvailable()
+                    ? "Encrypted by Windows for your user account, in this app's own folder. Other Windows users on this computer cannot read them."
+                    : "Windows could not encrypt keys on this account, so a key you enter is kept only until AERONEX closes."}
+                </p>
+              </div>
             </div>
-            <Segmented
-              label="Remember keys"
-              value={remember ? "on" : "off"}
-              onChange={(v) => { setRememberKeys(v === "on"); setRemember(v === "on"); }}
-              options={[
-                ["off", "This session"],
-                ["on", "Remember"],
-              ]}
-            />
-          </div>
+          ) : (
+            <div className="setting">
+              <div>
+                <strong>Remember keys on this device</strong>
+                <p>Off: API keys (this one and any map provider key) are kept only until this browser tab closes. On: they stay in this browser's storage until you clear them. Leave it off on a shared computer.</p>
+              </div>
+              <Segmented
+                label="Remember keys"
+                value={remember ? "on" : "off"}
+                onChange={(v) => { setRememberKeys(v === "on"); setRemember(v === "on"); }}
+                options={[
+                  ["off", "This session"],
+                  ["on", "Remember"],
+                ]}
+              />
+            </div>
+          )}
           <div className="setting">
             <div>
               <strong>Search the web</strong>
@@ -157,7 +223,7 @@ export function SettingsPage() {
           <div className="setting">
             <div>
               <strong>Record telemetry logs</strong>
-              <p>Keep a telemetry log (.tlog) of every session linked to an aircraft, real or virtual, in the Flight Logs library. It opens there and in Mission Planner, QGroundControl and MAVProxy. Kept in this browser only.</p>
+              <p>Keep a telemetry log (.tlog) of every session linked to an aircraft, real or virtual, in the Flight Logs library. It opens there and in Mission Planner, QGroundControl and MAVProxy. Kept {isDesktop() ? "on this computer" : "in this browser"} only.</p>
             </div>
             <Segmented
               label="Record telemetry logs"
@@ -172,14 +238,22 @@ export function SettingsPage() {
           <div className="setting">
             <div>
               <strong>Reset app data</strong>
-              <p>Removes everything AERONEX keeps in this browser: aircraft profiles, settings, API keys, frame designs, the mission plan, imported 3D models, saved map areas and the flight-log library. Nothing on any flight controller is changed.</p>
+              <p>
+                Removes everything AERONEX keeps {isDesktop() ? "on this computer" : "in this browser"}: your name, aircraft profiles, settings, API keys, frame designs, the mission plan, imported 3D models, saved map areas and the
+                flight-log library, then starts again at the welcome screen. Nothing on any flight controller is changed. Not available while a flight controller is connected.
+              </p>
             </div>
             <button
               className="btn btn-danger"
               onClick={async () => {
+                // Resetting reloads the app, which would drop a live link to a real aircraft.
+                if (holdingAircraft(useLink.getState(), useFirmware.getState().step)) {
+                  notify("warn", "Disconnect the aircraft first", "Resetting restarts AERONEX, which would end the link to the flight controller. Disconnect it, then reset.");
+                  return;
+                }
                 const ok = await confirmAction({
                   title: "Reset all app data?",
-                  body: "Aircraft profiles, settings, API keys, frame designs, the mission plan, imported 3D models, saved map areas and the flight-log library stored in this browser will be deleted. This can't be undone.",
+                  body: `Your name, aircraft profiles, settings, API keys, frame designs, the mission plan, imported 3D models, saved map areas and the flight-log library stored ${isDesktop() ? "on this computer" : "in this browser"} will be deleted. This can't be undone.`,
                   confirmLabel: "Reset data",
                   tone: "danger",
                 });

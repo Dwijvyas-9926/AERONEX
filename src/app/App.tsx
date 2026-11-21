@@ -18,6 +18,8 @@ import { useLink } from "../state/linkStore";
 import { commandLink } from "../services/link/commandLink";
 import { routeFor } from "./routes";
 import { useUi } from "../state/uiStore";
+import { DesktopShell } from "../desktop/DesktopShell";
+import { useOperator } from "../state/operatorStore";
 
 // Flight Logs is large (charts, the reader, the replay) and only needed when opened.
 // Each page is fetched when it is first opened, so the first screen does not wait for all twenty. The offline copy holds every one.
@@ -39,6 +41,7 @@ const TelemetryPage = lazy(() => import("../features/telemetry/TelemetryPage").t
 const VehicleConfigPage = lazy(() => import("../features/vehicle-config/VehicleConfigPage").then((m) => ({ default: m.VehicleConfigPage })));
 const ServoPage = lazy(() => import("../features/servo/ServoPage").then((m) => ({ default: m.ServoPage })));
 const FirmwarePage = lazy(() => import("../features/firmware/FirmwarePage").then((m) => ({ default: m.FirmwarePage })));
+const WelcomePage = lazy(() => import("../features/welcome/WelcomePage").then((m) => ({ default: m.WelcomePage })));
 const LogsPage = lazy(() => import("../features/logs/LogsPage").then((m) => ({ default: m.LogsPage })));
 
 /* Stream a 1 Hz GCS heartbeat whenever a vehicle is connected, so ArduPilot's
@@ -165,12 +168,15 @@ function Frame() {
       <SearchPalette />
       <Toasts />
       <ConfirmDialog />
+      <DesktopShell />
     </div>
   );
 }
 
 export default function App() {
   const motionPref = useSettings((s) => s.motion);
+  // First launch, or after "Reset app data": the welcome screen, then the app.
+  const setUp = useOperator((s) => s.setupAt !== null);
   const reduced = prefersReducedMotion(motionPref);
   useEffect(() => {
     document.documentElement.dataset.motion = reduced ? "reduced" : "full";
@@ -178,7 +184,14 @@ export default function App() {
   return (
     <MotionConfig reducedMotion={reduced ? "always" : "never"}>
       <HashRouter>
-        <Frame />
+        {setUp ? (
+          <Frame />
+        ) : (
+          <Suspense fallback={null}>
+            <WelcomePage />
+            <Toasts />
+          </Suspense>
+        )}
       </HashRouter>
     </MotionConfig>
   );
