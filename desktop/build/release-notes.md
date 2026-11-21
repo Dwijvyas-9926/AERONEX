@@ -1,4 +1,2 @@
-- A first-run setup: on a new computer, AERONEX asks for your name and describes your first aircraft before the app opens. It is kept on this computer only; there are no accounts and nothing is sent anywhere.
-- New installs no longer start with an aircraft named "Avion". Aircraft already on a computer are kept exactly as they are.
-- Settings has a "You" section for your name and team.
-- Reset app data now also removes API keys kept encrypted by Windows, and is refused while a flight controller is connected, since it restarts the app.
+- AERONEX is now open source under the Apache License 2.0, copyright Dwij Vyas. The installer shows the licence, and the About page says what it covers.
+- The install folder now holds LICENSE.txt, NOTICE.txt and THIRD-PARTY-NOTICES.txt, which lists every library inside AERONEX with its licence.

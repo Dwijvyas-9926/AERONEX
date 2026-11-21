@@ -1,0 +1,35 @@
+AERONEX Ground Station
+Copyright 2026 Dwij Vyas
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this software except in compliance with the License. A copy is in the
+LICENSE file, and at https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, this software is
+distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied. AERONEX is not flight-certified; the pilot
+is responsible for every flight.
+
+The License does not grant permission to use the name "AERONEX" or the
+AERONEX logo (section 6 of the License).
+
+AERONEX includes material from other projects, under their own licences:
+
+  ArduPilot parameter definitions
+    src/mavlink/params/copter-4.6.json and copter-4.7.json, generated from
+    the ArduCopter source code with ArduPilot's param_parse.py.
+    Copyright the ArduPilot project contributors (https://ardupilot.org).
+    Licensed under the GNU General Public License, version 3: see
+    LICENSES/GPL-3.0.txt. They are separate data files that the app reads
+    when a page needs them.
+
+  MAVLink message definitions
+    src/mavlink/dialect.generated.ts, generated with pymavlink from the
+    MAVLink and ArduPilot message definitions. Generated code is MIT
+    licensed under the MAVLink generator's exception
+    (https://github.com/mavlink/mavlink/blob/master/COPYING).
+
+  Libraries bundled into the app
+    Listed with their licences and copyright notices in
+    THIRD-PARTY-NOTICES.txt. The Windows app also carries Electron's and
+    Chromium's licences (LICENSE.electron.txt, LICENSES.chromium.html).

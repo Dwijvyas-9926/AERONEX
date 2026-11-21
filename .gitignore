@@ -8,3 +8,4 @@ node_modules/.vite
 *.tsbuildinfo
 release/
 desktop/main.bundle.cjs
+desktop/build/license.txt

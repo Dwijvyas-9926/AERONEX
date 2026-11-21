@@ -1,7 +1,7 @@
 {
   "name": "avion-gcs",
   "productName": "AERONEX",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "AERONEX Ground Station: design, set up, fly and review an ArduCopter drone.",
   "author": "Dwij Vyas",
   "homepage": "https://github.com/Dwijvyas-9926/AERONEX_test",
@@ -17,7 +17,7 @@
     "desktop": "vite build && npm run desktop:bundle && electron .",
     "desktop:dev": "npm run desktop:bundle && AERONEX_DEV_SERVER=http://localhost:5173 electron .",
     "dist:win": "vite build && npm run desktop:bundle && electron-builder --win --publish never",
-    "desktop:bundle": "rolldown -c desktop/rolldown.config.mjs"
+    "desktop:bundle": "rolldown -c desktop/rolldown.config.mjs && node scripts/third-party-notices.mjs && node desktop/installer-licence.mjs"
   },
   "dependencies": {
     "@fontsource-variable/manrope": "^5.3.0",
@@ -95,7 +95,8 @@
       "uninstallDisplayName": "AERONEX Ground Station",
       "deleteAppDataOnUninstall": false,
       "installerIcon": "desktop/build/icon.ico",
-      "uninstallerIcon": "desktop/build/icon.ico"
+      "uninstallerIcon": "desktop/build/icon.ico",
+      "license": "desktop/build/license.txt"
     },
     "publish": [
       {
@@ -111,6 +112,25 @@
     ],
     "releaseInfo": {
       "releaseNotesFile": "desktop/build/release-notes.md"
-    }
-  }
+    },
+    "extraFiles": [
+      {
+        "from": "LICENSE",
+        "to": "LICENSE.txt"
+      },
+      {
+        "from": "NOTICE",
+        "to": "NOTICE.txt"
+      },
+      {
+        "from": "THIRD-PARTY-NOTICES.txt",
+        "to": "THIRD-PARTY-NOTICES.txt"
+      },
+      {
+        "from": "LICENSES/GPL-3.0.txt",
+        "to": "LICENSES/GPL-3.0.txt"
+      }
+    ]
+  },
+  "license": "Apache-2.0"
 }

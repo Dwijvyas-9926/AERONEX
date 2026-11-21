@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ROUTES, STAGES, type BuildStatus } from "../../app/routes";
 import { BrandLogo } from "../../components/shell/BrandMark";
 import { useUpdates } from "../../desktop/updates";
+import { isDesktop } from "../../desktop/bridge";
 import { useUi } from "../../state/uiStore";
 
 /*
@@ -269,6 +270,17 @@ export function AboutPage() {
           ))}
         </dl>
         <p className="about-prose about-prose-top">AERONEX is an independent project. It is not affiliated with or endorsed by ArduPilot, Holybro, or any map provider named here.</p>
+        <p className="about-prose">
+          AERONEX is open source under the{" "}
+          <a href="https://github.com/Dwijvyas-9926/AERONEX_test/blob/main/LICENSE" target="_blank" rel="noreferrer">
+            Apache License 2.0
+          </a>
+          , copyright 2026 Dwij Vyas. The licence covers the code, not the AERONEX name or logo. The libraries it includes are listed with their licences in{" "}
+          <a href="https://github.com/Dwijvyas-9926/AERONEX_test/blob/main/THIRD-PARTY-NOTICES.txt" target="_blank" rel="noreferrer">
+            THIRD-PARTY-NOTICES.txt
+          </a>
+          {isDesktop() ? ", which is also in the folder AERONEX is installed in." : "."}
+        </p>
       </section>
 
       <section className="about-creator">
