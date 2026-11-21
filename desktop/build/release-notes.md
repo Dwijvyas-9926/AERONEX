@@ -1,2 +1,1 @@
-- AERONEX is now open source under the Apache License 2.0, copyright Dwij Vyas. The installer shows the licence, and the About page says what it covers.
-- The install folder now holds LICENSE.txt, NOTICE.txt and THIRD-PARTY-NOTICES.txt, which lists every library inside AERONEX with its licence.
+- AERONEX's home on GitHub is now github.com/Dwijvyas-9926/AERONEX. Updates come from there from this version on.

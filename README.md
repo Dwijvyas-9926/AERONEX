@@ -472,7 +472,7 @@ They are skipped unless pointed at a simulator binary:
 git clone --depth 1 --branch Copter-4.7.3 https://github.com/ArduPilot/ardupilot.git
 cd ardupilot && git submodule update --init --recursive --depth 1
 ./waf configure --board sitl && ./waf copter
-cd ../AERONEX_test
+cd ../AERONEX
 SITL_BIN=../ardupilot/build/sitl/bin/arducopter \
 SITL_DEFAULTS=../ardupilot/Tools/autotest/default_params/copter.parm \
   npx vitest run sitl
