@@ -5810,3 +5810,77 @@ input[type="range"]::-moz-range-thumb {
 .sim-payloads .panel-head .pill {
   font-size: var(--t-xs);
 }
+
+/* ---------- First-run setup ---------- */
+.welcome {
+  min-height: 100%;
+  overflow: auto;
+  display: grid;
+  place-items: center;
+  padding: var(--s8) 16px;
+  background: var(--pane-sheen), var(--pane-tint);
+}
+.welcome-card {
+  width: min(560px, 100%);
+  padding: var(--s8) var(--s8) var(--s6);
+  background: var(--graphite);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  box-shadow: var(--shadow-2);
+}
+.welcome-card form { display: grid; gap: var(--s4); }
+.welcome-brand { display: flex; align-items: center; gap: 10px; margin-bottom: var(--s6); }
+.welcome-step { margin: 0 0 var(--s2); font-size: var(--t-xs); font-weight: 600; color: var(--accent); }
+.welcome-card h1 { font-size: var(--t-2xl); line-height: 1.15; outline: none; }
+.welcome-lede { margin: 0 0 var(--s2); color: var(--ink-2); font-size: var(--t-base); line-height: 1.55; }
+.welcome-error { color: var(--danger) !important; }
+.welcome-private {
+  display: flex;
+  gap: var(--s2);
+  align-items: flex-start;
+  margin: 0;
+  padding: var(--s3);
+  border-radius: var(--r-ctl);
+  background: var(--slate);
+  color: var(--ink-2);
+  font-size: var(--t-sm);
+}
+.welcome-private svg { flex: none; margin-top: 2px; color: var(--accent); }
+.welcome-set { border: 0; margin: 0; padding: 0; display: grid; gap: 6px; }
+.welcome-set legend { padding: 0; margin-bottom: 6px; font-size: var(--t-xs); font-weight: 600; color: var(--ink-2); }
+.welcome-hint { color: var(--muted); font-size: var(--t-xs); }
+.welcome-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--s2); }
+.welcome-choice {
+  position: relative;
+  display: flex;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: var(--field);
+  cursor: pointer;
+  font-size: var(--t-sm);
+}
+.welcome-choice input { position: absolute; opacity: 0; pointer-events: none; }
+.welcome-choice span { display: grid; gap: 2px; }
+.welcome-choice small { color: var(--muted); font-size: var(--t-xs); line-height: 1.4; }
+.welcome-choice[data-checked="true"] { border-color: var(--accent-line); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent-line); }
+.welcome-choice:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.welcome-fleet { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.welcome-fleet li {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: var(--field);
+}
+.welcome-fleet li > svg { color: var(--accent); flex: none; }
+.welcome-fleet li > span:not(.pill) { display: grid; flex: 1; }
+.welcome-fleet small { color: var(--muted); font-size: var(--t-xs); }
+.welcome-actions { display: flex; justify-content: flex-end; gap: var(--s2); margin-top: var(--s2); }
+@media (max-width: 520px) {
+  .welcome-card { padding: var(--s6) var(--s4) var(--s4); }
+  .welcome-actions .btn { flex: 1; justify-content: center; }
+}
+.operator-fields { display: grid; gap: var(--s2); width: min(280px, 100%); }

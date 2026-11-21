@@ -7,10 +7,14 @@
   sessionStorage. Imported 3D models are in the IndexedDB database
   "avion.models.v1", the flight-log library in "aeronex.logs.v1"; saved map tiles are in Cache Storage under
   "aeronex-…". Reset used to remove only the profiles and settings and leave
-  the rest, including the map provider's key.
+  the rest, including the map provider's key. In the Windows app the keys are
+  in the shell's encrypted file, which is emptied too. The operator's name
+  goes with the rest, so the first-run setup appears again.
 
   Nothing on a flight controller is touched.
 */
+
+import { clearDesktopSecrets } from "../desktop/secrets";
 
 const OURS = /^(avion|aeronex)[.-]/;
 
@@ -57,6 +61,8 @@ export function clearStoredKeys() {
 export async function resetAppData(): Promise<void> {
   window.addEventListener("pagehide", clearStoredKeys);
   clearStoredKeys();
+  // In the Windows app the API keys are in Windows' encrypted file, not in page storage.
+  await clearDesktopSecrets();
   if (typeof indexedDB !== "undefined") {
     await deleteDb(MODEL_DB);
     await deleteDb(LOG_DB);

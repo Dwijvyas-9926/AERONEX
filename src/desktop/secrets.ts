@@ -43,3 +43,12 @@ export const desktopSecretStore: Pick<
     if (available) void desktop!.secrets.set(name, null);
   },
 };
+
+/** "Reset app data": every stored key, removed from Windows' encrypted file too. */
+export async function clearDesktopSecrets(): Promise<void> {
+  if (!desktop) return;
+  const names = Object.keys(load());
+  cache = {};
+  if (!available) return;
+  await Promise.all(names.map((n) => desktop!.secrets.set(n, null)));
+}

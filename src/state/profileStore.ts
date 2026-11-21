@@ -5,11 +5,29 @@ import { deleteModel, getModel, idbAvailable, putModel } from "../services/impor
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `p-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
+const PROFILES_KEY = "avion.profiles.v1";
+
+/**
+ * True when this computer already had aircraft profiles before this run,
+ * i.e. AERONEX was used here before the first-run setup existed. Read before
+ * the store below loads or saves anything.
+ */
+export const hadProfilesAtStart: boolean = (() => {
+  try {
+    return localStorage.getItem(PROFILES_KEY) !== null;
+  } catch {
+    return false;
+  }
+})();
+
+/** The aircraft a new install starts with; the first-run setup names and describes it. */
+export const SEED_NAME = "My aircraft";
+
 function seedProfile(): VehicleProfile {
   const t = Date.now();
   return {
     id: uid(),
-    name: "Avion",
+    name: SEED_NAME,
     frame: "quad-x",
     firmware: "unsure",
     board: "pixhawk-2.4.8",
@@ -73,7 +91,7 @@ export const useProfiles = create<ProfileState>()(
         setActive: (id) => set({ activeId: id }),
       };
     },
-    { name: "avion.profiles.v1", storage: createJSONStorage(() => localStorage), version: 1 },
+    { name: PROFILES_KEY, storage: createJSONStorage(() => localStorage), version: 1 },
   ),
 );
 

@@ -1,2 +1,4 @@
-- The About page shows which version of AERONEX for Windows is installed.
-- This is also the first update delivered by AERONEX's own updater: if you are reading this inside the app, updating works.
+- A first-run setup: on a new computer, AERONEX asks for your name and describes your first aircraft before the app opens. It is kept on this computer only; there are no accounts and nothing is sent anywhere.
+- New installs no longer start with an aircraft named "Avion". Aircraft already on a computer are kept exactly as they are.
+- Settings has a "You" section for your name and team.
+- Reset app data now also removes API keys kept encrypted by Windows, and is refused while a flight controller is connected, since it restarts the app.
