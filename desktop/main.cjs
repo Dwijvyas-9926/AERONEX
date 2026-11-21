@@ -11,7 +11,9 @@
    - the flight controller's serial port, chosen in AERONEX's own list rather
      than the browser's chrome;
    - the API keys kept encrypted by Windows, not in a readable file;
-   - a window that remembers where it was, and a menu.
+   - a window that remembers where it was, and a menu;
+   - updates from GitHub Releases, which never restart the app while an
+     aircraft is connected (updater.cjs).
 
   The page is served over an `aeronex://` scheme of this app's own rather than
   from `file://`: modules, the content security policy and the serial port all
@@ -22,10 +24,22 @@
   to navigate anywhere but this app.
 */
 
-const { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, net, protocol, safeStorage, session, shell } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  dialog,
+  ipcMain,
+  nativeTheme,
+  protocol,
+  safeStorage,
+  session,
+  shell,
+} = require("electron");
 const fs = require("node:fs");
 const fsp = require("node:fs/promises");
 const path = require("node:path");
+const { createUpdater } = require("./updater.cjs");
 
 const APP_SCHEME = "aeronex";
 const ROOT = path.join(__dirname, "..", "dist");
@@ -40,7 +54,13 @@ const userFile = (name) => path.join(app.getPath("userData"), name);
 protocol.registerSchemesAsPrivileged([
   {
     scheme: APP_SCHEME,
-    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true },
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+      corsEnabled: true,
+    },
   },
 ]);
 
@@ -78,10 +98,12 @@ async function serve(request) {
   if (rel === "/" || rel === "") rel = "/index.html";
   const file = path.join(ROOT, rel);
   const inside = path.relative(ROOT, file);
-  if (inside.startsWith("..") || path.isAbsolute(inside)) return new Response("Not found", { status: 404 });
+  if (inside.startsWith("..") || path.isAbsolute(inside))
+    return new Response("Not found", { status: 404 });
   try {
     const body = await fsp.readFile(file);
-    const type = TYPES[path.extname(file).toLowerCase()] ?? "application/octet-stream";
+    const type =
+      TYPES[path.extname(file).toLowerCase()] ?? "application/octet-stream";
     return new Response(body, {
       status: 200,
       headers: {
@@ -145,12 +167,20 @@ function wireSerial(ses, win) {
 
   // A port the operator picked stays available to `navigator.serial.getPorts()`
   // for this run, so reconnecting after a reboot needs no second question.
-  ses.setDevicePermissionHandler((details) => details.deviceType === "serial" && details.origin === `${APP_SCHEME}://app`);
+  ses.setDevicePermissionHandler(
+    (details) =>
+      details.deviceType === "serial" &&
+      details.origin === `${APP_SCHEME}://app`,
+  );
   ses.setPermissionCheckHandler((_wc, permission) => permission === "serial");
-  ses.setPermissionRequestHandler((_wc, permission, done) => done(permission === "serial"));
+  ses.setPermissionRequestHandler((_wc, permission, done) =>
+    done(permission === "serial"),
+  );
 }
 
-ipcMain.on("serial:chose", (_e, id) => endPick(typeof id === "string" ? id : null));
+ipcMain.on("serial:chose", (_e, id) =>
+  endPick(typeof id === "string" ? id : null),
+);
 
 /* ------------------------------------------------------------------ the API keys */
 
@@ -178,7 +208,11 @@ function readSecrets() {
 function writeSecrets(all) {
   if (!safeStorage.isEncryptionAvailable()) return false;
   try {
-    fs.writeFileSync(KEYS_FILE(), safeStorage.encryptString(JSON.stringify(all)), { mode: 0o600 });
+    fs.writeFileSync(
+      KEYS_FILE(),
+      safeStorage.encryptString(JSON.stringify(all)),
+      { mode: 0o600 },
+    );
     return true;
   } catch {
     return false;
@@ -186,13 +220,76 @@ function writeSecrets(all) {
 }
 
 ipcMain.on("secret:all", (e) => {
-  e.returnValue = { available: safeStorage.isEncryptionAvailable(), values: readSecrets() };
+  e.returnValue = {
+    available: safeStorage.isEncryptionAvailable(),
+    values: readSecrets(),
+  };
 });
 ipcMain.handle("secret:set", (_e, name, value) => {
   const all = readSecrets();
   if (value === null) delete all[name];
   else all[name] = String(value);
   return writeSecrets(all);
+});
+
+/* ------------------------------------------------------------------- updates */
+
+/*
+  Only an installed copy updates itself: a copy run from the source tree has
+  nothing to replace. `update:*` messages are answered only from this app's
+  own page.
+*/
+let updates = null;
+let mainWindow = null;
+
+const fromApp = (e) => {
+  const url = e.senderFrame?.url ?? "";
+  return url.startsWith(DEV_SERVER ?? `${APP_SCHEME}://app/`);
+};
+
+function startUpdates(win) {
+  if (!app.isPackaged || !isWindows || DEV_SERVER) return;
+  const { autoUpdater } = require("electron-updater");
+  autoUpdater.logger = null;
+  updates = createUpdater({
+    updater: autoUpdater,
+    current: app.getVersion(),
+    send: (status) => {
+      if (!win.isDestroyed()) win.webContents.send("update:status", status);
+    },
+  });
+  updates.start();
+}
+
+const noUpdates = () => ({
+  state: "unsupported",
+  current: app.getVersion(),
+  version: null,
+  notes: "",
+  percent: 0,
+  error: null,
+  manual: false,
+  busy: false,
+});
+
+ipcMain.on("update:busy", (e, busy) => {
+  if (fromApp(e)) updates?.setBusy(busy === true);
+});
+ipcMain.handle("update:status", (e) =>
+  fromApp(e) && updates ? updates.status() : noUpdates(),
+);
+ipcMain.handle("update:check", async (e) => {
+  if (!fromApp(e) || !updates) return noUpdates();
+  await updates.check(true);
+  return updates.status();
+});
+ipcMain.handle("update:install", (e) => {
+  if (!fromApp(e) || !updates)
+    return {
+      ok: false,
+      reason: "This copy of AERONEX does not update itself.",
+    };
+  return updates.install();
 });
 
 /* ----------------------------------------------------------------- the window */
@@ -204,7 +301,13 @@ function readWindowState() {
     const s = JSON.parse(fs.readFileSync(userFile("window.json"), "utf8"));
     const ok = (n) => typeof n === "number" && Number.isFinite(n);
     if (!ok(s.width) || !ok(s.height)) return DEFAULT_WINDOW;
-    return { width: Math.max(900, s.width), height: Math.max(600, s.height), x: ok(s.x) ? s.x : undefined, y: ok(s.y) ? s.y : undefined, maximised: !!s.maximised };
+    return {
+      width: Math.max(900, s.width),
+      height: Math.max(600, s.height),
+      x: ok(s.x) ? s.x : undefined,
+      y: ok(s.y) ? s.y : undefined,
+      maximised: !!s.maximised,
+    };
   } catch {
     return DEFAULT_WINDOW;
   }
@@ -213,8 +316,14 @@ function readWindowState() {
 function saveWindowState(win) {
   if (win.isDestroyed()) return;
   try {
-    const b = win.isMaximized() || win.isFullScreen() ? win.getNormalBounds() : win.getBounds();
-    fs.writeFileSync(userFile("window.json"), JSON.stringify({ ...b, maximised: win.isMaximized() }));
+    const b =
+      win.isMaximized() || win.isFullScreen()
+        ? win.getNormalBounds()
+        : win.getBounds();
+    fs.writeFileSync(
+      userFile("window.json"),
+      JSON.stringify({ ...b, maximised: win.isMaximized() }),
+    );
   } catch {
     /* a window that cannot be remembered still opens at its usual size */
   }
@@ -293,9 +402,17 @@ function buildMenu(win) {
     {
       label: "&File",
       submenu: [
-        { label: "Open a flight log…", accelerator: "CmdOrCtrl+O", click: go("/logs") },
+        {
+          label: "Open a flight log…",
+          accelerator: "CmdOrCtrl+O",
+          click: go("/logs"),
+        },
         { type: "separator" },
-        { label: "Settings", accelerator: "CmdOrCtrl+,", click: go("/settings") },
+        {
+          label: "Settings",
+          accelerator: "CmdOrCtrl+,",
+          click: go("/settings"),
+        },
         { type: "separator" },
         { role: "quit", label: "Exit" },
       ],
@@ -328,10 +445,24 @@ function buildMenu(win) {
     {
       label: "&Help",
       submenu: [
-        { label: "Guide", accelerator: "F1", click: () => win.webContents.send("guide") },
+        {
+          label: "Guide",
+          accelerator: "F1",
+          click: () => win.webContents.send("guide"),
+        },
         { label: "About AERONEX", click: go("/about") },
+        {
+          label: "Check for updates…",
+          click: () => {
+            win.webContents.send("go", "/settings");
+            void updates?.check(true);
+          },
+        },
         { type: "separator" },
-        { label: "ArduPilot documentation", click: () => void shell.openExternal("https://ardupilot.org/copter/") },
+        {
+          label: "ArduPilot documentation",
+          click: () => void shell.openExternal("https://ardupilot.org/copter/"),
+        },
         {
           label: "Where my data is kept",
           click: () => {
@@ -350,29 +481,34 @@ function buildMenu(win) {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  let main = null;
   app.on("second-instance", () => {
-    if (!main) return;
-    if (main.isMinimized()) main.restore();
-    main.focus();
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
   });
+  // An update downloaded earlier installs as the app closes, but only if no
+  // aircraft was connected at that moment (see updater.cjs).
+  app.on("before-quit", () => updates?.beforeQuit());
 
   app.whenReady().then(() => {
     nativeTheme.themeSource = "light";
     protocol.handle(APP_SCHEME, serve);
     // Nothing in this app asks for a camera, a microphone or a location from
     // the desktop; only the serial port, allowed per window above.
-    session.defaultSession.setPermissionRequestHandler((_wc, _p, done) => done(false));
-    main = createWindow();
+    session.defaultSession.setPermissionRequestHandler((_wc, _p, done) =>
+      done(false),
+    );
+    const main = createWindow();
+    mainWindow = main;
     buildMenu(main);
+    startUpdates(main);
     main.webContents.on("render-process-gone", (_e, details) => {
-      dialog.showErrorBox("AERONEX stopped unexpectedly", `The window closed because of a fault (${details.reason}). Any aircraft stays as it was; AERONEX sends nothing while it is not running.\n\nStart AERONEX again to carry on.`);
+      dialog.showErrorBox(
+        "AERONEX stopped unexpectedly",
+        `The window closed because of a fault (${details.reason}). Any aircraft stays as it was; AERONEX sends nothing while it is not running.\n\nStart AERONEX again to carry on.`,
+      );
     });
   });
 
   app.on("window-all-closed", () => app.quit());
 }
-
-// Nothing here needs the network stack's http module; this keeps the linter honest.
-void net;
-void isWindows;

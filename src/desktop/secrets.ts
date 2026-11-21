@@ -29,7 +29,10 @@ export const encryptionAvailable = () => {
   return available;
 };
 
-export const desktopSecretStore: Pick<Storage, "getItem" | "setItem" | "removeItem"> = {
+export const desktopSecretStore: Pick<
+  Storage,
+  "getItem" | "setItem" | "removeItem"
+> = {
   getItem: (name) => load()[name] ?? null,
   setItem: (name, value) => {
     load()[name] = value;

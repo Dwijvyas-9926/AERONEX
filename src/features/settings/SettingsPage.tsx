@@ -4,6 +4,7 @@ import { resetAppData } from "../../state/resetApp";
 import { rememberKeys, setRememberKeys } from "../../state/secretStorage";
 import { isDesktop } from "../../desktop/bridge";
 import { encryptionAvailable } from "../../desktop/secrets";
+import { UpdatesSection } from "../../desktop/UpdateNotice";
 import { AI_MODELS, GRAPHICS, useSettings, type GraphicsPreset, type MotionPref, type Units } from "../../state/settingsStore";
 
 function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: [T, string][]; onChange: (v: T) => void; label: string }) {
@@ -26,10 +27,11 @@ export function SettingsPage() {
       <header className="page-head">
         <div>
           <h1>Settings</h1>
-          <p>Saved in this browser and applied immediately.</p>
+          <p>{isDesktop() ? "Saved on this computer and applied immediately." : "Saved in this browser and applied immediately."}</p>
         </div>
       </header>
       <div className="stack">
+        <UpdatesSection />
         <section className="panel">
           <div className="panel-head">
             <h2 className="h3">Display</h2>

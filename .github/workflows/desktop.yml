@@ -36,6 +36,8 @@ jobs:
         run: npx tsc -b
       - name: Build the app
         run: npx vite build
+      - name: Bundle the desktop shell and its updater
+        run: npm run desktop:bundle
       - name: A version tag must match package.json
         if: startsWith(github.ref, 'refs/tags/v')
         shell: bash

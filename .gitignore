@@ -7,3 +7,4 @@ dist-ssr
 node_modules/.vite
 *.tsbuildinfo
 release/
+desktop/main.bundle.cjs

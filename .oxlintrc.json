@@ -16,7 +16,8 @@
   },
   "ignorePatterns": [
     "public/**",
-    "dist/**"
+    "dist/**",
+    "desktop/main.bundle.cjs"
   ],
   "overrides": [
     {

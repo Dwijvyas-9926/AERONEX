@@ -13,6 +13,30 @@ export interface DesktopPort {
   serial: string;
 }
 
+export type UpdateState =
+  | "unsupported"
+  | "idle"
+  | "checking"
+  | "none"
+  | "downloading"
+  | "ready"
+  | "error";
+
+export interface UpdateStatus {
+  state: UpdateState;
+  /** This copy's version. */
+  current: string;
+  /** The new version, once one is found. */
+  version: string | null;
+  /** Its release notes, as plain text. */
+  notes: string;
+  percent: number;
+  error: string | null;
+  manual: boolean;
+  /** An aircraft is connected or firmware is being installed: no restart. */
+  busy: boolean;
+}
+
 export interface DesktopBridge {
   isDesktop: true;
   platform: string;
@@ -25,12 +49,21 @@ export interface DesktopBridge {
     all: () => { available: boolean; values: Record<string, string> };
     set: (name: string, value: string | null) => Promise<boolean>;
   };
+  updates: {
+    status: () => Promise<UpdateStatus>;
+    check: () => Promise<UpdateStatus>;
+    install: () => Promise<{ ok: boolean; reason: string | null }>;
+    setBusy: (busy: boolean) => void;
+    onStatus: (fn: (s: UpdateStatus) => void) => () => void;
+  };
   onGo: (fn: (hash: string) => void) => () => void;
   onGuide: (fn: () => void) => () => void;
 }
 
 export const desktop: DesktopBridge | null =
-  typeof window !== "undefined" && (window as unknown as { aeronexDesktop?: DesktopBridge }).aeronexDesktop?.isDesktop
+  typeof window !== "undefined" &&
+  (window as unknown as { aeronexDesktop?: DesktopBridge }).aeronexDesktop
+    ?.isDesktop
     ? (window as unknown as { aeronexDesktop: DesktopBridge }).aeronexDesktop
     : null;
 

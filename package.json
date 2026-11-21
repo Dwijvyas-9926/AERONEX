@@ -1,11 +1,11 @@
 {
   "name": "avion-gcs",
   "productName": "AERONEX",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "AERONEX Ground Station: design, set up, fly and review an ArduCopter drone.",
   "author": "Dwij Vyas",
   "homepage": "https://github.com/Dwijvyas-9926/AERONEX_test",
-  "main": "desktop/main.cjs",
+  "main": "desktop/main.bundle.cjs",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,9 +14,10 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "desktop": "vite build && electron .",
-    "desktop:dev": "AERONEX_DEV_SERVER=http://localhost:5173 electron .",
-    "dist:win": "vite build && electron-builder --win --publish never"
+    "desktop": "vite build && npm run desktop:bundle && electron .",
+    "desktop:dev": "npm run desktop:bundle && AERONEX_DEV_SERVER=http://localhost:5173 electron .",
+    "dist:win": "vite build && npm run desktop:bundle && electron-builder --win --publish never",
+    "desktop:bundle": "rolldown -c desktop/rolldown.config.mjs"
   },
   "dependencies": {
     "@fontsource-variable/manrope": "^5.3.0",
@@ -41,6 +42,7 @@
     "@vitejs/plugin-react": "^6.1.2",
     "electron": "^45.4.1",
     "electron-builder": "^26.18.0",
+    "electron-updater": "6.8.11",
     "oxlint": "^1.88.0",
     "typescript": "~6.0.3",
     "vite": "^8.3.4",
@@ -50,14 +52,14 @@
   "build": {
     "appId": "com.aeronex.groundstation",
     "productName": "AERONEX",
-    "copyright": "Copyright \u00a9 2026 Dwij Vyas",
+    "copyright": "Copyright © 2026 Dwij Vyas",
     "directories": {
       "output": "release",
       "buildResources": "desktop/build"
     },
     "files": [
       "dist/**/*",
-      "desktop/main.cjs",
+      "desktop/main.bundle.cjs",
       "desktop/preload.cjs",
       "desktop/build/icon.png",
       "package.json",

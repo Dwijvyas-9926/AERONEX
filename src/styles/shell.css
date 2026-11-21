@@ -1952,3 +1952,46 @@ kbd {
 .port-item svg { color: var(--accent); flex: none; }
 .port-item strong { display: block; font-size: var(--t-sm); }
 .port-item small { display: block; color: var(--muted); font-size: var(--t-xs); margin-top: 2px; }
+
+/* Windows app: a new version has downloaded. Bottom left, clear of the toasts. */
+.update-notice {
+  position: fixed;
+  left: var(--s5);
+  bottom: var(--s5);
+  z-index: 190;
+  width: min(380px, calc(100vw - 32px));
+  display: flex;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-panel);
+  background: var(--slate);
+  border: 1px solid var(--accent-line);
+  box-shadow: var(--shadow-2);
+}
+.update-notice > svg { color: var(--accent); flex: none; margin-top: 2px; }
+.update-notice strong { display: block; }
+.update-notice p { margin: var(--s1) 0 0; font-size: var(--t-sm); color: var(--ink-2); }
+.update-actions { display: flex; gap: var(--s2); margin-top: var(--s3); }
+.update-notes {
+  margin: var(--s2) 0 0;
+  max-height: 180px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: inherit;
+  font-size: var(--t-sm);
+  color: var(--ink-2);
+}
+.link-btn {
+  margin-top: var(--s2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--t-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+@media (max-width: 720px) {
+  .update-notice { left: 16px; right: 16px; width: auto; bottom: calc(var(--s5) + 72px); }
+}
