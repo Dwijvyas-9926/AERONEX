@@ -3,208 +3,518 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AERONEX Ground Station for Windows</title>
-    <meta name="description" content="AERONEX is a free, open-source ground station for ArduCopter drones on Windows: set up a Pixhawk, rehearse in a simulator, plan missions, fly and review the logs." />
-    <meta property="og:title" content="AERONEX Ground Station for Windows" />
-    <meta property="og:description" content="A free, open-source ground station for ArduCopter drones. Set up, rehearse, fly and review." />
-    <meta property="og:image" content="/img/social-card.png" />
+    <title>AERONEX: the ground station for ArduCopter drones, for Windows</title>
+    <meta name="description" content="AERONEX is a free, open-source ground station for ArduCopter drones on Windows: design the frame, install firmware, calibrate, rehearse in a simulator, plan missions, fly and review the logs." />
+    <meta name="theme-color" content="#fcf3ea" />
     <meta property="og:type" content="website" />
-    <meta name="theme-color" content="#f6f3ec" />
-    <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="icon" href="/img/favicon-32.png" type="image/png" />
-    <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
-    <link rel="preload" href="/fonts/saira-semi-condensed-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="stylesheet" href="/site.css" />
-    <script type="module" src="/download.js"></script>
+    <meta property="og:title" content="AERONEX: One platform. Every dimension of flight." />
+    <meta property="og:description" content="Design, set up, simulate, fly and review your ArduCopter drone in one Windows app. Free and open source." />
+    <meta property="og:image" content="img/social-card.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" href="img/favicon-32.png" type="image/png" />
+    <link rel="apple-touch-icon" href="img/apple-touch-icon.png" />
+    <link rel="preload" href="fonts/manrope-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="site.css" />
+    <script src="app.js" defer></script>
   </head>
   <body>
-    <a class="skip" href="#main">Skip to the page</a>
-    <header class="top">
-      <a class="lockup" href="/" aria-label="AERONEX Ground Station, home">
-        <img src="/img/icon.png" alt="" width="36" height="36" />
-        <span class="word">AERONE<em>X</em></span>
-      </a>
-      <nav aria-label="Site">
-        <a href="#what">What it does</a>
+    <a class="skip" href="#main">Skip to content</a>
+    <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+
+    <!-- icons -->
+    <svg width="0" height="0" class="vh" aria-hidden="true">
+      <defs>
+        <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></symbol>
+        <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14" /></symbol>
+        <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5-9-5Z" /><path d="m3 12.5 9 5 9-5" /><path d="m3 16.8 9 5 9-5" opacity=".55" /></symbol>
+        <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></symbol>
+        <symbol id="i-cube" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z" /><path d="m3.3 7.6 8.7 5 8.7-5M12 22V12.6" /></symbol>
+        <symbol id="i-bars" viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-6" /></symbol>
+        <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5" /><rect x="10" y="10" width="4" height="4" rx=".5" /><path d="M9.5 3v3.5M14.5 3v3.5M9.5 17.5V21M14.5 17.5V21M3 9.5h3.5M3 14.5h3.5M17.5 9.5H21M17.5 14.5H21" /></symbol>
+        <symbol id="i-ruler" viewBox="0 0 24 24"><path d="m14.5 4.5 5 5L8 21l-5-5L14.5 4.5Z" /><path d="m8.5 10 2 2M11.5 7l2 2M5.5 13l2 2" /></symbol>
+        <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.8 3.4 8 8 9 4.6-1 8-4.2 8-9V6l-8-3Z" /><path d="m9 12 2.2 2.2L15.5 10" /></symbol>
+        <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" /></symbol>
+        <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 8-5 4 5 4M16 8l5 4-5 4M14 4l-4 16" /></symbol>
+        <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3.5 7 8.5 6 8.5-6" /></symbol>
+        <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 7.5v5.5M12 16.5h.01" /></symbol>
+        <symbol id="i-usb" viewBox="0 0 24 24"><circle cx="8" cy="18" r="2.5" /><path d="M8 15.5V12l8-3V6M16 9l-8 3" /><path d="M14.5 3h3v3h-3zM20 9.5h-3.5" /></symbol>
+        <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" /></symbol>
+        <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M5 4v16M12 4v16M19 4v16" /><circle cx="5" cy="14" r="2" /><circle cx="12" cy="8" r="2" /><circle cx="19" cy="15" r="2" /></symbol>
+        <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></symbol>
+        <symbol id="i-steth" viewBox="0 0 24 24"><path d="M6 3v6a4 4 0 0 0 8 0V3M10 13v2a5 5 0 0 0 10 0v-2" /><circle cx="20" cy="11" r="2" /></symbol>
+        <symbol id="i-keys" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10" /></symbol>
+        <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 4 12 2.5-6H21" /></symbol>
+        <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.6-4.5L3 9" /><path d="M3 4v5h5" /><path d="M4 13a8 8 0 0 0 14.6 4.5L21 15" /><path d="M21 20v-5h-5" /></symbol>
+        <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4.5 18a9 9 0 1 1 15 0" /><path d="m12 13 4-5" /><circle cx="12" cy="13" r="1.3" /></symbol>
+        <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6" /></symbol>
+        <symbol id="i-drone" viewBox="0 0 24 24"><circle cx="5.5" cy="5.5" r="2.5" /><circle cx="18.5" cy="5.5" r="2.5" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" /><path d="M7.5 7.5 10 10M16.5 7.5 14 10M7.5 16.5 10 14M16.5 16.5 14 14" /><rect x="10" y="10" width="4" height="4" rx="1" /></symbol>
+        <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0V8ZM12 17v4" /></symbol>
+        <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" /><path d="M14 3v5h5M9 13h6M9 17h6" /></symbol>
+        <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></symbol>
+        <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4 18-7Z" /></symbol>
+        <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2" /><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" /></symbol>
+      </defs>
+    </svg>
+
+    <header class="top" id="top-bar">
+      <div class="wrap bar">
+        <a class="brand" href="#top" aria-label="AERONEX, back to the top">
+          <img src="img/mark.png" width="46" height="46" alt="" />
+          <span><span class="word">AERONE<b>X</b></span><small>Ground Station</small></span>
+        </a>
+        <nav class="main" aria-label="Primary">
+          <a href="#platform">Platform</a>
+          <a href="#why">Why AERONEX</a>
+          <a href="#safety">Safety</a>
+          <a href="#creator">Creator</a>
+          <a href="#contact">Contact</a>
+        </nav>
+        <a class="btn btn-primary btn-sm" href="#download">Download <svg class="ic"><use href="#i-down" /></svg></a>
+        <button class="menu-btn" id="menuBtn" aria-label="Open the menu" aria-expanded="false" aria-controls="drawer"><svg class="ic"><use href="#i-list" /></svg></button>
+      </div>
+      <div class="drawer" id="drawer">
+        <a href="#platform">Platform</a>
+        <a href="#why">Why AERONEX</a>
         <a href="#safety">Safety</a>
-        <a href="#install">Install</a>
-        <a href="https://github.com/Dwijvyas-9926/AERONEX">Source code</a>
-      </nav>
+        <a href="#creator">Creator</a>
+        <a href="#contact">Contact</a>
+        <a class="btn btn-primary" href="#download">Download for Windows <svg class="ic"><use href="#i-down" /></svg></a>
+      </div>
     </header>
 
     <main id="main">
-      <section class="hero" aria-labelledby="hero-title">
-        <div class="hero-text">
-          <h1 id="hero-title">Ground control for ArduCopter, on Windows.</h1>
-          <p class="lede">
-            Set up a Pixhawk, rehearse in a simulator, plan a mission over real ground, fly it, and find out afterwards what went wrong. One app, free
-            and open source.
-          </p>
-          <div class="get" data-download>
-            <a class="btn-download" href="https://github.com/Dwijvyas-9926/AERONEX/releases/latest" data-download-link>
-              <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 19h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-              <span data-download-label>Download for Windows</span>
-            </a>
-            <p class="get-meta" data-download-meta>Windows 10 and 11, 64-bit. Free.</p>
-            <p class="get-other" data-not-windows hidden>
-              AERONEX runs on Windows for now. Download it here for a Windows PC; versions for macOS and Linux are not available yet.
-            </p>
+      <!-- ================= HERO ================= -->
+      <section class="hero" id="top" aria-labelledby="hero-title">
+        <div class="terrain" data-terrain="hero" aria-hidden="true"></div>
+        <div class="grid-dots" aria-hidden="true"></div>
+        <div class="route" aria-hidden="true">
+          <svg viewBox="0 0 1440 860" preserveAspectRatio="xMidYMid slice">
+            <path id="flightPath" class="path" d="M-40 780 C 180 700 300 820 520 730 S 760 520 900 560 S 1160 700 1260 520 S 1400 240 1500 170" />
+            <circle class="wp" cx="520" cy="730" r="6" />
+            <circle class="wp-ring" cx="520" cy="730" r="6" />
+            <circle class="wp" cx="900" cy="560" r="6" />
+            <circle class="wp-ring" cx="900" cy="560" r="6" />
+            <circle class="wp" cx="1260" cy="520" r="6" />
+            <circle class="wp-ring" cx="1260" cy="520" r="6" />
+            <g id="craft">
+              <g transform="rotate(90)">
+                <path d="M-9 -9 L9 9 M9 -9 L-9 9" stroke="#14213d" stroke-width="2.4" stroke-linecap="round" />
+                <circle cx="-9" cy="-9" r="5" fill="none" stroke="#e8650f" stroke-width="1.8" />
+                <circle cx="9" cy="-9" r="5" fill="none" stroke="#e8650f" stroke-width="1.8" />
+                <circle cx="-9" cy="9" r="5" fill="none" stroke="#14213d" stroke-width="1.8" />
+                <circle cx="9" cy="9" r="5" fill="none" stroke="#14213d" stroke-width="1.8" />
+                <rect x="-4" y="-4" width="8" height="8" rx="2" fill="#14213d" />
+              </g>
+              <animateMotion dur="34s" repeatCount="indefinite" rotate="auto"><mpath href="#flightPath" /></animateMotion>
+            </g>
+          </svg>
+        </div>
+
+        <div class="wrap">
+          <div class="hero-grid">
+            <div class="reveal">
+              <div class="eyebrow">UAV ground control for Windows</div>
+              <h1 id="hero-title">One platform.<br />Every dimension<br />of <em>flight.</em></h1>
+              <p class="lede">Design, set up, simulate, fly and review your ArduCopter drone in one desktop app for Windows. Free, open source, and built to be safe on a real aircraft.</p>
+              <div class="cta-row">
+                <a class="btn btn-primary" href="#download"><svg class="ic"><use href="#i-down" /></svg> Download for Windows</a>
+                <a class="btn btn-ghost" href="#platform">See how it works <svg class="ic"><use href="#i-arrow" /></svg></a>
+              </div>
+              <div class="chips" aria-label="Highlights">
+                <span><svg class="ic"><use href="#i-chip" /></svg>ArduCopter 4.6 &amp; 4.7</span>
+                <span><svg class="ic"><use href="#i-layers" /></svg>Simulation</span>
+                <span><svg class="ic"><use href="#i-cube" /></svg>Digital Twin</span>
+                <span><svg class="ic"><use href="#i-file" /></svg>Flight Logs</span>
+              </div>
+            </div>
+
+            <div class="stage reveal">
+              <div class="monitor">
+                <div class="bezel">
+                  <div class="screen"><img src="img/overview.webp" width="1600" height="1000" alt="The AERONEX Overview screen: a 3D quadcopter above a forested valley, with attitude, heading and height instruments and the side menu of Design, Set up, Fly and Review." /></div>
+                </div>
+                <div class="neck"></div>
+                <div class="foot"></div>
+                <div class="float a"><span class="dot"><svg class="ic"><use href="#i-shield" /></svg></span><span>Tested against real ArduCopter<small>Releases 4.6 and 4.7, in SITL</small></span></div>
+                <div class="float b"><span class="dot"><svg class="ic"><use href="#i-monitor" /></svg></span><span>A Windows 10 &amp; 11 app<small>Installs for you, no admin rights</small></span></div>
+                <div class="float c"><span class="live"></span><span data-version-float>Latest release<small>Updates itself, never mid-flight</small></span></div>
+              </div>
+            </div>
           </div>
         </div>
-        <figure class="shot shot-hero">
-          <img src="/img/overview.webp" width="2400" height="1500" alt="AERONEX's Overview page: the aircraft in 3D over a valley, with a live instrument panel, and the side menu of Design, Set up, Fly and Review." />
-        </figure>
-      </section>
 
-      <section id="what" class="band" aria-labelledby="what-title">
-        <h2 id="what-title">From a drawing to a reviewed flight</h2>
-        <p class="section-lede">Four stages, in the order you would do them. Every page works without the ones before it, and the built-in virtual aircraft stands in for hardware until you plug a flight controller in.</p>
-        <ol class="stages">
-          <li>
-            <h3>Design</h3>
-            <p>Draw a frame around the parts you own and get files to cut or print. Import your 3D model and check which way is forward.</p>
-            <p class="pages">Frame Studio, Digital Twin</p>
-          </li>
-          <li>
-            <h3>Set up</h3>
-            <p>Link the Pixhawk by USB or telemetry radio, install ArduCopter, calibrate the sensors, set the outputs and tune how it flies.</p>
-            <p class="pages">Connection, Firmware, Calibration, Servo Outputs, PID Tuning, Parameters</p>
-          </li>
-          <li>
-            <h3>Fly</h3>
-            <p>Get a go or no-go before arming, rehearse in the simulator, plan a mission over measured ground, then fly it and watch it live.</p>
-            <p class="pages">Preflight Check, Flight Simulator, Mission Planning, Flight Data</p>
-          </li>
-          <li>
-            <h3>Review</h3>
-            <p>Open the flight log: what went wrong, every reading charted, and the flight replayed in 3D. A health scan says what to fix.</p>
-            <p class="pages">Flight Logs, Drone Doctor, Telemetry</p>
-          </li>
-        </ol>
-
-        <div class="gallery">
-          <figure class="shot shot-wide">
-            <img src="/img/simulator.webp" width="1600" height="1000" loading="lazy" alt="The Flight Simulator: a virtual quadcopter on a landing pad, with take-off, mission, hold, return and land controls." />
-            <figcaption><strong>Rehearse first.</strong> The virtual aircraft speaks MAVLink like a real one, so every page can be learned and every mission flown before a propeller turns.</figcaption>
-          </figure>
-          <figure class="shot">
-            <img src="/img/missions.webp" width="1600" height="1000" loading="lazy" alt="Mission Planning: a five-waypoint route drawn on the practice field, with its length, flight time and height listed." />
-            <figcaption><strong>Plan over real ground.</strong> Routes are checked against the terrain, the fence and the battery as you draw, then read back from the aircraft after sending.</figcaption>
-          </figure>
-          <figure class="shot">
-            <img src="/img/flight-data.webp" width="1600" height="1000" loading="lazy" alt="Flight Data: a primary flight display with attitude, heading, speed and height tapes." />
-            <figcaption><strong>Fly with the instruments.</strong> A primary flight display with attitude, heading, speed and height, fed live from the aircraft.</figcaption>
-          </figure>
+        <div class="strip">
+          <div class="wrap strip-grid">
+            <div class="strip-item reveal"><svg class="ic"><use href="#i-layers" /></svg><div><h2>Mission Planning</h2><p>Plan routes over measured ground, fence them in and predict the flight.</p></div></div>
+            <div class="strip-item reveal"><svg class="ic"><use href="#i-monitor" /></svg><div><h2>Simulation</h2><p>Rehearse on a virtual aircraft that speaks MAVLink, faults included.</p></div></div>
+            <div class="strip-item reveal"><svg class="ic"><use href="#i-cube" /></svg><div><h2>Digital Twin</h2><p>Import your STEP or mesh model and watch it fly in 3D.</p></div></div>
+            <div class="strip-item reveal"><svg class="ic"><use href="#i-bars" /></svg><div><h2>Flight Intelligence</h2><p>Flight Logs, Preflight Check and Drone Doctor: what went wrong, and why.</p></div></div>
+          </div>
         </div>
       </section>
 
-      <section id="safety" class="panel-dark" aria-labelledby="safety-title">
-        <div class="panel-dark-inner">
-          <h2 id="safety-title">Built not to hurt the aircraft</h2>
-          <p class="section-lede">Each of these is enforced by the app, and checked against ArduPilot's own simulator build of ArduCopter 4.6 and 4.7 for every release.</p>
-          <dl class="rules">
-            <div>
-              <dt>Commands for ArduCopter only</dt>
-              <dd>Any other autopilot is shown and read, never commanded.</dd>
-            </div>
-            <div>
-              <dt>Every command confirmed</dt>
-              <dd>Each waits for the aircraft's acknowledgement. A refusal is reported in plain words, never assumed to have worked.</dd>
-            </div>
-            <div>
-              <dt>No settings changed in flight</dt>
-              <dd>Nothing is written to an armed aircraft without your confirmation, and the board cannot be restarted while armed.</dd>
-            </div>
-            <div>
-              <dt>The autopilot's own pre-arm checks</dt>
-              <dd>Preflight Check follows ArduCopter's verdict and adds battery, GPS and link checks on top. It never overrides it.</dd>
-            </div>
-            <div>
-              <dt>Motors only on purpose</dt>
-              <dd>Motor tests need the propellers-off box ticked and stop when the link drops or you leave the window.</dd>
-            </div>
-            <div>
-              <dt>Firmware installed with care</dt>
-              <dd>Matched to the board's identity, only on a disarmed aircraft, and every byte read back before the board restarts.</dd>
-            </div>
-            <div>
-              <dt>Missions checked twice</dt>
-              <dd>Sending needs a GPS fix and a disarmed aircraft, and the mission is read back and compared afterwards.</dd>
-            </div>
-            <div>
-              <dt>Updates wait for you</dt>
-              <dd>AERONEX never restarts to update while a flight controller is connected or firmware is being installed.</dd>
-            </div>
-          </dl>
-          <p class="caveat">AERONEX is not flight-certified. The pilot is responsible for every flight: fly within the law, keep clear of people, and test on your own hardware with the propellers off before you rely on it.</p>
+      <!-- ================= PLATFORM ================= -->
+      <section class="sec" id="platform">
+        <div class="wrap">
+          <div class="head-center reveal">
+            <span class="kicker">The platform</span>
+            <h2>Everything between the drawing <em>and the first flight</em></h2>
+            <p class="sec-lede">AERONEX follows the order you actually work in: design the aircraft, set it up, rehearse, fly, then review. Every picture below is a real screen from the current version of the app.</p>
+          </div>
+
+          <div class="show">
+            <article class="row reveal">
+              <div class="shot-wrap">
+                <figure class="shot">
+                  <div class="chrome"><i></i><i></i><i></i><span>AERONEX · Frame Studio</span></div>
+                  <img src="img/frame-studio.webp" width="1400" height="875" loading="lazy" decoding="async" alt="Frame Studio: a quadcopter frame drawn from the parts you own, with its wheelbase, weight and thrust-to-weight worked out." />
+                  <figcaption>Frame Studio: a frame worked out around the parts you own.</figcaption>
+                </figure>
+              </div>
+              <div>
+                <span class="step"><b>1</b> Design</span>
+                <h3>Draw the frame around the parts you already own</h3>
+                <p>Answer five short questions and Frame Studio works out the geometry, sizes the arms against real loads and checks the result. No CAD needed.</p>
+                <ul class="ticks">
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>Files a laser cutter, CNC or 3D printer can use, with 1:1 part drawings</span></li>
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>Hardware list, build instructions and a build report in one PDF</span></li>
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>One click copies the design into the simulator</span></li>
+                </ul>
+              </div>
+            </article>
+
+            <article class="row flip reveal">
+              <div class="shot-wrap">
+                <figure class="shot">
+                  <div class="chrome"><i></i><i></i><i></i><span>AERONEX · Digital Twin</span></div>
+                  <img src="img/digital-twin.webp" width="1400" height="875" loading="lazy" decoding="async" alt="Digital Twin: a quadcopter model on a ground grid, with inspect, scripted flight and manual flight modes and an import panel." />
+                  <figcaption>Digital Twin: your own model, oriented and flown in 3D.</figcaption>
+                </figure>
+              </div>
+              <div>
+                <span class="step"><b>2</b> Visualise</span>
+                <h3>Your drone, as a digital twin</h3>
+                <p>Import the real assembly as STEP, STP, GLB, glTF, OBJ or STL. STEP files are converted on your computer, and the file is never uploaded.</p>
+                <ul class="ticks">
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>Set which way is forward and up with simple Turn, Tilt and Roll buttons</span></li>
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>Inspect it, watch a scripted figure-eight, or fly it by keyboard</span></li>
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>Each aircraft profile keeps its own model</span></li>
+                </ul>
+                <p class="note">The twin's test flight is a visual preview, not a validated physics model.</p>
+              </div>
+            </article>
+
+            <article class="row reveal">
+              <div class="shot-wrap">
+                <figure class="shot">
+                  <div class="chrome"><i></i><i></i><i></i><span>AERONEX · Firmware</span></div>
+                  <img src="img/firmware.webp" width="1400" height="875" loading="lazy" decoding="async" alt="The Firmware page: choose multicopter or helicopter, then find the board over USB and install the latest stable ArduCopter." />
+                  <figcaption>Firmware: the board is found over USB and the right build picked for it.</figcaption>
+                </figure>
+              </div>
+              <div>
+                <span class="step"><b>3</b> Set up</span>
+                <h3>Install ArduCopter and set the aircraft up</h3>
+                <p>Install the latest stable ArduCopter straight from ArduPilot's server, then calibrate the sensors, choose what each output does and tune how it flies.</p>
+                <ul class="ticks">
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>The build is matched to the board's own identity, or install a <code>.apj</code> of your own</span></li>
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>Every byte is read back and compared before the board restarts</span></li>
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>Accelerometer, compass, radio, ESC and flight-mode calibration, and a motor test</span></li>
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>Servo outputs for payload release and delivery, each one tested from the app</span></li>
+                </ul>
+              </div>
+            </article>
+
+            <article class="row flip reveal">
+              <div class="shot-wrap">
+                <figure class="shot">
+                  <div class="chrome"><i></i><i></i><i></i><span>AERONEX · Mission Planning</span></div>
+                  <img src="img/missions.webp" width="1400" height="875" loading="lazy" decoding="async" alt="Mission Planning with a five-waypoint route on the practice field, its length, flight time and heights, and the plan table." />
+                  <figcaption>Mission Planning on the practice field. Real-map mode adds satellite imagery and measured ground.</figcaption>
+                </figure>
+              </div>
+              <div>
+                <span class="step"><b>4</b> Plan</span>
+                <h3>Routes checked against the ground, the fence and the battery</h3>
+                <p>Click to place waypoints on a real map over measured terrain. The plan is checked as you draw, then predicted in the simulator with wind, battery level and a chosen failure.</p>
+                <ul class="ticks">
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>Geofence with keep-in and keep-out zones, validated against ArduCopter</span></li>
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>Sending asks first, then reads the mission back to confirm it</span></li>
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>Opens and saves <code>.waypoints</code> files that Mission Planner and QGroundControl also read</span></li>
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>Map areas can be saved for the field, to work with no internet</span></li>
+                </ul>
+              </div>
+            </article>
+
+            <article class="row reveal">
+              <div class="shot-wrap">
+                <figure class="shot">
+                  <div class="chrome"><i></i><i></i><i></i><span>AERONEX · Flight Simulator</span></div>
+                  <img src="img/simulator.webp" width="1400" height="875" loading="lazy" decoding="async" alt="The Flight Simulator: a virtual quadcopter taking off from a helipad in Guided mode, with height, speed, battery and the event log." />
+                  <figcaption>The virtual aircraft is always labelled as simulated data.</figcaption>
+                </figure>
+              </div>
+              <div>
+                <span class="step"><b>5</b> Simulate</span>
+                <h3>Rehearse on a virtual aircraft before you risk a real one</h3>
+                <p>A six-degree-of-freedom model with thrust, drag, wind, gusts and a battery that sags, flown by a model of ArduCopter's control loops. It speaks MAVLink exactly like a flight controller, so every page works on it.</p>
+                <ul class="ticks">
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>Lose a motor, the GPS, the radio or the link and watch what your settings do</span></li>
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>Five camera views, pause, and up to 10× speed</span></li>
+                </ul>
+                <p class="note">A model written from ArduPilot's documentation, not the firmware itself. Treat a prediction as a strong hint and keep the first real flight cautious.</p>
+              </div>
+            </article>
+
+            <article class="row flip reveal">
+              <div class="shot-wrap">
+                <figure class="shot">
+                  <div class="chrome"><i></i><i></i><i></i><span>AERONEX · Flight Logs</span></div>
+                  <img src="img/logs.webp" width="1400" height="875" loading="lazy" decoding="async" alt="Flight Logs: the report for a recorded flight, with time in the air, height, distance and battery used, flight modes along a timeline and the findings." />
+                  <figcaption>Flight Logs: a recorded flight, explained.</figcaption>
+                </figure>
+                <img class="inset" src="img/logs-replay.webp" width="900" height="562" loading="lazy" decoding="async" alt="The same flight replayed in 3D, with instruments beside it." />
+              </div>
+              <div>
+                <span class="step"><b>6</b> Review</span>
+                <h3>Find out what the aircraft went through</h3>
+                <p>Open an ArduPilot <code>.bin</code> log or a <code>.tlog</code> after landing: a plain-words report of what went wrong and why, every reading on a chart, and the flight replayed in 3D.</p>
+                <ul class="ticks">
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>Download logs straight from the aircraft over the link</span></li>
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>Every session with an aircraft can be recorded as a <code>.tlog</code>, automatically</span></li>
+                  <li><svg class="ic"><use href="#i-check" /></svg><span>Checks for vibration, the state estimate, compass, GPS, power and more, against ArduPilot's published limits</span></li>
+                </ul>
+              </div>
+            </article>
+          </div>
+
+          <div class="head-center reveal more-head">
+            <span class="kicker">And everything around it</span>
+            <h2>Twenty pages, <em>one aircraft</em></h2>
+            <p class="sec-lede">Each page works on the virtual aircraft as well as a real one, so you can learn all of them before any hardware is plugged in.</p>
+          </div>
+          <div class="cards">
+            <div class="card reveal"><div class="ib"><svg class="ic"><use href="#i-usb" /></svg></div><h3>Connect</h3><p>Link a Pixhawk over USB or a telemetry radio. CRC-checked MAVLink 1 and 2, with plain-words help when a link misbehaves.</p></div>
+            <div class="card reveal"><div class="ib"><svg class="ic"><use href="#i-list" /></svg></div><h3>Parameters</h3><p>Every setting with what it is for, its range and its options. Values are checked first, and nothing is written until you press Upload.</p></div>
+            <div class="card reveal"><div class="ib"><svg class="ic"><use href="#i-target" /></svg></div><h3>Calibration</h3><p>Accelerometer, compass, ESC, radio and flight modes, plus a motor test that needs the propellers-off box ticked.</p></div>
+            <div class="card reveal"><div class="ib"><svg class="ic"><use href="#i-plug" /></svg></div><h3>Servo Outputs</h3><p>Choose what each output pin does: motors, a payload release, a radio channel or a mission servo, and test each one.</p></div>
+            <div class="card reveal"><div class="ib"><svg class="ic"><use href="#i-sliders" /></svg></div><h3>PID Tuning</h3><p>Describe the wobble and get the setting to change, which way, and why.</p></div>
+            <div class="card reveal"><div class="ib"><svg class="ic"><use href="#i-shield" /></svg></div><h3>Preflight Check</h3><p>One go or no-go verdict that follows ArduCopter's own pre-arm result and never overrides it.</p></div>
+            <div class="card reveal"><div class="ib"><svg class="ic"><use href="#i-gauge" /></svg></div><h3>Flight Data</h3><p>A primary flight display with attitude, heading, speed and height, live from the aircraft.</p></div>
+            <div class="card reveal"><div class="ib"><svg class="ic"><use href="#i-keys" /></svg></div><h3>Keyboard Flight</h3><p>A short test hop with no transmitter: walking pace, a 10 m ceiling and a 20 m fence.</p></div>
+            <div class="card reveal"><div class="ib"><svg class="ic"><use href="#i-steth" /></svg></div><h3>Drone Doctor</h3><p>A health scan for vibration, EKF, compass, GPS and battery that says what is wrong and how to fix it.</p></div>
+            <div class="card reveal"><div class="ib"><svg class="ic"><use href="#i-pulse" /></svg></div><h3>Telemetry</h3><p>Message rates, a raw frame table, link-health counters and the vehicle's event log.</p></div>
+            <div class="card reveal"><div class="ib"><svg class="ic"><use href="#i-sparkle" /></svg></div><h3>Assistant</h3><p>Ask how to do something, or what a reading means. It knows the manual and, if you allow it, your live aircraft. Uses your own Anthropic key.</p></div>
+            <div class="card reveal"><div class="ib"><svg class="ic"><use href="#i-drone" /></svg></div><h3>Aircraft Profiles</h3><p>Keep several aircraft, each with its frame, flight controller, weight and 3D model, and switch between them.</p></div>
+          </div>
         </div>
       </section>
 
-      <section id="install" class="band" aria-labelledby="install-title">
-        <h2 id="install-title">Installing</h2>
-        <ol class="steps">
-          <li>
-            <h3>Download and run the installer</h3>
-            <p>Use the button at the top of this page. It always gives the latest version, straight from the project's GitHub releases.</p>
-          </li>
-          <li>
-            <h3>If Windows says "Windows protected your PC"</h3>
-            <p>
-              AERONEX is not code-signed yet, so Windows does not recognise the publisher. Click <strong>More info</strong>, check the file is
-              <code>AERONEX-Setup</code> followed by the version, then click <strong>Run anyway</strong>. Only run an installer you downloaded from this
-              page or from the GitHub releases.
-            </p>
-          </li>
-          <li>
-            <h3>Set it up</h3>
-            <p>Choose where to install. On first launch AERONEX asks for your name and describes your first aircraft. Both stay on your computer.</p>
-          </li>
-          <li>
-            <h3>Connect the aircraft</h3>
-            <p>Plug the Pixhawk in by USB, or the telemetry radio, click <strong>Connect</strong> and pick its port. Start with the propellers off.</p>
-          </li>
-        </ol>
-
-        <div class="facts">
-          <section>
-            <h3>Updates</h3>
-            <p>AERONEX looks for a new version when it starts and every few hours, downloads it in the background and asks before restarting. It never restarts while an aircraft is connected.</p>
-          </section>
-          <section>
-            <h3>Your data</h3>
-            <p>No account and no analytics. Aircraft, missions, logs and settings stay on your computer; API keys are encrypted by Windows. <a href="/privacy.html">What leaves your computer</a></p>
-          </section>
-          <section>
-            <h3>What you need</h3>
-            <ul>
-              <li>Windows 10 or 11, 64-bit, and about 350 MB of disk space</li>
-              <li>A Pixhawk 2.4.8, Holybro Pixhawk 6C Mini or another MAVLink board running ArduCopter 4.6 or 4.7</li>
-              <li>A USB cable, or a telemetry radio that shows up as a COM port</li>
-              <li>Nothing else for the simulator; internet only for maps, firmware and updates</li>
-            </ul>
-          </section>
+      <!-- ================= WHY ================= -->
+      <section class="sec why" id="why">
+        <div class="wrap why-grid">
+          <div class="reveal">
+            <span class="kicker">Why AERONEX</span>
+            <h2>Getting a drone ready should not take <em>six different tools</em></h2>
+            <p class="sec-lede">Building and preparing a multicopter usually means a CAD program, a ground station, a parameter editor, a firmware flasher, a simulator and a stack of tuning guides. Each one is built for experts, and none of them talk to each other.</p>
+            <p class="sec-lede">AERONEX puts the whole path from drawing to a calibrated, checked aircraft in one place, explains itself in plain words, and never pretends something works when it doesn't.</p>
+            <div class="stats">
+              <div class="stat"><b>4.6 &amp; 4.7</b><span>ArduCopter releases tested against the real firmware</span></div>
+              <div class="stat"><b data-count="800" data-suffix="+">800+</b><span>automated tests, including real-firmware runs</span></div>
+              <div class="stat"><b data-count="9">9</b><span>safety rules enforced in code</span></div>
+            </div>
+          </div>
+          <div class="why-list">
+            <div class="why-item reveal"><div class="num">1</div><div><h3>One connected workflow</h3><p>Frame Studio feeds the simulator, the simulator feeds mission planning, and every page works on the virtual aircraft or a real one.</p></div></div>
+            <div class="why-item reveal"><div class="num">2</div><div><h3>Rehearse before you risk hardware</h3><p>Break things on purpose in the simulator, see what your settings would do, then make the first real flight a cautious one.</p></div></div>
+            <div class="why-item reveal"><div class="num">3</div><div><h3>Plain language, honest status</h3><p>Every setting says what it is for. Simulated data is always labelled, and every module is marked complete, working or planned.</p></div></div>
+            <div class="why-item reveal"><div class="num">4</div><div><h3>Yours, on your computer</h3><p>No account and no analytics. Aircraft, missions and logs stay on your PC, and API keys are encrypted by Windows.</p></div></div>
+            <div class="why-item reveal"><div class="num">5</div><div><h3>Ready on the first attempt</h3><p>AERONEX grew out of a disaster-relief drone programme, where the aircraft has to work the first time and the ground station must never get in the way.</p></div></div>
+          </div>
         </div>
       </section>
 
-      <section class="news" aria-labelledby="news-title" data-release hidden>
-        <h2 id="news-title" data-release-title>What's new</h2>
-        <ul class="news-list" data-release-notes></ul>
-        <p><a href="https://github.com/Dwijvyas-9926/AERONEX/releases">Every version and its notes</a></p>
+      <!-- ================= MOTTO ================= -->
+      <section class="motto" aria-labelledby="motto-h">
+        <div class="terrain" data-terrain="night" aria-hidden="true"></div>
+        <div class="wrap">
+          <span class="kicker">Our motto</span>
+          <h2 id="motto-h" class="vh">Our motto</h2>
+          <blockquote>As dependable as <em>professional tools.</em><br />As easy to pick up as <em>a web page.</em></blockquote>
+          <p>A ground station that stays out of your way when it matters, and tells you the truth about what it can and cannot do.</p>
+        </div>
+      </section>
+
+      <!-- ================= SAFETY ================= -->
+      <section class="sec" id="safety">
+        <div class="wrap">
+          <div class="head-center reveal">
+            <span class="kicker">Safety</span>
+            <h2>Built to be safe <em>on a real aircraft</em></h2>
+            <p class="sec-lede">Each of these is something the code enforces, not a promise in the documentation.</p>
+          </div>
+          <div class="safe-grid">
+            <div class="safe reveal"><svg class="ic"><use href="#i-shield" /></svg><div><h3>Commands for ArduCopter only</h3><p>Arming, modes, take-off, missions and calibration go only to a multicopter running ArduCopter. Any other autopilot is shown and read, never commanded.</p></div></div>
+            <div class="safe reveal"><svg class="ic"><use href="#i-shield" /></svg><div><h3>Every command confirmed</h3><p>Each command waits for the aircraft's acknowledgement and is retried the MAVLink way. A refusal is reported in plain words, never assumed to have worked.</p></div></div>
+            <div class="safe reveal"><svg class="ic"><use href="#i-shield" /></svg><div><h3>No settings changed in flight</h3><p>Parameters are not written to an armed aircraft unless you confirm, nothing is written until you press Upload, and the board cannot be restarted while armed.</p></div></div>
+            <div class="safe reveal"><svg class="ic"><use href="#i-shield" /></svg><div><h3>The aircraft's own pre-arm checks</h3><p>Preflight Check follows ArduCopter's pre-arm result and its reasons, then adds battery, GPS and link checks on top. It never overrides the autopilot.</p></div></div>
+            <div class="safe reveal"><svg class="ic"><use href="#i-shield" /></svg><div><h3>Missions checked twice</h3><p>A route is checked against the measured ground, the fence and the battery as you draw it. Sending needs a GPS fix and a disarmed aircraft, and the mission is read back.</p></div></div>
+            <div class="safe reveal"><svg class="ic"><use href="#i-shield" /></svg><div><h3>Motors only on purpose</h3><p>Motor tests need the propellers-off box ticked and stop when the link drops or you leave the window. ESC calibration never restarts the board for you.</p></div></div>
+            <div class="safe reveal"><svg class="ic"><use href="#i-shield" /></svg><div><h3>Gentle keyboard flight</h3><p>Walking pace, a 10 m ceiling and a 20 m fence. If the window loses focus the aircraft holds; if the link drops it lands.</p></div></div>
+            <div class="safe reveal"><svg class="ic"><use href="#i-shield" /></svg><div><h3>Firmware installed with care</h3><p>The build is matched to the board's identity, the aircraft must be disarmed, and every byte is read back and compared before the board restarts.</p></div></div>
+            <div class="safe reveal"><svg class="ic"><use href="#i-shield" /></svg><div><h3>Updates wait for you</h3><p>AERONEX asks before restarting to update, and never restarts while a flight controller is connected or firmware is being installed.</p></div></div>
+          </div>
+
+          <div class="status reveal">
+            <div>
+              <h3>Where it stands today</h3>
+              <p>AERONEX is a development preview, tested against ArduPilot's own simulator build of ArduCopter 4.6 and 4.7 for every release. Do a props-off bench test and a cautious first flight with any real aircraft.</p>
+              <div class="legend"><span class="pill">Built for Pixhawk-family controllers running ArduCopter</span></div>
+            </div>
+            <div class="cols3">
+              <div class="k-ok"><h4><i></i>Complete</h4><ul><li>Frame Studio</li><li>Aircraft Profile</li><li>Firmware</li><li>Servo Outputs</li><li>Parameters</li><li>Flight Simulator</li><li>Flight Logs</li></ul></div>
+              <div class="k-work"><h4><i></i>Working</h4><ul><li>Connection</li><li>Calibration</li><li>PID Tuning</li><li>Digital Twin</li><li>Preflight Check</li><li>Flight Data</li><li>Keyboard Flight</li><li>Mission Planning</li><li>Drone Doctor</li><li>Telemetry</li></ul></div>
+              <div class="k-plan"><h4><i></i>Planned</h4><ul><li>A code-signed installer, so Windows shows no warning</li><li>Versions for macOS and Linux</li></ul></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= DOWNLOAD ================= -->
+      <section class="sec dl" id="download">
+        <div class="wrap">
+          <div class="head-center reveal">
+            <span class="kicker">Download</span>
+            <h2>Get the <em>latest version</em></h2>
+            <p class="sec-lede">One installer for Windows. After that, AERONEX keeps itself up to date.</p>
+          </div>
+
+          <div class="dl-ring reveal">
+            <div class="dl-card">
+              <div class="dl-main">
+                <img class="dl-logo" src="img/logo.webp" width="720" height="466" alt="AERONEX, UAV Application" loading="lazy" />
+                <span class="pill"><span class="pulse"></span><span data-ver-pill>Latest release</span></span>
+                <h3>AERONEX for Windows</h3>
+                <p>The complete ground station in one installer: Frame Studio, the simulator, mission planning, firmware install, flight logs and everything on this page. It installs for your Windows account, needs no administrator rights, and updates itself.</p>
+                <div class="dl-meta" aria-live="polite">
+                  <span><strong>Windows</strong> 10 and 11, 64-bit</span>
+                  <span data-dl-when></span>
+                  <span data-dl-size></span>
+                </div>
+                <div class="dl-actions">
+                  <a class="btn btn-primary" data-dl-link href="https://github.com/Dwijvyas-9926/AERONEX/releases/latest"><svg class="ic"><use href="#i-down" /></svg> <span data-dl-label>Download for Windows</span></a>
+                  <a class="btn btn-ghost" data-notes-link href="https://github.com/Dwijvyas-9926/AERONEX/releases" target="_blank" rel="noopener"><svg class="ic"><use href="#i-file" /></svg> Release notes</a>
+                </div>
+                <div class="req">
+                  <div><svg class="ic"><use href="#i-check" /></svg><span><strong>Windows 10 or 11</strong>, 64-bit, with about 350 MB of disk space</span></div>
+                  <div><svg class="ic"><use href="#i-check" /></svg><span><strong>Pixhawk 2.4.8, Holybro Pixhawk 6C Mini</strong> or another MAVLink board running ArduCopter</span></div>
+                  <div><svg class="ic"><use href="#i-check" /></svg><span><strong>A USB cable</strong>, or a telemetry radio that shows up as a COM port</span></div>
+                  <div><svg class="ic"><use href="#i-check" /></svg><span><strong>No hardware at all</strong> for the simulator and every page on the virtual aircraft</span></div>
+                </div>
+                <p class="src">Open source under the Apache License 2.0. <a href="https://github.com/Dwijvyas-9926/AERONEX" target="_blank" rel="noopener">Read the code or build it yourself on GitHub</a>.</p>
+              </div>
+              <div class="dl-side">
+                <h4>Installing, in four steps</h4>
+                <p>About a minute from download to your first aircraft.</p>
+                <ol class="next">
+                  <li><span>1</span><div>Run <b>AERONEX-Setup</b> once it has downloaded.</div></li>
+                  <li><span>2</span><div>If Windows says <b>"Windows protected your PC"</b>, choose <b>More info</b>, then <b>Run anyway</b>. The installer isn't code-signed yet, so Windows doesn't know the publisher.</div></li>
+                  <li><span>3</span><div>Pick where to install. On first launch, AERONEX asks your name and describes your first aircraft.</div></li>
+                  <li><span>4</span><div>Press <b>Connect</b> and pick your Pixhawk's port. Start with the <b>propellers off</b>.</div></li>
+                </ol>
+                <div class="notes-box">
+                  <div class="notes-bar"><svg class="ic"><use href="#i-refresh" /></svg><span data-notes-title>What's new</span></div>
+                  <ul class="notes-list" data-notes>
+                    <li>Release notes for every version are on GitHub.</li>
+                  </ul>
+                </div>
+                <p class="fine">Updates arrive by themselves: AERONEX downloads them in the background and asks before it restarts. Only download AERONEX from this page or <a href="https://github.com/Dwijvyas-9926/AERONEX/releases" target="_blank" rel="noopener">its GitHub releases</a>.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= CREATOR ================= -->
+      <section class="sec" id="creator">
+        <div class="wrap">
+          <div class="head-center reveal">
+            <span class="kicker">The creator</span>
+            <h2>Made by someone who needed it <em>to work</em></h2>
+          </div>
+          <div class="creator-card reveal">
+            <div class="avatar" aria-hidden="true">DV</div>
+            <div>
+              <span class="role">Creator &amp; lead engineer</span>
+              <h3>Dwij Vyas</h3>
+              <p>AERONEX is conceived, designed and engineered by Dwij Vyas. It grew out of a disaster-relief drone programme, where an aircraft has to be ready on the first attempt and the ground station must never get in the way.</p>
+              <p>The aim is a ground station that is as dependable as professional tools and as easy to pick up as a web page.</p>
+              <div class="links">
+                <a class="btn btn-ghost btn-sm" href="https://github.com/Dwijvyas-9926" target="_blank" rel="noopener"><svg class="ic"><use href="#i-code" /></svg> GitHub profile</a>
+                <a class="btn btn-primary btn-sm" href="#contact">Get in touch <svg class="ic"><use href="#i-arrow" /></svg></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= CONTACT ================= -->
+      <section class="sec contact" id="contact">
+        <div class="wrap">
+          <div class="head-center reveal">
+            <span class="kicker">Contact</span>
+            <h2>Questions, feedback or a <em>bug to report?</em></h2>
+            <p class="sec-lede">AERONEX is a young project and real-world feedback shapes it. Tell us what you flew, what worked and what didn't.</p>
+          </div>
+          <div class="contact-grid">
+            <div class="reach reveal">
+              <a href="https://github.com/Dwijvyas-9926/AERONEX/issues/new" target="_blank" rel="noopener"><span class="ib"><svg class="ic"><use href="#i-alert" /></svg></span><span><b>Report an issue or request a feature</b><span class="s">Open an issue on GitHub</span></span></a>
+              <a href="mailto:dwijgvyas@gmail.com"><span class="ib"><svg class="ic"><use href="#i-mail" /></svg></span><span><b>Email</b><span class="s">dwijgvyas@gmail.com</span></span></a>
+              <a href="https://github.com/Dwijvyas-9926/AERONEX" target="_blank" rel="noopener"><span class="ib"><svg class="ic"><use href="#i-code" /></svg></span><span><b>Source code</b><span class="s">github.com/Dwijvyas-9926/AERONEX</span></span></a>
+              <a href="https://github.com/Dwijvyas-9926/AERONEX/security" target="_blank" rel="noopener"><span class="ib"><svg class="ic"><use href="#i-lock" /></svg></span><span><b>Report a security problem</b><span class="s">Privately, through GitHub's security page</span></span></a>
+            </div>
+
+            <form class="form reveal" id="contactForm" novalidate>
+              <h3>Send a message</h3>
+              <div class="two">
+                <div class="field"><label for="f-name">Your name</label><input id="f-name" name="name" autocomplete="name" required maxlength="100" /></div>
+                <div class="field"><label for="f-email">Your email</label><input id="f-email" name="email" type="email" autocomplete="email" required maxlength="200" /></div>
+              </div>
+              <div class="field"><label for="f-subject">Subject</label><input id="f-subject" name="subject" placeholder="Feedback, bug, collaboration…" required maxlength="150" /></div>
+              <div class="field"><label for="f-msg">Message</label><textarea id="f-msg" name="message" required maxlength="5000"></textarea></div>
+              <div class="hp" aria-hidden="true"><label for="f-hp">Leave this empty</label><input id="f-hp" name="_honey" tabindex="-1" autocomplete="off" /></div>
+              <button class="btn btn-primary" type="submit"><svg class="ic"><use href="#i-send" /></svg> <span data-send-label>Send message</span></button>
+              <p class="form-status" id="formStatus" role="status" aria-live="polite"></p>
+              <p class="fine">Your message is emailed to Dwij Vyas. Your address is used only to reply. <a href="privacy.html#contact">How messages are sent</a></p>
+            </form>
+          </div>
+        </div>
       </section>
     </main>
 
-    <footer class="foot">
-      <div>
-        <a class="lockup lockup-small" href="/"><img src="/img/icon.png" alt="" width="24" height="24" /><span class="word">AERONE<em>X</em></span></a>
-        <p>Made by Dwij Vyas. Open source under the <a href="https://github.com/Dwijvyas-9926/AERONEX/blob/main/LICENSE">Apache License 2.0</a>.</p>
+    <footer>
+      <div class="wrap">
+        <div class="foot-grid">
+          <div>
+            <a class="brand" href="#top"><img src="img/mark.png" width="46" height="46" alt="" /><span><span class="word">AERONE<b>X</b></span><small>Ground Station</small></span></a>
+            <p>A ground station for ArduCopter drones, for Windows. One platform. Every dimension of flight.</p>
+          </div>
+          <div>
+            <h4>Explore</h4>
+            <ul><li><a href="#platform">Platform</a></li><li><a href="#why">Why AERONEX</a></li><li><a href="#safety">Safety</a></li><li><a href="#download">Download</a></li></ul>
+          </div>
+          <div>
+            <h4>Project</h4>
+            <ul><li><a href="#creator">Creator</a></li><li><a href="#contact">Contact</a></li><li><a href="https://github.com/Dwijvyas-9926/AERONEX" target="_blank" rel="noopener">GitHub</a></li><li><a href="https://github.com/Dwijvyas-9926/AERONEX/releases" target="_blank" rel="noopener">All versions</a></li><li><a href="privacy.html">Privacy</a></li></ul>
+          </div>
+        </div>
+        <div class="legal">
+          <span>AERONEX helps you prepare, configure, fly and review an aircraft. It is not flight-certified and does not replace the manufacturer's documentation, the autopilot's own safety checks or your local aviation rules. Fly within the law, and test on your own hardware before you rely on it.</span>
+          <span>ArduPilot, ArduCopter, Pixhawk and MAVLink are trademarks of their respective owners. AERONEX is an independent project and is not affiliated with or endorsed by them.</span>
+          <span>© <span data-year>2026</span> Dwij Vyas. Open source under the <a href="https://github.com/Dwijvyas-9926/AERONEX/blob/main/LICENSE" target="_blank" rel="noopener">Apache License 2.0</a>.</span>
+        </div>
       </div>
-      <ul>
-        <li><a href="https://github.com/Dwijvyas-9926/AERONEX">Source code</a></li>
-        <li><a href="https://github.com/Dwijvyas-9926/AERONEX/releases">All versions</a></li>
-        <li><a href="/privacy.html">Privacy</a></li>
-        <li><a href="https://github.com/Dwijvyas-9926/AERONEX/security">Report a security problem</a></li>
-      </ul>
-      <p class="fine">AERONEX is an independent project, not affiliated with or endorsed by ArduPilot or Holybro. ArduPilot, ArduCopter and Pixhawk are names of their respective owners.</p>
     </footer>
   </body>
 </html>
