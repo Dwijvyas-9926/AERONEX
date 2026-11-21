@@ -492,3 +492,11 @@ build and dependency audit on every push, and these firmware tests on both
 releases on demand and weekly. They do not replace a
 props-off bench test and a cautious first flight with the real aircraft: the
 simulator has no real radio, GPS, compass or motors.
+
+## Licence
+
+AERONEX is open source under the [Apache License 2.0](LICENSE). Copyright 2026 Dwij Vyas.
+
+The licence covers the code. It does not grant use of the AERONEX name or logo. AERONEX is provided as it is, without warranty; it is not flight-certified, and the pilot is responsible for every flight.
+
+Some included material keeps its own licence, listed in [NOTICE](NOTICE): ArduPilot's parameter definitions are GPL-3.0 ([LICENSES/GPL-3.0.txt](LICENSES/GPL-3.0.txt)), and the bundled libraries are listed with their licences in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
