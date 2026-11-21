@@ -2,6 +2,7 @@ import { Cable, FlaskConical, Gamepad2, Globe, HardDrive, Lock, ShieldCheck, Wif
 import { Link } from "react-router-dom";
 import { ROUTES, STAGES, type BuildStatus } from "../../app/routes";
 import { BrandLogo } from "../../components/shell/BrandMark";
+import { useUpdates } from "../../desktop/updates";
 import { useUi } from "../../state/uiStore";
 
 /*
@@ -79,6 +80,8 @@ const CREDITS: [string, string][] = [
 
 export function AboutPage() {
   const openGuide = useUi((s) => s.toggle);
+  // The Windows app knows its own version; in a browser the page is always the latest.
+  const version = useUpdates((s) => s.status?.current ?? null);
   return (
     <div className="page-pad about">
       <section className="about-hero">
@@ -88,6 +91,7 @@ export function AboutPage() {
         <p className="about-tagline">A ground station for ArduCopter drones that runs in your browser.</p>
         <p className="about-meta">
           <span className="pill accent plain">Pre-release</span>
+          {version ? <span className="pill plain">Version {version} for Windows</span> : null}
           <span className="pill plain">ArduCopter 4.6 and 4.7</span>
           <span className="pill plain">Pixhawk 2.4.8 and 6C Mini</span>
         </p>
