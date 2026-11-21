@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What SignPath signs in each release: the Windows installer only.
+
+  The release workflow (.github/workflows/desktop.yml) uploads the installer
+  as AERONEX-Setup.exe inside the zip that GitHub Actions makes of every
+  artifact, and passes the installer's own product version as "version".
+  SignPath refuses to sign a file whose details do not say AERONEX and that
+  version. Paste this into the project's artifact configuration on SignPath.
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" required="true" />
+  </parameters>
+  <zip-file>
+    <pe-file path="AERONEX-Setup.exe" product-name="AERONEX" product-version="${version}">
+      <authenticode-sign />
+    </pe-file>
+  </zip-file>
+</artifact-configuration>

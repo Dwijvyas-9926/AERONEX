@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Code signing policy: AERONEX</title>
+    <meta name="description" content="How AERONEX releases for Windows are built, who approves them, what is signed, and how to check the signature on an installer." />
+    <meta name="theme-color" content="#fcf3ea" />
+    <link rel="canonical" href="https://aeronexstation.vercel.app/code-signing" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="icon" href="img/favicon-32.png" type="image/png" />
+    <link rel="stylesheet" href="site.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+    <svg width="0" height="0" class="vh" aria-hidden="true">
+      <defs>
+        <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14" /></symbol>
+        <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" /></symbol>
+      </defs>
+    </svg>
+
+    <header class="top" id="top-bar">
+      <div class="wrap bar">
+        <a class="brand" href="index.html" aria-label="AERONEX home">
+          <img src="img/mark.png" width="46" height="46" alt="" />
+          <span><span class="word">AERONE<b>X</b></span><small>Ground Station</small></span>
+        </a>
+        <nav class="main" aria-label="Primary">
+          <a href="index.html#platform">Platform</a>
+          <a href="index.html#safety">Safety</a>
+          <a href="index.html#contact">Contact</a>
+        </nav>
+        <a class="btn btn-primary btn-sm" href="index.html#download">Download <svg class="ic"><use href="#i-down" /></svg></a>
+        <button class="menu-btn" id="menuBtn" aria-label="Open the menu" aria-expanded="false" aria-controls="drawer"><svg class="ic"><use href="#i-list" /></svg></button>
+      </div>
+      <div class="drawer" id="drawer">
+        <a href="index.html#platform">Platform</a>
+        <a href="index.html#safety">Safety</a>
+        <a href="index.html#contact">Contact</a>
+        <a class="btn btn-primary" href="index.html#download">Download for Windows</a>
+      </div>
+    </header>
+
+    <main id="main" class="doc">
+      <div class="wrap">
+        <span class="kicker">Code signing policy</span>
+        <h1>How releases are <em>signed</em></h1>
+        <p class="updated">Updated 21 November 2026</p>
+
+        <div class="doc-card">
+          <p>
+            Free code signing provided by <a href="https://about.signpath.io/" target="_blank" rel="noopener">SignPath.io</a>, certificate by
+            <a href="https://signpath.org/" target="_blank" rel="noopener">SignPath Foundation</a>.
+          </p>
+          <p>
+            <strong>Status:</strong> AERONEX has applied to SignPath Foundation. Until the application is approved, installers are not signed, and Windows
+            shows "Windows protected your PC" when you run one: choose <strong>More info</strong>, then <strong>Run anyway</strong>. Versions up to
+            and including 0.3.3 are not signed. This page will say from which version installers are signed.
+          </p>
+
+          <h2>What is signed</h2>
+          <p>
+            Only the Windows installer, <code>AERONEX-Setup-&lt;version&gt;.exe</code>, built from the public source code of this project at
+            <a href="https://github.com/Dwijvyas-9926/AERONEX" target="_blank" rel="noopener">github.com/Dwijvyas-9926/AERONEX</a>. Each installer carries
+            the product name AERONEX and its version number in its file details.
+          </p>
+          <p>
+            The installer includes open-source components from other projects, such as Electron and Chromium, listed in
+            <code>THIRD-PARTY-NOTICES.txt</code> in the install folder. Their files are shipped as their authors published them and are never signed
+            with this project's certificate.
+          </p>
+
+          <h2>How a release is built and approved</h2>
+          <ul>
+            <li><strong>Built by GitHub.</strong> Every installer is built by the project's GitHub Actions workflow on runners hosted by GitHub, from the commit the release is tagged with. Nothing built on a personal computer is signed.</li>
+            <li><strong>Submitted for signing.</strong> The workflow sends the installer to SignPath, which records where and how it was built.</li>
+            <li><strong>Approved by hand.</strong> An approver checks each signing request and approves it before anything is signed. Requests are never approved automatically.</li>
+            <li><strong>Published.</strong> Only after signing is the release published on GitHub, where installed copies of AERONEX find their updates.</li>
+          </ul>
+
+          <h2>Team roles</h2>
+          <ul>
+            <li><strong>Committers and reviewers:</strong> <a href="https://github.com/Dwijvyas-9926" target="_blank" rel="noopener">Dwij Vyas</a></li>
+            <li><strong>Approvers:</strong> <a href="https://github.com/Dwijvyas-9926" target="_blank" rel="noopener">Dwij Vyas</a></li>
+          </ul>
+          <p>Every team member uses multi-factor authentication on GitHub and on SignPath.</p>
+
+          <h2>Privacy</h2>
+          <p>
+            AERONEX sends nothing about you or your aircraft to anyone. To look for updates it contacts GitHub when it starts and every four hours. It
+            contacts other services only when you use a feature that needs them: ArduPilot's firmware server when you install firmware, the map provider
+            you choose when a map is on screen, and Anthropic only if you add your own API key for the assistant. The
+            <a href="privacy.html">privacy page</a> lists each of these.
+          </p>
+
+          <h2>Checking an installer</h2>
+          <p>
+            For a signed release, right-click the downloaded installer, choose <strong>Properties</strong>, then <strong>Digital Signatures</strong>:
+            the signer is <strong>SignPath Foundation</strong>. In PowerShell, <code>Get-AuthenticodeSignature .\AERONEX-Setup-&lt;version&gt;.exe</code>
+            shows <code>Valid</code> and the same signer.
+          </p>
+          <p>
+            Download AERONEX only from <a href="index.html#download">this website</a> or the project's
+            <a href="https://github.com/Dwijvyas-9926/AERONEX/releases" target="_blank" rel="noopener">GitHub releases</a>.
+          </p>
+
+          <h2>Reporting a problem</h2>
+          <p>
+            If an installer's signature looks wrong, or you find a security problem, report it privately through
+            <a href="https://github.com/Dwijvyas-9926/AERONEX/security" target="_blank" rel="noopener">Security, then Report a vulnerability</a>, or write to
+            <a href="mailto:dwijgvyas@gmail.com">dwijgvyas@gmail.com</a>.
+          </p>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <div class="legal">
+          <span>© <span data-year>2026</span> Dwij Vyas. AERONEX is open source under the <a href="https://github.com/Dwijvyas-9926/AERONEX/blob/main/LICENSE" target="_blank" rel="noopener">Apache License 2.0</a>. <a href="privacy.html">Privacy</a></span>
+          <span>ArduPilot, ArduCopter, Pixhawk and MAVLink are trademarks of their respective owners. AERONEX is an independent project and is not affiliated with or endorsed by them.</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

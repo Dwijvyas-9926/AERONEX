@@ -8,8 +8,15 @@
 #    desktop/build/release-notes.md as its notes. Installed copies look there
 #    for updates. (A v* tag that matches package.json does the same.)
 #
-# The installer is not code-signed yet, so Windows shows "Windows protected
-# your PC" until it is: More info → Run anyway.
+# Code signing (SignPath Foundation, see site/code-signing.html) switches on
+# by itself once the repository has the variable SIGNPATH_ORGANIZATION_ID and
+# the secret SIGNPATH_API_TOKEN (Settings → Secrets and variables → Actions).
+# Then a new version's installer is sent to SignPath, waits there for manual
+# approval, and only the signed installer is published. Signing changes the
+# installer's checksum, so latest.yml and the .blockmap are written again
+# from the file that is published (scripts/release-manifest.mjs).
+# Until then installers are unsigned, and Windows shows "Windows protected
+# your PC": More info → Run anyway.
 name: Desktop
 
 on:
@@ -24,7 +31,8 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
-    timeout-minutes: 30
+    # Long enough to approve a signing request on SignPath.
+    timeout-minutes: 90
     # One run at a time across every branch: two pushes of the same new version
     # (desktop and main, say) must not both publish it. The second one finds
     # the release already published and only builds.
@@ -33,6 +41,7 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: write # only used when a new version is published
+      actions: read # lets SignPath fetch the installer from this run
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -70,11 +79,73 @@ jobs:
             echo "draft=$draft" >> "$GITHUB_OUTPUT"
           fi
       - name: Build the installer
-        if: steps.version.outputs.publish != 'true'
         run: npx electron-builder --win --x64 --publish never
-      # A new version: a draft release on this exact commit, the installer and
-      # latest.yml uploaded into it, and only then published, so installed
-      # copies never see a release that is half uploaded.
+      # The details Windows shows under Properties → Details, which SignPath
+      # also checks before signing.
+      - name: Check the version details
+        id: details
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $fail = $false
+          foreach ($f in @("release/AERONEX-Setup-$version.exe", "release/win-unpacked/AERONEX.exe")) {
+            $i = (Get-Item $f).VersionInfo
+            "$f`n  ProductName=$($i.ProductName) ProductVersion=$($i.ProductVersion) FileVersion=$($i.FileVersion)`n  CompanyName=$($i.CompanyName) LegalCopyright=$($i.LegalCopyright) FileDescription=$($i.FileDescription)"
+            if ($i.ProductName -ne "AERONEX") { "::error::$f has ProductName '$($i.ProductName)', not AERONEX"; $fail = $true }
+            if (-not "$($i.ProductVersion)".StartsWith($version)) { "::error::$f has ProductVersion '$($i.ProductVersion)', not $version"; $fail = $true }
+          }
+          if ($fail) { exit 1 }
+          $installer = (Get-Item "release/AERONEX-Setup-$version.exe").VersionInfo
+          "product-version=$($installer.ProductVersion)" >> $env:GITHUB_OUTPUT
+          "signing=${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}" >> $env:GITHUB_OUTPUT
+
+      # Signing, for a new version once SignPath is set up. SignPath takes the
+      # installer from this run's artifacts, waits for an approver, and the
+      # signed file replaces the unsigned one.
+      - name: Stage the installer for signing
+        if: steps.version.outputs.publish == 'true' && steps.details.outputs.signing == 'true'
+        shell: bash
+        run: mkdir -p to-sign && cp "release/AERONEX-Setup-${{ steps.version.outputs.version }}.exe" to-sign/AERONEX-Setup.exe
+      - name: Upload the installer for signing
+        id: unsigned
+        if: steps.version.outputs.publish == 'true' && steps.details.outputs.signing == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: AERONEX-unsigned-installer
+          path: to-sign/AERONEX-Setup.exe
+          if-no-files-found: error
+          retention-days: 7
+      - name: Sign with SignPath (waits for approval)
+        if: steps.version.outputs.publish == 'true' && steps.details.outputs.signing == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'AERONEX' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG || 'release-signing' }}
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: signed
+          parameters: |
+            version: "${{ steps.details.outputs.product-version }}"
+      - name: Put the signed installer in place
+        if: steps.version.outputs.publish == 'true' && steps.details.outputs.signing == 'true'
+        shell: pwsh
+        run: |
+          $target = "release/AERONEX-Setup-${{ steps.version.outputs.version }}.exe"
+          $sig = Get-AuthenticodeSignature "signed/AERONEX-Setup.exe"
+          "Signature: $($sig.Status), signer: $($sig.SignerCertificate.Subject)"
+          if ($sig.Status -ne "Valid") { "::error::The signed installer's signature is $($sig.Status)"; exit 1 }
+          Copy-Item "signed/AERONEX-Setup.exe" $target -Force
+
+      # A new version: latest.yml and the .blockmap written from the installer
+      # being published, a draft release on this exact commit, the three files
+      # uploaded into it, and only then published, so installed copies never
+      # see a release that is half uploaded.
+      - name: Write the update files
+        if: steps.version.outputs.publish == 'true'
+        run: node scripts/release-manifest.mjs "release/AERONEX-Setup-${{ steps.version.outputs.version }}.exe" --notes desktop/build/release-notes.md
       - name: Start the release as a draft
         if: steps.version.outputs.publish == 'true' && steps.version.outputs.draft == 'none'
         shell: bash
@@ -84,11 +155,14 @@ jobs:
           gh release create "${{ steps.version.outputs.tag }}" --repo "${GITHUB_REPOSITORY}" --draft
           --target "${GITHUB_SHA}" --title "AERONEX ${{ steps.version.outputs.version }}"
           --notes-file desktop/build/release-notes.md
-      - name: Build and upload the installer
+      - name: Upload the installer
         if: steps.version.outputs.publish == 'true'
-        run: npx electron-builder --win --x64 --publish always
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          exe="release/AERONEX-Setup-${{ steps.version.outputs.version }}.exe"
+          gh release upload "${{ steps.version.outputs.tag }}" --repo "${GITHUB_REPOSITORY}" --clobber "$exe" "$exe.blockmap" release/latest.yml
       - name: Publish the release
         if: steps.version.outputs.publish == 'true'
         shell: bash
@@ -96,9 +170,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${{ steps.version.outputs.tag }}"
+          exe="AERONEX-Setup-${{ steps.version.outputs.version }}.exe"
           assets="$(gh release view "$tag" --repo "${GITHUB_REPOSITORY}" --json assets -q '.assets[].name')"
           echo "$assets"
-          for want in latest.yml "AERONEX-Setup-${{ steps.version.outputs.version }}.exe"; do
+          for want in latest.yml "$exe" "$exe.blockmap"; do
             grep -qx "$want" <<<"$assets" || { echo "$want was not uploaded; the release stays a draft."; exit 1; }
           done
           gh release edit "$tag" --repo "${GITHUB_REPOSITORY}" --draft=false --latest
