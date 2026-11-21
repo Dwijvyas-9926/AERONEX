@@ -1929,3 +1929,26 @@ kbd {
 [data-events].flash {
   animation: events-flash 2.4s ease-out;
 }
+
+/* The Windows app's serial-port chooser. */
+.port-dialog { width: min(520px, calc(100vw - 32px)); }
+.port-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.port-list { list-style: none; margin: var(--s4) 0; padding: 0; display: grid; gap: var(--s2); max-height: 50vh; overflow: auto; }
+.port-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: var(--field);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.port-item:hover, .port-item:focus-visible { border-color: var(--accent-line); background: var(--accent-soft); }
+.port-item svg { color: var(--accent); flex: none; }
+.port-item strong { display: block; font-size: var(--t-sm); }
+.port-item small { display: block; color: var(--muted); font-size: var(--t-xs); margin-top: 2px; }

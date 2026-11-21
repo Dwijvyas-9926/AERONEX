@@ -1,3 +1,4 @@
+import { isDesktop } from "../desktop/bridge";
 import { useLink } from "../state/linkStore";
 import { notify } from "../state/notifyStore";
 
@@ -11,7 +12,8 @@ import { notify } from "../state/notifyStore";
   an aircraft is linked.
 */
 export function startOffline() {
-  if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
+  // The Windows app's files are on the computer already, and it updates itself.
+  if (!import.meta.env.PROD || isDesktop() || !("serviceWorker" in navigator)) return;
   // Service workers need a secure page; a file:// copy of the build has none.
   if (!window.isSecureContext) return;
 

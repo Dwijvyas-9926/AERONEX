@@ -2,6 +2,8 @@ import { useState } from "react";
 import { confirmAction, notify } from "../../state/notifyStore";
 import { resetAppData } from "../../state/resetApp";
 import { rememberKeys, setRememberKeys } from "../../state/secretStorage";
+import { isDesktop } from "../../desktop/bridge";
+import { encryptionAvailable } from "../../desktop/secrets";
 import { AI_MODELS, GRAPHICS, useSettings, type GraphicsPreset, type MotionPref, type Units } from "../../state/settingsStore";
 
 function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: [T, string][]; onChange: (v: T) => void; label: string }) {
@@ -91,21 +93,34 @@ export function SettingsPage() {
               {s.aiKey && <button className="btn btn-ghost" onClick={() => s.set("aiKey", "")} title="Remove stored key">Clear</button>}
             </div>
           </div>
-          <div className="setting">
-            <div>
-              <strong>Remember keys on this device</strong>
-              <p>Off: API keys (this one and any map provider key) are kept only until this browser tab closes. On: they stay in this browser's storage until you clear them. Leave it off on a shared computer.</p>
+          {isDesktop() ? (
+            <div className="setting">
+              <div>
+                <strong>Where keys are kept</strong>
+                <p>
+                  {encryptionAvailable()
+                    ? "Encrypted by Windows for your user account, in this app's own folder. Other Windows users on this computer cannot read them."
+                    : "Windows could not encrypt keys on this account, so a key you enter is kept only until AERONEX closes."}
+                </p>
+              </div>
             </div>
-            <Segmented
-              label="Remember keys"
-              value={remember ? "on" : "off"}
-              onChange={(v) => { setRememberKeys(v === "on"); setRemember(v === "on"); }}
-              options={[
-                ["off", "This session"],
-                ["on", "Remember"],
-              ]}
-            />
-          </div>
+          ) : (
+            <div className="setting">
+              <div>
+                <strong>Remember keys on this device</strong>
+                <p>Off: API keys (this one and any map provider key) are kept only until this browser tab closes. On: they stay in this browser's storage until you clear them. Leave it off on a shared computer.</p>
+              </div>
+              <Segmented
+                label="Remember keys"
+                value={remember ? "on" : "off"}
+                onChange={(v) => { setRememberKeys(v === "on"); setRemember(v === "on"); }}
+                options={[
+                  ["off", "This session"],
+                  ["on", "Remember"],
+                ]}
+              />
+            </div>
+          )}
           <div className="setting">
             <div>
               <strong>Search the web</strong>

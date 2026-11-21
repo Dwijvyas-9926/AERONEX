@@ -18,6 +18,7 @@ import { useLink } from "../state/linkStore";
 import { commandLink } from "../services/link/commandLink";
 import { routeFor } from "./routes";
 import { useUi } from "../state/uiStore";
+import { DesktopShell } from "../desktop/DesktopShell";
 
 // Flight Logs is large (charts, the reader, the replay) and only needed when opened.
 // Each page is fetched when it is first opened, so the first screen does not wait for all twenty. The offline copy holds every one.
@@ -165,6 +166,7 @@ function Frame() {
       <SearchPalette />
       <Toasts />
       <ConfirmDialog />
+      <DesktopShell />
     </div>
   );
 }

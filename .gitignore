@@ -6,3 +6,4 @@ dist-ssr
 .vite
 node_modules/.vite
 *.tsbuildinfo
+release/

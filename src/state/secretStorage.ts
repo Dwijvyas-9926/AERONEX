@@ -1,4 +1,6 @@
 import type { StateStorage } from "zustand/middleware";
+import { isDesktop } from "../desktop/bridge";
+import { desktopSecretStore } from "../desktop/secrets";
 
 /*
   Where API keys are kept.
@@ -26,8 +28,11 @@ function safe<T>(f: () => T, fallback: T): T {
   }
 }
 
-/** True when keys are to be kept on this device across browser sessions. */
-export const rememberKeys = () => safe(() => localStorage.getItem(FLAG) === "1", false);
+/**
+ * True when keys are to be kept on this device across browser sessions.
+ * Always, in the Windows app: there they are kept encrypted by Windows.
+ */
+export const rememberKeys = () => isDesktop() || safe(() => localStorage.getItem(FLAG) === "1", false);
 
 const resavers: (() => void)[] = [];
 
@@ -44,8 +49,9 @@ export function onRememberChange(resave: () => void) {
 
 /** A zustand StateStorage that keeps `fields` of the state apart, per the flag above. */
 export function secretSplitStorage(fields: string[]): StateStorage {
-  const target = () => (rememberKeys() ? localStorage : sessionStorage);
-  const other = () => (rememberKeys() ? sessionStorage : localStorage);
+  // In the Windows app the keys go to Windows' encrypted store, and any copy left in page storage is removed.
+  const target = (): Pick<Storage, "getItem" | "setItem" | "removeItem"> => (isDesktop() ? desktopSecretStore : rememberKeys() ? localStorage : sessionStorage);
+  const other = (): Pick<Storage, "getItem" | "setItem" | "removeItem"> => (isDesktop() ? localStorage : rememberKeys() ? sessionStorage : localStorage);
   const write = (name: string, value: string) => {
     const obj = JSON.parse(value) as { state?: Record<string, unknown>; version?: number };
     const secrets: Record<string, unknown> = {};
@@ -80,6 +86,7 @@ export function secretSplitStorage(fields: string[]): StateStorage {
         localStorage.removeItem(name);
         localStorage.removeItem(SECRET(name));
         sessionStorage.removeItem(SECRET(name));
+        if (isDesktop()) desktopSecretStore.removeItem(SECRET(name));
       }, undefined),
   };
 }

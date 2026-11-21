@@ -1,0 +1,63 @@
+# Builds AERONEX for Windows: the installer (AERONEX-Setup-<version>.exe).
+#
+#  - On every push to the desktop branch or main, and on demand: the
+#    installer is built and attached to the run (Actions → Desktop → the
+#    run → Artifacts), for testing on a Windows PC.
+#  - On a version tag (v0.1.0, v0.2.0 …): the same, and it is published as a
+#    GitHub Release. Installed copies look there for updates.
+#
+# The installer is not code-signed yet, so Windows shows "Windows protected
+# your PC" until it is: More info → Run anyway.
+name: Desktop
+
+on:
+  push:
+    branches: [desktop, main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write # only used on a version tag, to publish the release
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Type check
+        run: npx tsc -b
+      - name: Build the app
+        run: npx vite build
+      - name: A version tag must match package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          want="v$(node -p "require('./package.json').version")"
+          if [ "$want" != "${GITHUB_REF_NAME}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${want}. Bump the version first."
+            exit 1
+          fi
+      - name: Build the installer
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        run: npx electron-builder --win --x64 --publish never
+      - name: Build and publish the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: npx electron-builder --win --x64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AERONEX-Windows-installer
+          path: |
+            release/*.exe
+            release/latest.yml
+          if-no-files-found: error
+          retention-days: 30
