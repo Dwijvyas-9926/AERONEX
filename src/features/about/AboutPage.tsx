@@ -1,6 +1,7 @@
 import { Cable, FlaskConical, Gamepad2, Globe, HardDrive, Lock, ShieldCheck, WifiOff } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ROUTES, STAGES, type BuildStatus } from "../../app/routes";
+import portrait from "../../assets/creator/dwij-vyas.webp";
 import { BrandLogo } from "../../components/shell/BrandMark";
 import { useUpdates } from "../../desktop/updates";
 import { isDesktop } from "../../desktop/bridge";
@@ -298,13 +299,43 @@ export function AboutPage() {
       </section>
 
       <section className="about-creator">
-        <span className="about-creator-label">Creator</span>
-        <h2>Dwij Vyas</h2>
-        <p>
-          AERONEX is conceived, designed and engineered by Dwij Vyas. It grew out of a disaster-relief drone programme, where an aircraft has to be ready
-          on the first attempt and the ground station must never get in the way. The aim is a ground station that is as dependable as professional
-          tools and as easy to pick up as a web page.
-        </p>
+        <div className="about-creator-photo">
+          <img src={portrait} width={720} height={755} alt="Dwij Vyas" />
+        </div>
+        <div className="about-creator-body">
+          <span className="about-creator-label">Creator and lead engineer</span>
+          <h2>Dwij Vyas</h2>
+          <p className="about-creator-cred">Electronics and Communication Engineer, Birla Vishvakarma Mahavidyalaya (BVM), Vallabh Vidyanagar</p>
+          <p>
+            Dwij conceived, designed and built AERONEX: the app, the simulator, the installer and its website. He tests it on a real Pixhawk 2.4.8
+            flight controller, because a ground station is only as good as the aircraft it flies.
+          </p>
+          <p>
+            AERONEX grew out of Avion, a disaster-relief drone project, where an aircraft has to be ready on the first attempt and the ground station
+            must never get in the way. His aim is a ground station as dependable as professional tools and as easy for a student to pick up as a web
+            page, so more people can build, test and fly drones safely.
+          </p>
+          <dl className="about-creator-facts">
+            <div>
+              <dt>Studies</dt>
+              <dd>Electronics and Communication Engineering at BVM, Vallabh Vidyanagar, Gujarat</dd>
+            </div>
+            <div>
+              <dt>Builds</dt>
+              <dd>AERONEX, from the first line of code to every release</dd>
+            </div>
+            <div>
+              <dt>Works with</dt>
+              <dd>Pixhawk flight controllers, ArduPilot and MAVLink, simulation and digital twins</dd>
+            </div>
+          </dl>
+          <p className="about-creator-links">
+            <a href="https://github.com/Dwijvyas-9926" target="_blank" rel="noreferrer">
+              GitHub profile
+            </a>
+            <a href="mailto:dwijgvyas@gmail.com">dwijgvyas@gmail.com</a>
+          </p>
+        </div>
       </section>
 
       <div className="about-foot">

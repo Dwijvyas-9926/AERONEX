@@ -1780,10 +1780,26 @@ input[type="range"]::-moz-range-thumb {
 .about-step-n { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--accent-soft); border: 1px solid var(--accent-line); color: var(--accent); font-family: var(--font-display); font-size: var(--t-md); }
 .about-step strong { font-family: var(--font-display); font-size: var(--t-md); display: block; margin-bottom: 2px; }
 .about-step p { margin: 0; color: var(--ink-2); font-size: var(--t-sm); line-height: 1.6; }
-.about-creator { display: block; border: 1px solid var(--accent-line); border-radius: var(--r-panel); padding: var(--s6); margin-bottom: var(--s6); background: radial-gradient(120% 140% at 0% 0%, var(--accent-soft), transparent 60%), var(--graphite); box-shadow: var(--shadow-1); }
+.about-creator { display: grid; grid-template-columns: minmax(200px, 0.7fr) 1fr; gap: var(--s6); align-items: end; border: 1px solid var(--accent-line); border-radius: var(--r-panel); padding: var(--s6) var(--s6) var(--s6) var(--s4); margin-bottom: var(--s6); background: radial-gradient(120% 140% at 0% 0%, var(--accent-soft), transparent 60%), var(--graphite); box-shadow: var(--shadow-1); overflow: hidden; }
+/* The photo stands on the panel's bottom edge; its lower edge fades into the panel. */
+.about-creator-photo { align-self: end; margin-bottom: calc(-1 * var(--s6)); }
+.about-creator-photo img { display: block; width: 100%; height: auto; }
+.about-creator-body { align-self: center; min-width: 0; }
 .about-creator-label { font-size: var(--t-sm); color: var(--accent); }
-.about-creator h2 { font-family: var(--font-display); font-size: var(--t-2xl); margin: var(--s2) 0 var(--s3); }
+.about-creator h2 { font-family: var(--font-display); font-size: var(--t-2xl); margin: var(--s2) 0 var(--s1); }
 .about-creator p { color: var(--ink-2); line-height: 1.7; max-width: 68ch; margin: 0; }
+.about-creator p + p { margin-top: var(--s3); }
+.about-creator .about-creator-cred { color: var(--ink); font-weight: 600; margin-bottom: var(--s4); }
+.about-creator-facts { display: grid; gap: var(--s2); margin: var(--s4) 0 0; padding-top: var(--s4); border-top: 1px solid var(--line-soft); }
+.about-creator-facts div { display: grid; grid-template-columns: 7em 1fr; gap: var(--s3); }
+.about-creator-facts dt { font-weight: 600; color: var(--ink); }
+.about-creator-facts dd { margin: 0; color: var(--ink-2); }
+.about-creator .about-creator-links { display: flex; flex-wrap: wrap; gap: var(--s4); margin-top: var(--s4); }
+@media (max-width: 760px) {
+  .about-creator { grid-template-columns: 1fr; padding: var(--s5) var(--s4); }
+  .about-creator-photo { width: min(240px, 70%); margin: 0 auto; order: -1; }
+  .about-creator-facts div { grid-template-columns: 1fr; gap: 0; }
+}
 .about-foot { display: flex; gap: var(--s3); align-items: flex-start; padding: var(--s4); border-radius: var(--r-ctl); background: var(--midnight-deep); border: 1px solid var(--line-soft); margin-bottom: var(--s6); }
 .about-foot p { margin: 0; color: var(--muted); font-size: var(--t-sm); line-height: 1.6; }
 .about-foot .about-icon { width: 20px; height: 20px; flex: none; margin-top: 2px; }

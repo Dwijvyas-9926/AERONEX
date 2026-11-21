@@ -1395,13 +1395,13 @@ h2 {
 /* creator */
 .creator-card {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 44px;
+  grid-template-columns: minmax(280px, 0.8fr) 1fr;
+  gap: 48px;
   align-items: center;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 28px;
-  padding: 48px;
+  padding: 48px 48px 48px 32px;
   margin-top: 56px;
   box-shadow: var(--shadow);
   position: relative;
@@ -1418,34 +1418,54 @@ h2 {
   background: radial-gradient(circle, rgba(244, 127, 37, 0.16), transparent 70%);
   pointer-events: none;
 }
-.avatar {
-  width: 176px;
-  height: 176px;
-  border-radius: 50%;
-  background: linear-gradient(145deg, var(--navy), var(--navy-2));
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font-weight: 800;
-  font-size: 56px;
-  letter-spacing: 0.02em;
+/* The photo stands on the card's bottom edge and fades into it. */
+.portrait {
   position: relative;
-  box-shadow: 0 22px 40px -20px rgba(20, 33, 61, 0.7);
+  align-self: end;
+  margin-bottom: -48px;
 }
-.avatar::after {
+.portrait::before {
   content: "";
   position: absolute;
-  inset: -9px;
+  left: 8%;
+  right: 8%;
+  top: 4%;
+  aspect-ratio: 1;
   border-radius: 50%;
-  border: 2px solid rgba(232, 101, 15, 0.6);
-  border-right-color: transparent;
-  border-bottom-color: transparent;
-  animation: orbit 12s linear infinite;
+  background: radial-gradient(circle, rgba(232, 101, 15, 0.22), rgba(15, 29, 58, 0.08) 55%, transparent 72%);
 }
-@keyframes orbit {
-  to {
-    transform: rotate(360deg);
-  }
+.portrait img {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.creator-card .cred {
+  font-weight: 700;
+  color: var(--navy);
+  font-size: 16px;
+  margin: -6px 0 18px;
+}
+.facts {
+  display: grid;
+  gap: 10px;
+  margin: 22px 0 0;
+  padding: 18px 0 0;
+  border-top: 1px solid var(--line);
+}
+.facts div {
+  display: grid;
+  grid-template-columns: 7.5em 1fr;
+  gap: 12px;
+}
+.facts dt {
+  font-weight: 700;
+  color: var(--navy);
+  font-size: 15px;
+}
+.facts dd {
+  margin: 0;
+  font-size: 15.5px;
 }
 .creator-card .role {
   font-weight: 700;
@@ -1835,12 +1855,16 @@ footer ul a:hover {
   .creator-card {
     grid-template-columns: 1fr;
     padding: 34px 28px;
-    gap: 30px;
+    gap: 18px;
   }
-  .avatar {
-    width: 132px;
-    height: 132px;
-    font-size: 42px;
+  .portrait {
+    order: -1;
+    width: min(300px, 80%);
+    margin: -10px auto 0;
+  }
+  .facts div {
+    grid-template-columns: 1fr;
+    gap: 2px;
   }
   .foot-grid {
     grid-template-columns: 1fr 1fr;
