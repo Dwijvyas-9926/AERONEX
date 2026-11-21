@@ -52,7 +52,7 @@
   "build": {
     "appId": "com.aeronex.groundstation",
     "productName": "AERONEX",
-    "copyright": "Copyright © 2026 Dwij Vyas",
+    "copyright": "Copyright \u00a9 2026 Dwij Vyas",
     "directories": {
       "output": "release",
       "buildResources": "desktop/build"
@@ -108,6 +108,9 @@
     "electronLanguages": [
       "en-US",
       "en-GB"
-    ]
+    ],
+    "releaseInfo": {
+      "releaseNotesFile": "desktop/build/release-notes.md"
+    }
   }
 }

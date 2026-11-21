@@ -1,10 +1,12 @@
 # Builds AERONEX for Windows: the installer (AERONEX-Setup-<version>.exe).
 #
-#  - On every push to the desktop branch or main, and on demand: the
-#    installer is built and attached to the run (Actions → Desktop → the
-#    run → Artifacts), for testing on a Windows PC.
-#  - On a version tag (v0.1.0, v0.2.0 …): the same, and it is published as a
-#    GitHub Release. Installed copies look there for updates.
+#  - Every push to the desktop branch or main, and on demand: the installer
+#    is built and attached to the run (Actions → Desktop → the run →
+#    Artifacts), for testing on a Windows PC.
+#  - Releasing is raising "version" in package.json: when a push carries a
+#    version that has no GitHub Release yet, this job publishes one, with
+#    desktop/build/release-notes.md as its notes. Installed copies look there
+#    for updates. (A v* tag that matches package.json does the same.)
 #
 # The installer is not code-signed yet, so Windows shows "Windows protected
 # your PC" until it is: More info → Run anyway.
@@ -23,8 +25,12 @@ jobs:
   windows:
     runs-on: windows-latest
     timeout-minutes: 30
+    # One release at a time: two pushes of the same new version must not both publish it.
+    concurrency:
+      group: desktop-${{ github.ref }}
+      cancel-in-progress: false
     permissions:
-      contents: write # only used on a version tag, to publish the release
+      contents: write # only used when a new version is published
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,23 +44,62 @@ jobs:
         run: npx vite build
       - name: Bundle the desktop shell and its updater
         run: npm run desktop:bundle
-      - name: A version tag must match package.json
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Is this a new version?
+        id: version
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          want="v$(node -p "require('./package.json').version")"
-          if [ "$want" != "${GITHUB_REF_NAME}" ]; then
-            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${want}. Bump the version first."
+          version="$(node -p "require('./package.json').version")"
+          tag="v$version"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ "${GITHUB_REF}" == refs/tags/v* && "${GITHUB_REF_NAME}" != "$tag" ]]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${tag}. Bump the version first."
             exit 1
           fi
+          draft="$(gh release view "$tag" --repo "${GITHUB_REPOSITORY}" --json isDraft -q .isDraft 2>/dev/null || echo none)"
+          if [[ "$draft" == "false" ]]; then
+            echo "$tag is already released; building for testing only."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "$tag has no published release yet; this run publishes it."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "draft=$draft" >> "$GITHUB_OUTPUT"
+          fi
       - name: Build the installer
-        if: "!startsWith(github.ref, 'refs/tags/v')"
+        if: steps.version.outputs.publish != 'true'
         run: npx electron-builder --win --x64 --publish never
-      - name: Build and publish the release
-        if: startsWith(github.ref, 'refs/tags/v')
+      # A new version: a draft release on this exact commit, the installer and
+      # latest.yml uploaded into it, and only then published, so installed
+      # copies never see a release that is half uploaded.
+      - name: Start the release as a draft
+        if: steps.version.outputs.publish == 'true' && steps.version.outputs.draft == 'none'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          gh release create "${{ steps.version.outputs.tag }}" --repo "${GITHUB_REPOSITORY}" --draft
+          --target "${GITHUB_SHA}" --title "AERONEX ${{ steps.version.outputs.version }}"
+          --notes-file desktop/build/release-notes.md
+      - name: Build and upload the installer
+        if: steps.version.outputs.publish == 'true'
         run: npx electron-builder --win --x64 --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish the release
+        if: steps.version.outputs.publish == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ steps.version.outputs.tag }}"
+          assets="$(gh release view "$tag" --repo "${GITHUB_REPOSITORY}" --json assets -q '.assets[].name')"
+          echo "$assets"
+          for want in latest.yml "AERONEX-Setup-${{ steps.version.outputs.version }}.exe"; do
+            grep -qx "$want" <<<"$assets" || { echo "$want was not uploaded; the release stays a draft."; exit 1; }
+          done
+          gh release edit "$tag" --repo "${GITHUB_REPOSITORY}" --draft=false --latest
       - uses: actions/upload-artifact@v4
         with:
           name: AERONEX-Windows-installer
