@@ -8,6 +8,8 @@ release** workflow turns that section into the next version's release notes.
 
 ## Unreleased
 
+## 0.3.7, 22 November 2026
+
 - The film on the About page can be skipped through with its timeline, and its full-screen button
   works. Press Esc to leave full screen.
 
