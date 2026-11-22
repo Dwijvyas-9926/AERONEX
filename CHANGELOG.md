@@ -3,6 +3,11 @@
 What changed in each release of AERONEX for Windows. Installed copies update themselves; every
 release is on [GitHub](https://github.com/Dwijvyas-9926/AERONEX/releases).
 
+Add each user-visible change under **Unreleased** as part of the change itself. The **Prepare a
+release** workflow turns that section into the next version's release notes.
+
+## Unreleased
+
 ## 0.3.5, 22 November 2026
 
 - Flight instruments: headings near north read 000°, never 360°; climb rates never read -0.0;

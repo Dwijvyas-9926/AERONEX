@@ -1,12 +1,13 @@
 # Builds AERONEX for Windows: the installer (AERONEX-Setup-<version>.exe).
 #
-#  - Every push to the desktop branch or main, and on demand: the installer
+#  - Every pull request, every push to main, and on demand: the installer
 #    is built and attached to the run (Actions → Desktop → the run →
 #    Artifacts), for testing on a Windows PC.
-#  - Releasing is raising "version" in package.json: when a push carries a
-#    version that has no GitHub Release yet, this job publishes one, with
-#    desktop/build/release-notes.md as its notes. Installed copies look there
-#    for updates. (A v* tag that matches package.json does the same.)
+#  - Releasing is raising "version" in package.json, which the "Prepare a
+#    release" workflow does in a pull request (docs/RELEASING.md): when main
+#    carries a version that has no GitHub Release yet, this job publishes
+#    one, with desktop/build/release-notes.md as its notes. Installed copies
+#    look there for updates. Nothing is published from any other branch.
 #
 # Code signing (SignPath Foundation, see site/code-signing.html) switches on
 # by itself once the repository has the variable SIGNPATH_ORGANIZATION_ID and
@@ -20,9 +21,11 @@
 name: Desktop
 
 on:
+  # main publishes a new version; a pull request only builds the installer,
+  # so a change that breaks the Windows build is caught before it is merged.
   push:
-    branches: [desktop, main]
-    tags: ["v*"]
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -33,11 +36,11 @@ jobs:
     runs-on: windows-latest
     # Long enough to approve a signing request on SignPath.
     timeout-minutes: 90
-    # One run at a time across every branch: two pushes of the same new version
-    # (desktop and main, say) must not both publish it. The second one finds
-    # the release already published and only builds.
+    # Runs on main go one at a time, so two pushes of the same new version
+    # cannot both publish it: the second finds it published and only builds.
+    # Pull requests queue separately, so they never push a release aside.
     concurrency:
-      group: desktop-release
+      group: desktop-${{ github.ref == 'refs/heads/main' && 'release' || github.ref }}
       cancel-in-progress: false
     permissions:
       contents: write # only used when a new version is published
@@ -65,12 +68,11 @@ jobs:
           tag="v$version"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          if [[ "${GITHUB_REF}" == refs/tags/v* && "${GITHUB_REF_NAME}" != "$tag" ]]; then
-            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${tag}. Bump the version first."
-            exit 1
-          fi
           draft="$(gh release view "$tag" --repo "${GITHUB_REPOSITORY}" --json isDraft -q .isDraft 2>/dev/null || echo none)"
-          if [[ "$draft" == "false" ]]; then
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "Not main (${GITHUB_REF}); building for testing only. Releases are published from main."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif [[ "$draft" == "false" ]]; then
             echo "$tag is already released; building for testing only."
             echo "publish=false" >> "$GITHUB_OUTPUT"
           else

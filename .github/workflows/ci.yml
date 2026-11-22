@@ -6,7 +6,9 @@
 name: CI
 
 on:
+  # main after every merge, and every pull request before it is merged.
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
   schedule:
