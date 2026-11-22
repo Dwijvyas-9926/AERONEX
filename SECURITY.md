@@ -20,20 +20,30 @@ let someone do. You will get a reply there.
 
 ## How the app is built to resist this
 
-- **No server.** The app is static files. It has no accounts and stores no
-  user data anywhere but the user's own browser.
+- **No server.** AERONEX has no accounts and no server of its own. It stores
+  user data only on the user's own computer.
+- **A locked-down Windows shell.** The pages run sandboxed with context
+  isolation, from the app's own `aeronex://` scheme. They may use the serial
+  port, location (only when "My location" is pressed) and clipboard writes,
+  and nothing else; requests from any other page are refused
+  (`desktop/permissions.cjs`). Links open in the user's browser, never inside
+  the app.
+- **Updates, checked.** Updates come only from this repository's
+  releases, and each installer is checked against the SHA-512 in its
+  `latest.yml` before it runs (see `docs/RELEASING.md`).
 - **Content security policy.** Scripts run only from the app itself; no inline
   script, no `eval`. The policy is in `vite.config.ts` and is sent both in the
   page and, on hosts that support it, as a response header together with
   HSTS, `nosniff`, a referrer policy, a permissions policy and a
-  frame-ancestors rule (`vercel.json`, `dist/_headers`).
+  frame-ancestors rule (`vercel.json`, `dist/_headers`) when it is served
+  from a web host.
 - **No HTML from data.** Text from a flight controller, a file or the
   assistant is always drawn as text. The assistant's Markdown is turned into
   React elements, never HTML, and its links are limited to `http(s)` and the
   app's own pages.
-- **Keys stay in the session.** The Anthropic and map-provider keys are kept
-  for the browser session unless the user chooses to remember them, and are
-  sent only to the service they belong to.
+- **Keys are encrypted.** In the Windows app, the Anthropic and map-provider
+  keys are encrypted by Windows for the user's account (DPAPI). They are sent
+  only to the service they belong to.
 - **Files are untrusted.** Parsers for logs, missions, settings and firmware
   refuse what they cannot read, in words; `src/__tests__/untrustedFiles.test.ts`
   feeds them random and hostile input.

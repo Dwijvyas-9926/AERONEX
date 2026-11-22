@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/Dwijvyas-9926/AERONEX/security/advisories/new
+    about: Report it privately, not in a public issue.
+  - name: Download AERONEX
+    url: https://aeronexstation.vercel.app/#download
+    about: The latest installer for Windows.

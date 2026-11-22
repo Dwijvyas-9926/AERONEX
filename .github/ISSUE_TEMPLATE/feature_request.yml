@@ -1,0 +1,21 @@
+name: Feature request
+description: An idea for something AERONEX should do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to do?
+      description: The task or problem, and how you handle it today.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help
+      description: How you imagine AERONEX helping. A rough idea is fine.
+  - type: input
+    id: hardware
+    attributes:
+      label: Aircraft and flight controller
+      placeholder: "450 mm quad, Pixhawk 6C Mini, ArduCopter 4.7"

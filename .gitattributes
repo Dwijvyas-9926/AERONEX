@@ -1,0 +1,22 @@
+# Line endings: LF in the repository, whatever the platform.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary files.
+*.png binary
+*.jpg binary
+*.webp binary
+*.ico binary
+*.woff2 binary
+*.zip binary
+*.glb binary
+*.wasm binary
+
+# Generated or vendored: hidden from diffs and language statistics on GitHub.
+src/mavlink/dialect.generated.ts linguist-generated
+src/**/*.generated.ts linguist-generated
+package-lock.json linguist-generated
+THIRD-PARTY-NOTICES.txt linguist-generated
+public/vendor/** linguist-vendored
+public/avion-sim-*.js linguist-vendored

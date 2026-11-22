@@ -1,0 +1,46 @@
+name: Bug report
+description: Something in AERONEX does not work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. A problem that could let someone control an aircraft, run code or read API keys is a security problem: please report it privately under **Security → Report a vulnerability** instead.
+  - type: input
+    id: version
+    attributes:
+      label: AERONEX version
+      description: Shown on the About page.
+      placeholder: "0.3.4"
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Flight controller and firmware
+      description: Or "virtual aircraft" if it happened in the simulator.
+      placeholder: "Pixhawk 2.4.8, ArduCopter 4.6.3"
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: "Windows 11 23H2"
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Mission Planning
+        2. ...
+  - type: textarea
+    id: files
+    attributes:
+      label: Screenshots or logs
+      description: Drag in a screenshot, or a flight log (.bin or .tlog) if the aircraft was involved.

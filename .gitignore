@@ -9,3 +9,4 @@ node_modules/.vite
 release/
 desktop/main.bundle.cjs
 desktop/build/license.txt
+*.zip
