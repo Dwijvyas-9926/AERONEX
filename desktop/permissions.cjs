@@ -8,11 +8,14 @@
     in the map and is sent nowhere.
   - clipboard-sanitized-write: copying an assistant answer. Write only;
     reading the clipboard stays refused.
+  - fullscreen: the full-screen button of the film on the About page. It
+    fills the AERONEX window's screen and nothing else; Esc leaves it.
 */
 const ALLOWED_PERMISSIONS = new Set([
   "serial",
   "geolocation",
   "clipboard-sanitized-write",
+  "fullscreen",
 ]);
 
 /**

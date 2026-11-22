@@ -36,9 +36,9 @@ safety-relevant until shown otherwise.
   are shown as missing or stale, never filled in. Simulated data is always labelled.
 - **Wording.** Plain words for the person flying, in sentence case: what happened and what to do
   next. Headings are three digits (`headingText`), signed rates never read "-0.0" (`signed1`).
-- **Desktop security.** Pages stay sandboxed. Only `serial`, `geolocation` and
-  `clipboard-sanitized-write` are allowed, and only to the app's own pages. External links open in
-  the browser; only `http(s)` and plain `mailto:` links are passed on.
+- **Desktop security.** Pages stay sandboxed. Only `serial`, `geolocation`,
+  `clipboard-sanitized-write` and `fullscreen` are allowed, and only to the app's own pages.
+  External links open in the browser; only `http(s)` and plain `mailto:` links are passed on.
 - **Privacy.** No accounts, analytics or server. Anything new that leaves the computer must be
   added to `site/privacy.html` and the About page.
 - **Do not rename** `productName` ("AERONEX") or `build.appId` in `package.json`: the first

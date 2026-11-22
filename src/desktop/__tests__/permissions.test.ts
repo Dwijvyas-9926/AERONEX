@@ -4,15 +4,15 @@ import { createPermissionRule } from "../../../desktop/permissions.cjs";
 const allow = createPermissionRule({ scheme: "aeronex" });
 
 describe("desktop permissions", () => {
-  it("lets the app's own pages use the serial port, location and clipboard writes", () => {
-    for (const p of ["serial", "geolocation", "clipboard-sanitized-write"]) {
+  it("lets the app's own pages use the serial port, location, clipboard writes and full screen", () => {
+    for (const p of ["serial", "geolocation", "clipboard-sanitized-write", "fullscreen"]) {
       expect(allow(p, "aeronex://app/index.html#/missions")).toBe(true);
       expect(allow(p, "aeronex://app")).toBe(true);
     }
   });
 
   it("refuses everything else, even to the app", () => {
-    for (const p of ["media", "notifications", "clipboard-read", "display-capture", "openExternal", "midi", "pointerLock", "fullscreen"]) {
+    for (const p of ["media", "notifications", "clipboard-read", "display-capture", "openExternal", "midi", "pointerLock"]) {
       expect(allow(p, "aeronex://app/index.html")).toBe(false);
     }
   });
@@ -23,6 +23,7 @@ describe("desktop permissions", () => {
     expect(allow("geolocation", "http://localhost:5173/")).toBe(false);
     expect(allow("geolocation", undefined)).toBe(false);
     expect(allow("geolocation", "not a url")).toBe(false);
+    expect(allow("fullscreen", "https://example.com/")).toBe(false);
   });
 
   it("allows the dev server only when the app was started from it", () => {
