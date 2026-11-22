@@ -124,7 +124,9 @@ async function serve(request) {
     const body = await fsp.readFile(file);
     const type =
       TYPES[path.extname(file).toLowerCase()] ?? "application/octet-stream";
-    // The film on the About page seeks by asking for byte ranges.
+    // The film on the About page seeks by asking for byte ranges. Without a
+    // content-length the player takes the file for a live stream and refuses
+    // to seek, so every answer says how many bytes it carries.
     const range = byteRange(body.length, request.headers.get("range"));
     if (range.status === 416)
       return new Response(null, {
@@ -138,6 +140,7 @@ async function serve(request) {
       headers: {
         "content-type": type,
         "accept-ranges": "bytes",
+        "content-length": String(part.length),
         ...(range.status === 206
           ? { "content-range": `bytes ${range.start}-${range.end}/${body.length}` }
           : {}),

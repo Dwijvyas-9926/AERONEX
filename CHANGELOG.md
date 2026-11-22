@@ -8,6 +8,9 @@ release** workflow turns that section into the next version's release notes.
 
 ## Unreleased
 
+- The film on the About page can be skipped through with its timeline, and its full-screen button
+  works. Press Esc to leave full screen.
+
 ## 0.3.6, 22 November 2026
 
 - The AERONEX film: a 44-second introduction on the About page, which plays without an internet connection.
