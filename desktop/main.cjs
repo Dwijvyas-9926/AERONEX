@@ -43,6 +43,7 @@ const path = require("node:path");
 const { createUpdater } = require("./updater.cjs");
 const { proxyFirmware } = require("./firmwareProxy.cjs");
 const { createPermissionRule } = require("./permissions.cjs");
+const { byteRange } = require("./range.cjs");
 
 const APP_SCHEME = "aeronex";
 const WEBSITE = "https://aeronexstation.vercel.app";
@@ -98,6 +99,7 @@ const TYPES = {
   ".ttf": "font/ttf",
   ".wasm": "application/wasm",
   ".txt": "text/plain",
+  ".mp4": "video/mp4",
   ".map": "application/json",
 };
 
@@ -122,10 +124,23 @@ async function serve(request) {
     const body = await fsp.readFile(file);
     const type =
       TYPES[path.extname(file).toLowerCase()] ?? "application/octet-stream";
-    return new Response(body, {
-      status: 200,
+    // The film on the About page seeks by asking for byte ranges.
+    const range = byteRange(body.length, request.headers.get("range"));
+    if (range.status === 416)
+      return new Response(null, {
+        status: 416,
+        headers: { "content-range": `bytes */${body.length}` },
+      });
+    const part =
+      range.status === 206 ? body.subarray(range.start, range.end + 1) : body;
+    return new Response(part, {
+      status: range.status,
       headers: {
         "content-type": type,
+        "accept-ranges": "bytes",
+        ...(range.status === 206
+          ? { "content-range": `bytes ${range.start}-${range.end}/${body.length}` }
+          : {}),
         // The policy the built page carries anyway, as a header too, and one
         // rule a page cannot set for itself: nothing may frame this app.
         "content-security-policy":

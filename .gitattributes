@@ -12,6 +12,7 @@
 *.zip binary
 *.glb binary
 *.wasm binary
+*.mp4 binary
 
 # Generated or vendored: hidden from diffs and language statistics on GitHub.
 src/mavlink/dialect.generated.ts linguist-generated

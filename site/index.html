@@ -29,6 +29,7 @@
     <!-- icons -->
     <svg width="0" height="0" class="vh" aria-hidden="true">
       <defs>
+        <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" /></symbol>
         <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></symbol>
         <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14" /></symbol>
         <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5-9-5Z" /><path d="m3 12.5 9 5 9-5" /><path d="m3 16.8 9 5 9-5" opacity=".55" /></symbol>
@@ -123,7 +124,7 @@
               <p class="lede">Design, set up, simulate, fly and review your ArduCopter drone in one desktop app for Windows. Free, open source, and built to be safe on a real aircraft.</p>
               <div class="cta-row">
                 <a class="btn btn-primary" href="#download"><svg class="ic"><use href="#i-down" /></svg> Download for Windows</a>
-                <a class="btn btn-ghost" href="#platform">See how it works <svg class="ic"><use href="#i-arrow" /></svg></a>
+                <a class="btn btn-ghost" href="#film"><svg class="ic"><use href="#i-play" /></svg> Watch the film</a>
               </div>
               <div class="chips" aria-label="Highlights">
                 <span><svg class="ic"><use href="#i-chip" /></svg>ArduCopter 4.6 &amp; 4.7</span>
@@ -154,6 +155,28 @@
             <div class="strip-item reveal"><svg class="ic"><use href="#i-monitor" /></svg><div><h2>Simulation</h2><p>Rehearse on a virtual aircraft that speaks MAVLink, faults included.</p></div></div>
             <div class="strip-item reveal"><svg class="ic"><use href="#i-cube" /></svg><div><h2>Digital Twin</h2><p>Import your STEP or mesh model and watch it fly in 3D.</p></div></div>
             <div class="strip-item reveal"><svg class="ic"><use href="#i-bars" /></svg><div><h2>Flight Intelligence</h2><p>Flight Logs, Preflight Check and Drone Doctor: what went wrong, and why.</p></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= FILM ================= -->
+      <section class="film" id="film" aria-labelledby="film-h">
+        <div class="terrain" data-terrain="night" aria-hidden="true"></div>
+        <div class="wrap">
+          <div class="head-center reveal">
+            <span class="kicker">The film</span>
+            <h2 id="film-h">AERONEX in <em>44 seconds</em></h2>
+            <p class="sec-lede">From the first design to the last flight: see what the app does before you install it.</p>
+          </div>
+          <div class="player reveal" data-film>
+            <video controls preload="none" playsinline poster="img/film-poster.webp" width="1920" height="1080" aria-label="The AERONEX film: a drone is designed, set up, rehearsed in a simulator, flown on a mission and reviewed, ending on the AERONEX logo.">
+              <source src="media/aeronex-film.mp4" type="video/mp4" />
+              <a href="media/aeronex-film.mp4">Download the AERONEX film (MP4, 13 MB)</a>
+            </video>
+            <button class="play" type="button" data-film-play hidden>
+              <span class="disc"><svg class="ic"><use href="#i-play" /></svg></span>
+              <span class="lbl">Play the film<small>0:44, sound on</small></span>
+            </button>
           </div>
         </div>
       </section>

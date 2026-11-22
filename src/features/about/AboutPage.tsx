@@ -1,4 +1,5 @@
-import { Bug, Cable, FlaskConical, Gamepad2, Globe, HardDrive, Lock, Mail, MessageSquare, ShieldCheck, WifiOff } from "lucide-react";
+import { useRef, useState } from "react";
+import { Bug, Cable, FlaskConical, Gamepad2, Globe, HardDrive, Lock, Mail, MessageSquare, Play, ShieldCheck, WifiOff } from "lucide-react";
 import { LINKS } from "../../app/links";
 import { Link } from "react-router-dom";
 import { ROUTES, STAGES, type BuildStatus } from "../../app/routes";
@@ -93,6 +94,45 @@ const CREDITS: [string, string][] = [
   ["Map and elevation data", "Sentinel-2 cloudless by EOX, OpenStreetMap contributors, Esri World Imagery, MapTiler, and Terrain Tiles on AWS. Each is credited on the map it appears on."],
 ];
 
+const FILM = `${import.meta.env.BASE_URL}media/aeronex-film.mp4`;
+const FILM_POSTER = `${import.meta.env.BASE_URL}media/film-poster.webp`;
+
+/** The 44-second AERONEX film, shipped with the app so it plays offline. */
+function FilmPlayer() {
+  const video = useRef<HTMLVideoElement>(null);
+  const [started, setStarted] = useState(false);
+  const start = () => {
+    setStarted(true);
+    void video.current?.play().catch(() => {});
+    video.current?.focus({ preventScroll: true });
+  };
+  return (
+    <div className="about-film">
+      <video
+        ref={video}
+        src={FILM}
+        poster={FILM_POSTER}
+        controls={started}
+        preload="none"
+        playsInline
+        onPlay={() => setStarted(true)}
+        aria-label="The AERONEX film: a drone is designed, set up, rehearsed in a simulator, flown on a mission and reviewed."
+      />
+      {!started && (
+        <button type="button" className="about-film-play" onClick={start}>
+          <span className="about-film-disc">
+            <Play aria-hidden />
+          </span>
+          <span className="about-film-label">
+            Play the film
+            <small>0:44, sound on</small>
+          </span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function AboutPage() {
   const openGuide = useUi((s) => s.toggle);
   // The Windows app knows its own version; in a browser the page is always the latest.
@@ -127,6 +167,11 @@ export function AboutPage() {
           </div>
         ))}
       </div>
+
+      <section className="about-section">
+        <h2>The film</h2>
+        <FilmPlayer />
+      </section>
 
       <section className="about-section">
         <h2>What it does</h2>

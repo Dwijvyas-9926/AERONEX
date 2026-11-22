@@ -319,4 +319,25 @@
       }
     });
   }
+
+  /* ---------- the film: a large play button over the poster; the browser's own controls after ---------- */
+  document.querySelectorAll("[data-film]").forEach((box) => {
+    const video = box.querySelector("video");
+    const play = box.querySelector("[data-film-play]");
+    if (!video || !play) return;
+    video.controls = false;
+    play.hidden = false;
+    const start = () => {
+      play.hidden = true;
+      video.controls = true;
+      const p = video.play();
+      if (p && p.catch) p.catch(() => {});
+      video.focus({ preventScroll: true });
+    };
+    play.addEventListener("click", start);
+    video.addEventListener("play", () => {
+      play.hidden = true;
+      video.controls = true;
+    });
+  });
 })();

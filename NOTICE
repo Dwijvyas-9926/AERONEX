@@ -33,3 +33,9 @@ AERONEX includes material from other projects, under their own licences:
     Listed with their licences and copyright notices in
     THIRD-PARTY-NOTICES.txt. The Windows app also carries Electron's and
     Chromium's licences (LICENSE.electron.txt, LICENSES.chromium.html).
+
+The AERONEX film (public/media/aeronex-film.mp4 and site/media/aeronex-film.mp4)
+includes stock aerial footage from Pixabay (https://pixabay.com), used under the
+Pixabay Content License. That footage is not covered by the Apache License 2.0
+and may not be reused separately from the film. The film's 3D animation, design
+and music were made for AERONEX.
