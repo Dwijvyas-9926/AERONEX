@@ -1830,6 +1830,16 @@ input[type="range"]::-moz-range-thumb {
 .about-fact h2 { font-family: var(--font-display); font-size: var(--t-md); margin: 0 0 4px; }
 .about-fact p { margin: 0; color: var(--ink-2); font-size: var(--t-sm); line-height: 1.55; }
 .about-section > .about-grid { margin-bottom: 0; }
+.about-film { position: relative; max-width: 960px; border-radius: var(--r-panel); overflow: hidden; background: #04070f; border: 1px solid var(--line); box-shadow: var(--shadow-1); }
+.about-film video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #04070f; }
+.about-film-play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: var(--s4); border: 0; cursor: pointer; color: #fff; font: inherit; background: radial-gradient(ellipse at 50% 50%, rgba(3, 6, 14, 0.12), rgba(3, 6, 14, 0.55)); }
+.about-film-disc { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; background: #e8650f; box-shadow: 0 0 0 8px rgba(232, 101, 15, 0.22), 0 14px 40px rgba(232, 101, 15, 0.45); transition: transform 160ms; }
+.about-film-disc svg { width: 32px; height: 32px; margin-left: 4px; fill: #fff; stroke: #fff; }
+.about-film-label { display: grid; gap: 2px; text-align: left; font-weight: 700; font-size: var(--t-lg); text-shadow: 0 2px 14px rgba(0, 0, 0, 0.6); }
+.about-film-label small { font-weight: 500; font-size: var(--t-sm); color: #d5dbe8; }
+.about-film-play:hover .about-film-disc { transform: scale(1.06); }
+.about-film-play:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
+@media (prefers-reduced-motion: reduce) { .about-film-disc { transition: none; } .about-film-play:hover .about-film-disc { transform: none; } }
 .about-contact { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3); }
 .about-contact-link { display: flex; align-items: center; gap: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--graphite); color: var(--ink); text-decoration: none; box-shadow: var(--shadow-1); transition: border-color 160ms, transform 160ms; }
 .about-contact-link:hover { border-color: var(--accent-line); transform: translateY(-1px); }

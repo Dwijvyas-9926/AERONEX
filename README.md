@@ -25,7 +25,7 @@
 </p>
 
 <p align="center">
-  <img src="site/img/overview.webp" width="880" alt="The AERONEX overview: a 3D model of the aircraft with its live instruments" />
+  <a href="https://aeronexstation.vercel.app/#film"><img src="docs/media/film-preview.jpg" width="880" alt="Watch the AERONEX film: 44 seconds from design to flight" /></a>
 </p>
 
 ## Download
@@ -58,6 +58,10 @@ tried on the built-in virtual aircraft.
 | **Assistant** | Ask questions about the app or your drone, with your own Anthropic API key. |
 
 Every page says what it does and what it does not; the details are in [docs/FEATURES.md](docs/FEATURES.md).
+
+<p align="center">
+  <img src="site/img/overview.webp" width="880" alt="The AERONEX overview: a 3D model of the aircraft with its live instruments" />
+</p>
 
 <table>
   <tr>

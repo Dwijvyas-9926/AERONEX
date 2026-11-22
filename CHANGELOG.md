@@ -8,6 +8,8 @@ release** workflow turns that section into the next version's release notes.
 
 ## Unreleased
 
+- The AERONEX film: a 44-second introduction on the About page, which plays without an internet connection.
+
 ## 0.3.5, 22 November 2026
 
 - Flight instruments: headings near north read 000°, never 360°; climb rates never read -0.0;
