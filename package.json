@@ -1,7 +1,7 @@
 {
   "name": "avion-gcs",
   "productName": "AERONEX",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "AERONEX Ground Station: design, set up, fly and review an ArduCopter drone.",
   "author": "Dwij Vyas",
   "homepage": "https://github.com/Dwijvyas-9926/AERONEX",
