@@ -1,4 +1,5 @@
-import { Cable, FlaskConical, Gamepad2, Globe, HardDrive, Lock, ShieldCheck, WifiOff } from "lucide-react";
+import { Bug, Cable, FlaskConical, Gamepad2, Globe, HardDrive, Lock, Mail, MessageSquare, ShieldCheck, WifiOff } from "lucide-react";
+import { LINKS } from "../../app/links";
 import { Link } from "react-router-dom";
 import { ROUTES, STAGES, type BuildStatus } from "../../app/routes";
 import portrait from "../../assets/creator/dwij-vyas.webp";
@@ -333,8 +334,46 @@ export function AboutPage() {
             <a href="https://github.com/Dwijvyas-9926" target="_blank" rel="noreferrer">
               GitHub profile
             </a>
-            <a href="mailto:dwijgvyas@gmail.com">dwijgvyas@gmail.com</a>
+            <a href={`mailto:${LINKS.email}`}>{LINKS.email}</a>
           </p>
+        </div>
+      </section>
+
+      <section className="about-section">
+        <h2>Contact and feedback</h2>
+        <p className="about-prose about-prose-gap">
+          Questions, ideas, or something that did not work as it should? Tell us what you flew and what happened. Real-world feedback shapes what
+          comes next.
+        </p>
+        <div className="about-contact">
+          <a className="about-contact-link" href={LINKS.website} target="_blank" rel="noreferrer">
+            <Globe aria-hidden />
+            <span>
+              <strong>Website</strong>
+              <small>aeronexstation.vercel.app: downloads and help</small>
+            </span>
+          </a>
+          <a className="about-contact-link" href={LINKS.contactForm} target="_blank" rel="noreferrer">
+            <MessageSquare aria-hidden />
+            <span>
+              <strong>Send feedback</strong>
+              <small>The message form on the website</small>
+            </span>
+          </a>
+          <a className="about-contact-link" href={`mailto:${LINKS.email}?subject=AERONEX%20feedback`}>
+            <Mail aria-hidden />
+            <span>
+              <strong>Email</strong>
+              <small>{LINKS.email}</small>
+            </span>
+          </a>
+          <a className="about-contact-link" href={LINKS.newIssue} target="_blank" rel="noreferrer">
+            <Bug aria-hidden />
+            <span>
+              <strong>Report a bug or suggest a feature</strong>
+              <small>On GitHub, with the version from the top of this page</small>
+            </span>
+          </a>
         </div>
       </section>
 

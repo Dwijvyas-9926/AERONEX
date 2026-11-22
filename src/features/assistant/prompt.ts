@@ -51,6 +51,7 @@ export const RULES = `You are the AERONEX Assistant, built into AERONEX, a ${DES
 const DESKTOP_NOTE = `# THIS COPY IS THE WINDOWS APP
 
 The person is using AERONEX for Windows, an installed app, not the browser version. Where the manual mentions the browser, a tab, "this browser" or https, for them it means the AERONEX window and this computer:
+- Feedback, questions and bug reports: the About page's Contact and feedback section, or Help, then Send feedback (the message form on aeronexstation.vercel.app), or email aeronexstation@gmail.com. Bugs and feature ideas can also go on GitHub (Help, then Report a problem on GitHub).
 - Installed with AERONEX-Setup, and updated from GitHub Releases: it looks for a new version at start and every few hours, downloads it in the background and asks before restarting (Restart now or Later; Settings, Updates; Help, Check for updates). It never restarts to update while a flight controller is connected or firmware is being installed.
 - Connect shows AERONEX's own list of serial ports ("Choose the flight controller"); Chrome, Edge or Opera are not needed.
 - Data is kept on this computer in %APPDATA%\\AERONEX (Help, Where my data is kept); API keys are encrypted by Windows and always remembered. Reset app data removes everything and is refused while a flight controller is connected.

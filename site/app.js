@@ -16,10 +16,10 @@
 
   const SITE = {
     repo: "Dwijvyas-9926/AERONEX",
-    email: "dwijgvyas@gmail.com",
+    email: "aeronexstation@gmail.com",
     // FormSubmit sends the form to this address. The first message ever sent
     // asks the owner to confirm the address once, by a link in that email.
-    formEndpoint: "https://formsubmit.co/ajax/dwijgvyas@gmail.com",
+    formEndpoint: "https://formsubmit.co/ajax/aeronexstation@gmail.com",
   };
   const INSTALLER = /^AERONEX-Setup-[\d.]+\.exe$/;
 

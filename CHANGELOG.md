@@ -13,6 +13,9 @@ release is on [GitHub](https://github.com/Dwijvyas-9926/AERONEX/releases).
 - The Digital Twin's live view says whether it shows the virtual aircraft or a flight controller.
 - My location on the maps works in the Windows app, using the Windows location service, only when
   pressed. The app refuses every other permission (camera, microphone, notifications and more).
+- A Contact and feedback section on the About page, and Help menu items for the website, sending
+  feedback and reporting a problem on GitHub. The project's email is aeronexstation@gmail.com.
+- Email links open your mail app; before, the Windows app ignored them.
 
 ## 0.3.4, 21 November 2026
 

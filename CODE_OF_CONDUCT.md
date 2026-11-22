@@ -25,7 +25,7 @@ the project.
 
 ## Reporting
 
-Report a problem to the maintainer, Dwij Vyas, at [dwijgvyas@gmail.com](mailto:dwijgvyas@gmail.com).
+Report a problem to the maintainer, Dwij Vyas, at [aeronexstation@gmail.com](mailto:aeronexstation@gmail.com).
 Reports are read promptly and kept confidential.
 
 ## What happens

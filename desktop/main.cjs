@@ -45,6 +45,9 @@ const { proxyFirmware } = require("./firmwareProxy.cjs");
 const { createPermissionRule } = require("./permissions.cjs");
 
 const APP_SCHEME = "aeronex";
+const WEBSITE = "https://aeronexstation.vercel.app";
+/** A mailto: link to one plain address, with an optional subject. */
+const MAILTO = /^mailto:[\w.+-]+@[\w-]+(\.[\w-]+)+(\?subject=[\w%.+-]*)?$/i;
 
 // "My location" on the maps: take the position from the Windows location
 // service (Settings, then Privacy & security, then Location) rather than a
@@ -398,7 +401,9 @@ function createWindow() {
     where the operator can see the address they are visiting.
   */
   const external = (url) => {
-    if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
+    // Web pages open in the browser; a plain email address opens the mail
+    // app. Anything else (file:, other schemes) is dropped.
+    if (/^https?:\/\//i.test(url) || MAILTO.test(url)) void shell.openExternal(url);
     return { action: "deny" };
   };
   win.webContents.setWindowOpenHandler(({ url }) => external(url));
@@ -478,6 +483,22 @@ function buildMenu(win) {
             win.webContents.send("go", "/settings");
             void updates?.check(true);
           },
+        },
+        { type: "separator" },
+        {
+          label: "AERONEX website",
+          click: () => void shell.openExternal(WEBSITE),
+        },
+        {
+          label: "Send feedback…",
+          click: () => void shell.openExternal(`${WEBSITE}/#contact`),
+        },
+        {
+          label: "Report a problem on GitHub",
+          click: () =>
+            void shell.openExternal(
+              "https://github.com/Dwijvyas-9926/AERONEX/issues/new/choose",
+            ),
         },
         { type: "separator" },
         {
