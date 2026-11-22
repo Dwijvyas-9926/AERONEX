@@ -101,7 +101,8 @@ npm run dist:win     # the Windows installer (on Windows)
 ```
 
 Requires Node.js 20.19+ or 22.12+. The project layout, tests and the ArduCopter simulator tests are
-described in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md); releases in [docs/RELEASING.md](docs/RELEASING.md).
+described in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md); how the project is run and released in
+[docs/MAINTAINING.md](docs/MAINTAINING.md) and [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Contributing
 

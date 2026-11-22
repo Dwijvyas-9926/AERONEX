@@ -1,0 +1,81 @@
+# Prepare a release: Actions → "Prepare a release" → Run workflow.
+#
+# Takes what CHANGELOG.md lists under "Unreleased", makes it the release
+# notes, raises the version, and opens a pull request "Release x.y.z". Its
+# checks (CI, and a Windows installer build) start straight away. Merging
+# that pull request publishes the release (desktop.yml), and every installed
+# copy of AERONEX updates itself from it.
+#
+# Needs, once: Settings → Actions → General → "Allow GitHub Actions to create
+# and approve pull requests".
+name: Prepare a release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Which version: patch (0.3.5 → 0.3.6, fixes), minor (0.3.5 → 0.4.0, new features), major (1.0.0), or an exact x.y.z"
+        required: true
+        default: patch
+        type: string
+
+permissions:
+  contents: write # push the release branch
+  pull-requests: write # open its pull request
+  actions: write # start the pull request's checks
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Raise the version and write the release notes
+        id: prep
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          version="$(node scripts/prepare-release.mjs "$BUMP")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "branch=release/v$version" >> "$GITHUB_OUTPUT"
+          echo "Preparing $version"
+          cat desktop/build/release-notes.md
+      - name: Open the release pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.prep.outputs.version }}
+          BRANCH: ${{ steps.prep.outputs.branch }}
+        run: |
+          if gh api "repos/${GITHUB_REPOSITORY}/releases/tags/v$VERSION" >/dev/null 2>&1; then
+            echo "::error::v$VERSION is already released. Choose a newer version."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git commit -am "Release $VERSION"
+          git push --force origin "$BRANCH"
+          {
+            echo "Merging this publishes **AERONEX $VERSION**. Installed copies update themselves from it."
+            echo
+            echo "## Release notes"
+            echo
+            cat desktop/build/release-notes.md
+            echo
+            echo "Check the notes read well for users, wait for the checks, then merge."
+          } > body.md
+          gh pr create --base main --head "$BRANCH" --title "Release $VERSION" --body-file body.md
+      - name: Start the checks
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ steps.prep.outputs.branch }}
+        # A pull request opened by this workflow does not start other
+        # workflows on its own, so they are started here on its branch.
+        run: |
+          gh workflow run ci.yml --ref "$BRANCH"
+          gh workflow run desktop.yml --ref "$BRANCH"

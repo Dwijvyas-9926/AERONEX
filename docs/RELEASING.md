@@ -6,13 +6,18 @@ published from a personal computer.
 
 ## Publishing a new version
 
-1. Change `version` in `package.json` (and `package-lock.json`, with
-   `npm version <x.y.z> --no-git-tag-version`).
-2. Write what changed for users in `desktop/build/release-notes.md`, and move the same lines
-   from **Unreleased** to a new section in [CHANGELOG.md](../CHANGELOG.md).
-3. Commit and push to `main`.
+1. List what changed for users under **Unreleased** in [CHANGELOG.md](../CHANGELOG.md) (each
+   pull request adds its own line).
+2. On GitHub: **Actions → Prepare a release → Run workflow**, and choose `patch`, `minor`,
+   `major` or an exact version. It runs [`scripts/prepare-release.mjs`](../scripts/prepare-release.mjs):
+   the version is raised in `package.json` and `package-lock.json`, the Unreleased lines become
+   `desktop/build/release-notes.md` and a dated changelog section, and a pull request
+   **Release x.y.z** is opened with its checks running.
+3. Merge that pull request.
 
-The workflow sees that this version has no release yet and:
+(By hand, the same is `node scripts/prepare-release.mjs patch`, then a pull request.)
+
+When `main` carries a version that has no release yet, the Desktop workflow:
 
 1. builds the app and the NSIS installer on a GitHub-hosted Windows runner;
 2. checks the installer's file details (product name AERONEX, the version);
@@ -22,7 +27,8 @@ The workflow sees that this version has no release yet and:
 5. creates a draft release on the pushed commit, uploads the three files, checks they are all
    there, and only then publishes it as the latest release.
 
-A push with an unchanged version builds the installer as a check and publishes nothing.
+A push to `main` with an unchanged version, and every pull request, builds the installer as a
+check and publishes nothing. Nothing is ever published from another branch.
 
 ## How installed copies update
 

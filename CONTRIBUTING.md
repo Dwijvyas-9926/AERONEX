@@ -33,7 +33,9 @@ today; that matters more than a proposed design.
    npm run build    # production build
    ```
 
-5. Open a pull request against `main` and fill in the template.
+5. Add a line for users under **Unreleased** in [CHANGELOG.md](CHANGELOG.md) if they will
+   notice the change. Leave the version alone: releases are prepared separately.
+6. Open a pull request against `main` and fill in the template.
 
 ### What a good change looks like
 
