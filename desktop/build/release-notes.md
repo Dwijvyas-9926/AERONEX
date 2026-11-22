@@ -1,6 +1,1 @@
-- Flight instruments: headings near north now read 000°, never 360°; climb rates never read -0.0; speed and height show one decimal; the height tape continues below the take-off point; and the vertical speed shows its unit.
-- Keyboard Flight no longer says "On ground" while an aircraft armed from another page is in the air, and explains why the keys are inactive.
-- My location on the maps now works, using the Windows location service, only when you press it. AERONEX refuses every other permission, such as the camera, microphone and notifications.
-- A Contact and feedback section on the About page, and Help menu items for the website, sending feedback and reporting a problem. The project's email is aeronexstation@gmail.com.
-- Email links now open your mail app.
-- The Digital Twin's live view says whether it shows the virtual aircraft or a flight controller.
+- The AERONEX film: a 44-second introduction on the About page, which plays without an internet connection.
