@@ -1999,6 +1999,7 @@ input[type="range"]::-moz-range-thumb {
 .kf-phase.flying .kf-phase-dot, .kf-phase.takeoff .kf-phase-dot { background: var(--ok); box-shadow: 0 0 10px var(--ok); animation: kfpulse 1.4s infinite; }
 .kf-phase.landing .kf-phase-dot { background: var(--warn); box-shadow: 0 0 10px var(--warn); animation: kfpulse 1s infinite; }
 .kf-phase.emergency { border-color: var(--danger); color: var(--danger); }
+.kf-phase-note { margin: var(--s2) 0 0; font-size: var(--t-sm); color: var(--ink-2); line-height: 1.5; }
 .kf-phase.emergency .kf-phase-dot { background: var(--danger); animation: kfpulse .6s infinite; }
 .kf-phase.arming .kf-phase-dot { background: var(--accent); animation: kfpulse .9s infinite; }
 .kf-phase-alt { margin-left: auto; font-variant-numeric: tabular-nums; font-family: var(--font-display); color: var(--accent); }

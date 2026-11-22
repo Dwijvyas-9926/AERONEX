@@ -3,7 +3,7 @@ import { BatteryMedium, Compass, Gauge, MountainSnow, Navigation, Radio, Satelli
 import { useNow } from "../../hooks/useNow";
 import { useLink } from "../../state/linkStore";
 import { useSettings } from "../../state/settingsStore";
-import { duration, GPS_FIX, RAD } from "../../utils/format";
+import { duration, GPS_FIX, headingText, RAD, signed1 } from "../../utils/format";
 import { Pfd } from "./Pfd";
 
 const STALE = 3000;
@@ -101,10 +101,10 @@ export function FlightDataPage() {
 
       <div className="fd-group-label">Navigation</div>
       <div className="fd-tiles">
-        <Tile icon={Navigation} label="Heading" value={hasData ? num(((heading % 360) + 360) % 360) : "—"} unit="°" />
+        <Tile icon={Navigation} label="Heading" value={hasData ? headingText(heading) : "—"} unit="°" />
         <Tile icon={Gauge} label="Ground speed" value={hud ? num(spVal, 1) : "—"} unit={spUnit} />
         <Tile icon={MountainSnow} label="Altitude" value={pos || hud ? num(alVal, imperial ? 0 : 1) : "—"} unit={`${alUnit} rel`} />
-        <Tile icon={TrendingUp} label="Climb rate" value={hud ? `${climb >= 0 ? "+" : ""}${num(climb, 1)}` : "—"} unit="m/s" />
+        <Tile icon={TrendingUp} label="Climb rate" value={hud ? signed1(climb) : "—"} unit="m/s" />
       </div>
 
       <div className="fd-group-label">Power &amp; links</div>

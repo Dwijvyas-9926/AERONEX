@@ -2,6 +2,25 @@ import type { Units } from "../state/settingsStore";
 
 export const RAD = 180 / Math.PI;
 
+/**
+ * A compass heading as whole degrees, 0 to 359. Rounding comes first: wrapping
+ * first and rounding after turned 359.6° into "360°".
+ */
+export function headingDeg(deg: number): number {
+  return ((Math.round(deg) % 360) + 360) % 360;
+}
+
+/** A heading the way aircraft displays write it: three digits, 000 to 359. */
+export function headingText(deg: number): string {
+  return String(headingDeg(deg)).padStart(3, "0");
+}
+
+/** A signed rate such as climb, one decimal, never "-0.0". */
+export function signed1(v: number): string {
+  const r = Math.round(v * 10) / 10;
+  return `${r > 0 ? "+" : r < 0 ? "" : "+"}${(r === 0 ? 0 : r).toFixed(1)}`;
+}
+
 export function duration(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(s / 3600);

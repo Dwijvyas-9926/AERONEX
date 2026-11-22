@@ -1,3 +1,4 @@
+import { headingText } from "../../utils/format";
 import { useEffect, useRef, useState } from "react";
 
 /*
@@ -38,7 +39,7 @@ function TelemetryStrip({ animate }: { animate: boolean }) {
       {cell("LAT", v.lat.toFixed(4))}
       {cell("LON", v.lon.toFixed(3))}
       {cell("ALT", `${v.alt.toFixed(1)} m`)}
-      {cell("HDG", `${v.hdg.toFixed(0).padStart(3, "0")}°`)}
+      {cell("HDG", `${headingText(v.hdg)}°`)}
       {cell("SPD", `${v.spd.toFixed(1)} m/s`)}
     </div>
   );

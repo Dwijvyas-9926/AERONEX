@@ -232,7 +232,7 @@ export function AboutPage() {
               Map pictures and ground heights are fetched from the provider you choose. Firmware is fetched from ArduPilot's server. If you add your
               own Anthropic key, your questions and the aircraft's readings (never its location) go to Anthropic to answer them.{" "}
               {DESKTOP
-                ? "Keys are encrypted by Windows for your user account. The app also asks GitHub for new versions when it starts and every few hours."
+                ? "Keys are encrypted by Windows for your user account. The app also asks GitHub for new versions when it starts and every few hours. My location on a map asks Windows where this computer is, only when you press it, and the position stays on the map."
                 : "Keys are kept for the session unless you choose to remember them."}
             </p>
           </section>

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { RAD } from "../../utils/format";
+import { headingText, RAD, signed1 } from "../../utils/format";
 import { heroState } from "./heroMotion";
 
 /*
@@ -75,10 +75,10 @@ export function HeroInstruments({ animate }: { animate: boolean }) {
       horizon.current?.setAttribute("transform", `rotate(${-roll}) translate(0 ${pitch * PX_PER_DEG})`);
       rollPtr.current?.setAttribute("transform", `rotate(${-roll})`);
       tape.current?.setAttribute("transform", `translate(${TAPE_W / 2 - heading * TAPE_PX_PER_DEG} 0)`);
-      if (hdg.current) hdg.current.textContent = String(Math.round(heading)).padStart(3, "0");
+      if (hdg.current) hdg.current.textContent = headingText(heading);
       if (agl.current) agl.current.textContent = s.agl.toFixed(1);
       if (gs.current) gs.current.textContent = s.groundSpeed.toFixed(1);
-      if (vs.current) vs.current.textContent = (s.climb >= 0 ? "+" : "") + s.climb.toFixed(2);
+      if (vs.current) vs.current.textContent = signed1(s.climb);
       if (animate) raf = requestAnimationFrame(draw);
     };
     // Even when still, draw once after the scene has positioned the aircraft

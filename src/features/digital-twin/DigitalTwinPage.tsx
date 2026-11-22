@@ -5,7 +5,7 @@ import { ACCEPT, FORMAT_LABEL, formatOf } from "../../services/import/modelImpor
 import { AXIS_DIRS, AXIS_LABEL, axesParallel, rotateOrientation, type AxisDir } from "../../services/import/orient";
 import { isLinkLive, useLink } from "../../state/linkStore";
 import { useNow } from "../../hooks/useNow";
-import { RAD } from "../../utils/format";
+import { headingText, RAD, signed1 } from "../../utils/format";
 import { clearModel, importForProfile, rehydrateModel, useModel } from "../../state/modelStore";
 import { confirmAction, notify } from "../../state/notifyStore";
 import { useActiveProfile, useProfiles } from "../../state/profileStore";
@@ -164,7 +164,7 @@ const MODES: { id: TwinMode; label: string; icon: typeof Scan; needsLink?: boole
   { id: "inspect", label: "Inspect", icon: Scan },
   { id: "scripted", label: "Scripted flight", icon: Box },
   { id: "manual", label: "Manual flight", icon: Gamepad2 },
-  { id: "live", label: "Live (Pixhawk)", icon: Radio, needsLink: true },
+  { id: "live", label: "Live", icon: Radio, needsLink: true },
 ];
 
 export function DigitalTwinPage() {
@@ -176,6 +176,7 @@ export function DigitalTwinPage() {
   const result = useModel((s) => s.result);
   const error = useModel((s) => s.error);
   const linkLive = useLink((s) => isLinkLive(s.status));
+  const linkVirtual = useLink((s) => s.virtual);
   const [requestedMode, setMode] = useState<TwinMode>("inspect");
   // Fall back to Inspect if Live is selected but the vehicle link isn't live.
   const mode: TwinMode = requestedMode === "live" && !linkLive ? "inspect" : requestedMode;
@@ -275,7 +276,7 @@ export function DigitalTwinPage() {
                         title={locked ? "Connect aircraft to mirror its live attitude" : undefined}
                         onClick={() => setMode(m.id)}
                       >
-                        <m.icon /> {m.label}
+                        <m.icon /> {m.id === "live" ? (linkVirtual ? "Live (virtual)" : "Live (aircraft)") : m.label}
                       </button>
                     );
                   })}
@@ -397,21 +398,22 @@ function TwinLiveReadout() {
   const att = useLink((s) => s.telemetry.attitude);
   const hud = useLink((s) => s.telemetry.hud);
   const posAlt = useLink((s) => s.telemetry.position?.value.relAlt);
+  const virtual = useLink((s) => s.virtual);
   const now = useNow(200);
   const stale = !att || now - att.at > 3000;
   const r = att ? att.value.roll * RAD : 0;
   const p = att ? att.value.pitch * RAD : 0;
-  const y = att ? (((att.value.yaw * RAD) % 360) + 360) % 360 : 0;
+  const y = att ? att.value.yaw * RAD : 0;
   const climb = hud?.value.climb ?? 0;
   const alt = posAlt ?? hud?.value.alt ?? null;
   return (
     <div className={`twin-hud on-navy${stale ? " stale" : ""}`}>
-      <div className="twin-hud-title">Live · Pixhawk</div>
+      <div className="twin-hud-title">{virtual ? "Live · Virtual aircraft" : "Live · Flight controller"}</div>
       <div className="twin-hud-row"><span>Roll</span><strong>{att ? `${r.toFixed(1)}°` : "—"}</strong></div>
       <div className="twin-hud-row"><span>Pitch</span><strong>{att ? `${p.toFixed(1)}°` : "—"}</strong></div>
-      <div className="twin-hud-row"><span>Yaw</span><strong>{att ? `${y.toFixed(0)}°` : "—"}</strong></div>
+      <div className="twin-hud-row"><span>Yaw</span><strong>{att ? `${headingText(y)}°` : "—"}</strong></div>
       <div className="twin-hud-row"><span>Alt</span><strong>{alt != null ? `${alt.toFixed(2)} m` : "—"}</strong></div>
-      <div className="twin-hud-row"><span>V/S</span><strong>{hud ? `${climb >= 0 ? "+" : ""}${climb.toFixed(1)}` : "—"}</strong></div>
+      <div className="twin-hud-row"><span>V/S</span><strong>{hud ? `${signed1(climb)} m/s` : "—"}</strong></div>
     </div>
   );
 }

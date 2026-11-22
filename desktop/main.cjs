@@ -42,8 +42,18 @@ const fsp = require("node:fs/promises");
 const path = require("node:path");
 const { createUpdater } = require("./updater.cjs");
 const { proxyFirmware } = require("./firmwareProxy.cjs");
+const { createPermissionRule } = require("./permissions.cjs");
 
 const APP_SCHEME = "aeronex";
+
+// "My location" on the maps: take the position from the Windows location
+// service (Settings, then Privacy & security, then Location) rather than a
+// Google web service that needs a paid key. Ignored where Windows is already
+// the default.
+if (process.platform === "win32") {
+  app.commandLine.appendSwitch("enable-features", "WinrtGeolocationImplementation");
+}
+
 const ROOT = path.join(__dirname, "..", "dist");
 const DEV_SERVER = process.env.AERONEX_DEV_SERVER || null;
 const isWindows = process.platform === "win32";
@@ -177,9 +187,15 @@ function wireSerial(ses, win) {
       details.deviceType === "serial" &&
       details.origin === `${APP_SCHEME}://app`,
   );
-  ses.setPermissionCheckHandler((_wc, permission) => permission === "serial");
-  ses.setPermissionRequestHandler((_wc, permission, done) =>
-    done(permission === "serial"),
+  const allowedPermission = createPermissionRule({
+    scheme: APP_SCHEME,
+    devServer: DEV_SERVER,
+  });
+  ses.setPermissionCheckHandler((_wc, permission, origin) =>
+    allowedPermission(permission, origin),
+  );
+  ses.setPermissionRequestHandler((_wc, permission, done, details) =>
+    done(allowedPermission(permission, details?.requestingUrl)),
   );
 }
 
@@ -498,8 +514,8 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     nativeTheme.themeSource = "light";
     protocol.handle(APP_SCHEME, serve);
-    // Nothing in this app asks for a camera, a microphone or a location from
-    // the desktop; only the serial port, allowed per window above.
+    // Refused everywhere until a window is wired up; each window then gets
+    // the short list in allowedPermission().
     session.defaultSession.setPermissionRequestHandler((_wc, _p, done) =>
       done(false),
     );

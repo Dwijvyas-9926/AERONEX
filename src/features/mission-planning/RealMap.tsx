@@ -546,7 +546,16 @@ export default function RealMap(props: RealMapProps) {
     if (!navigator.geolocation) return notify("warn", "This browser cannot tell where it is");
     navigator.geolocation.getCurrentPosition(
       (p) => mapRef.current?.flyTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 16 }),
-      () => notify("warn", "Your location is not available", DESKTOP ? "AERONEX for Windows does not use your location. Type the coordinates in Layers." : "Allow location for this page in the browser, or type the coordinates in Layers."),
+      (err) =>
+        notify(
+          "warn",
+          "Your location is not available",
+          err.code === err.TIMEOUT
+            ? "Finding your position took too long. Try again outdoors or near Wi-Fi, or type the coordinates in Layers."
+            : DESKTOP
+              ? "Windows did not give a position. Turn on Settings, then Privacy & security, then Location: Location services, and Let desktop apps access your location. Or type the coordinates in Layers."
+              : "Allow location for this page in the browser, or type the coordinates in Layers.",
+        ),
       { enableHighAccuracy: true, timeout: 10000 },
     );
   };

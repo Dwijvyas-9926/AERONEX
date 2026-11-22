@@ -18,7 +18,7 @@ import { planSteps, planToMission, useSim } from "../../state/simStore";
 import { inPlanWords, useSentMission } from "../../state/sentMission";
 import { releaseKey, type DeliveryAt } from "../../mission/payload";
 import { armAwayFindings } from "../../mission/armHome";
-import { clockTime } from "../../utils/format";
+import { clockTime, headingText } from "../../utils/format";
 import { fromFrameStudio, fromProfile } from "./airframeSources";
 import { FlightMap, type MapPoint } from "./FlightMap";
 import { ValleyDemo } from "./ValleyDemo";
@@ -700,7 +700,7 @@ function ControlRoom({ onEdit }: { onEdit: () => void }) {
               </div>
               <dl className="world-hud strip">
                 <div><dt>Above ground</dt><dd>{Math.max(0, snap.height - terrain.surface(snap.n, snap.e)).toFixed(1)} m</dd></div>
-                <div><dt>Heading</dt><dd>{String(Math.round((snap.yawDeg + 360) % 360)).padStart(3, "0")}°</dd></div>
+                <div><dt>Heading</dt><dd>{headingText(snap.yawDeg)}°</dd></div>
                 <div><dt>Wind</dt><dd>{wind.windSpeed} m/s</dd></div>
               </dl>
             </div>

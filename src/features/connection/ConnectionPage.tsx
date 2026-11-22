@@ -8,7 +8,7 @@ import { linkManager } from "../../services/link/linkManager";
 import { BAUD_RATES, isPortOpen, useLink, type LinkMethod, type Stamped } from "../../state/linkStore";
 import { confirmAction } from "../../state/notifyStore";
 import { useSettings } from "../../state/settingsStore";
-import { ago, altitude, clockTime, duration, GPS_FIX, RAD, speed } from "../../utils/format";
+import { ago, altitude, clockTime, duration, GPS_FIX, headingText, RAD, speed } from "../../utils/format";
 import { LINK_STATUS, TELEMETRY_STALE_MS } from "./linkStatus";
 import { DESKTOP } from "../../desktop/wording";
 
@@ -315,7 +315,7 @@ function VehiclePanels() {
             </div>
             <div className="readout">
               <dt>Heading</dt>
-              <Value s={pos} now={now} render={(p) => (p.heading == null ? null : `${p.heading.toFixed(0)}°`)} />
+              <Value s={pos} now={now} render={(p) => (p.heading == null ? null : `${headingText(p.heading)}°`)} />
             </div>
             <div className="readout">
               <dt>Altitude above home</dt>

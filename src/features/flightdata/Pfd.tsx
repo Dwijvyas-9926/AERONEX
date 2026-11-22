@@ -5,6 +5,8 @@
   Styled as a glass cockpit instrument on a navy panel: the one place the app goes dark, as an aircraft display does.
 */
 
+import { headingText, signed1 } from "../../utils/format";
+
 export interface PfdProps {
   roll: number; // degrees
   pitch: number; // degrees
@@ -14,6 +16,7 @@ export interface PfdProps {
   altitude: number;
   altUnit: string;
   climb: number; // m/s (+up)
+  climbUnit?: string;
   throttle: number; // 0..100
   stale: boolean;
   hasData: boolean;
@@ -117,11 +120,12 @@ export function Pfd(p: PfdProps) {
 
       {/* ---- tapes ---- */}
       <Tape x={118} w={122} value={p.speed} unit={p.speedUnit} step={5} pxPerUnit={7} side="left" label="SPD" has={p.hasData} />
-      <Tape x={720} w={128} value={p.altitude} unit={p.altUnit} step={5} pxPerUnit={3} side="right" label="ALT" has={p.hasData} />
+      {/* Height is relative to home, so below zero is real: a field lower than the take-off point. */}
+      <Tape x={720} w={128} value={p.altitude} unit={p.altUnit} step={5} pxPerUnit={3} side="right" label="ALT" has={p.hasData} negative />
       <HeadingTape heading={p.heading} has={p.hasData} />
 
       {/* ---- V/S + throttle ---- */}
-      <Corner x={866} y={cy} label="V/S" value={p.hasData ? `${p.climb >= 0 ? "+" : ""}${p.climb.toFixed(1)}` : "—"} align="start" />
+      <Corner x={866} y={cy} label={`V/S · ${p.climbUnit ?? "m/s"}`} value={p.hasData ? signed1(p.climb) : "—"} align="start" />
       <Corner x={94} y={cy} label="THR" value={p.hasData ? `${Math.round(p.throttle)}%` : "—"} align="end" />
 
       {!p.hasData && <text x={cx} y={cy - 90} textAnchor="middle" fill="#f4f2ec" fontSize={16} fontFamily="var(--font-display)">Waiting for telemetry…</text>}
@@ -138,7 +142,13 @@ function Corner({ x, y, label, value, align }: { x: number; y: number; label: st
   );
 }
 
-function Tape({ x, w, value, unit, step, pxPerUnit, side, label, has }: { x: number; w: number; value: number; unit: string; step: number; pxPerUnit: number; side: "left" | "right"; label: string; has: boolean }) {
+/** The number in a tape's box: one decimal where a drone's small values need it. */
+const tapeText = (v: number) => {
+  const r = Math.abs(v) < 100 ? Math.round(v * 10) / 10 : Math.round(v);
+  return (r === 0 ? 0 : r).toFixed(Math.abs(v) < 100 ? 1 : 0);
+};
+
+function Tape({ x, w, value, unit, step, pxPerUnit, side, label, has, negative = false }: { x: number; w: number; value: number; unit: string; step: number; pxPerUnit: number; side: "left" | "right"; label: string; has: boolean; negative?: boolean }) {
   const top = AW.y + 6;
   const h = AW.h - 12;
   const midY = top + h / 2;
@@ -158,7 +168,7 @@ function Tape({ x, w, value, unit, step, pxPerUnit, side, label, has }: { x: num
       <g clipPath={`url(#tape-${label})`}>
         {has && marks.map((m) => {
           const y = midY - (m - value) * pxPerUnit;
-          if (m < 0) return null;
+          if (m < 0 && !negative) return null;
           const major = m % (step * 2) === 0;
           return (
             <g key={m}>
@@ -169,7 +179,7 @@ function Tape({ x, w, value, unit, step, pxPerUnit, side, label, has }: { x: num
         })}
       </g>
       <polygon points={boxPts} fill="#0b1428" stroke="#f4a259" strokeWidth={1.6} />
-      <text x={x + w / 2} y={midY + 7} textAnchor="middle" fontSize={22} fontWeight={600} fill="#f4f2ec" fontFamily="var(--font-display)">{has ? Math.round(value) : "—"}</text>
+      <text x={x + w / 2} y={midY + 7} textAnchor="middle" fontSize={22} fontWeight={600} fill="#f4f2ec" fontFamily="var(--font-display)">{has ? tapeText(value) : "—"}</text>
     </g>
   );
 }
@@ -208,7 +218,7 @@ function HeadingTape({ heading, has }: { heading: number; has: boolean }) {
       </g>
       <polygon points={`${midX},${y + 1} ${midX - 14},${y - 14} ${midX + 14},${y - 14}`} fill="#f4a259" />
       <rect x={midX - 34} y={y - 42} width={68} height={28} rx={5} fill="#0b1428" stroke="#f4a259" strokeWidth={1.6} />
-      <text x={midX} y={y - 22} textAnchor="middle" fontSize={18} fontWeight={600} fill="#f4f2ec" fontFamily="var(--font-display)">{has ? `${Math.round(((heading % 360) + 360) % 360)}°` : "—"}</text>
+      <text x={midX} y={y - 22} textAnchor="middle" fontSize={18} fontWeight={600} fill="#f4f2ec" fontFamily="var(--font-display)">{has ? `${headingText(heading)}°` : "—"}</text>
     </g>
   );
 }

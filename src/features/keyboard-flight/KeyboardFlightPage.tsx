@@ -280,6 +280,9 @@ export function KeyboardFlightPage() {
 
   const phaseLabel: Record<string, string> = { idle: "On ground", arming: "Arming…", takeoff: "Taking off…", flying: "In flight — you have control", landing: "Landing…", emergency: "FAILSAFE" };
   const flying = flight.phase === "flying" || flight.phase === "takeoff";
+  // Armed, but not by this page: taken off from the simulator, or by radio.
+  // "On ground" was shown here while the aircraft hovered at 15 m.
+  const armedElsewhere = flight.phase === "idle" && !!vehicle?.armed;
 
   return (
     <div className="page-pad kf-page">
@@ -308,11 +311,17 @@ export function KeyboardFlightPage() {
           <div className="kf-pfd-well on-navy">
             <Pfd {...pfd} />
           </div>
-          <div className={`kf-phase ${flight.phase}`}>
+          <div className={`kf-phase ${armedElsewhere ? "landing" : flight.phase}`}>
             <span className="kf-phase-dot" />
-            {phaseLabel[flight.phase] ?? flight.phase}
+            {armedElsewhere ? "Armed, not under keyboard control" : (phaseLabel[flight.phase] ?? flight.phase)}
             {flight.relAlt != null && <span className="kf-phase-alt">{flight.relAlt.toFixed(1)} m</span>}
           </div>
+          {armedElsewhere && (
+            <p className="kf-phase-note">
+              Keyboard Flight takes control only from the ground, so the keys do nothing while the aircraft is armed from another page.
+              Land it there, then press T here to take off.
+            </p>
+          )}
         </section>
 
         <section className="panel kf-controls">

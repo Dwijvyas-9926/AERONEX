@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { RAD } from "../../utils/format";
+import { headingText, RAD, signed1 } from "../../utils/format";
 import { livePose } from "./testFlight";
 
 /* Flight HUD for the test-flight modes, updated imperatively from livePose. */
@@ -18,8 +18,8 @@ export function FlightHud({ active }: { active: boolean }) {
       const p = livePose;
       if (spd.current) spd.current.textContent = p.groundSpeed.toFixed(1);
       if (alt.current) alt.current.textContent = p.agl.toFixed(1);
-      if (vs.current) vs.current.textContent = (p.climb >= 0 ? "+" : "") + p.climb.toFixed(1);
-      if (hdg.current) hdg.current.textContent = String(Math.round((((p.yaw * RAD) % 360) + 360) % 360)).padStart(3, "0");
+      if (vs.current) vs.current.textContent = signed1(p.climb);
+      if (hdg.current) hdg.current.textContent = headingText(p.yaw * RAD);
       horizon.current?.setAttribute("transform", `rotate(${-p.roll * RAD}) translate(0 ${p.pitch * RAD * 1.2})`);
       roll.current?.setAttribute("transform", `rotate(${-p.roll * RAD})`);
       raf = requestAnimationFrame(draw);
