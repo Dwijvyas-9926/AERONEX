@@ -111,7 +111,7 @@ jobs:
       - name: Upload the installer for signing
         id: unsigned
         if: steps.version.outputs.publish == 'true' && steps.details.outputs.signing == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: AERONEX-unsigned-installer
           path: to-sign/AERONEX-Setup.exe
@@ -179,7 +179,7 @@ jobs:
             grep -qx "$want" <<<"$assets" || { echo "$want was not uploaded; the release stays a draft."; exit 1; }
           done
           gh release edit "$tag" --repo "${GITHUB_REPOSITORY}" --draft=false --latest
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: AERONEX-Windows-installer
           path: |
